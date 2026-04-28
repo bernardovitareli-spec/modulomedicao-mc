@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, Upload } from "lucide-react";
 import { fmtBRL, fmtDate } from "@/lib/format";
 import { StatusBadge } from "@/components/contrato/ContratoMedicoesTab";
 
@@ -32,7 +32,12 @@ export default function Medicoes() {
       <PageHeader
         title="Medições mensais"
         description="Todas as medições por contrato e competência"
-        actions={<Button onClick={() => navigate("/medicoes/nova")}><Plus className="mr-1 h-4 w-4" />Nova medição</Button>}
+        actions={
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate("/medicoes/importar")}><Upload className="mr-1 h-4 w-4" />Importar planilha</Button>
+            <Button onClick={() => navigate("/medicoes/nova")}><Plus className="mr-1 h-4 w-4" />Nova medição</Button>
+          </div>
+        }
       />
       <Card><CardContent className="p-4">
         <div className="mb-3 flex flex-wrap items-center gap-2">
