@@ -6,16 +6,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Send, CheckCircle2, XCircle, FileDown, Trash2, Ban } from "lucide-react";
+import { ArrowLeft, Send, CheckCircle2, XCircle, FileDown, Trash2, Ban, Eye, Download } from "lucide-react";
 import { fmtBRL, fmtDate, fmtNum, fmtCompetencia } from "@/lib/format";
 import { StatusBadge } from "@/components/contrato/ContratoMedicoesTab";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/lib/permissions";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { toast } from "sonner";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import { gerarBoletimPDF } from "@/lib/boletimPdf";
 import { MedicaoItensEditor } from "@/components/medicao/MedicaoItensEditor";
 import { MedicaoHistoricoTab } from "@/components/medicao/MedicaoHistoricoTab";
 import MedicaoRegrasActions from "@/components/medicao/MedicaoRegrasActions";
@@ -86,22 +86,17 @@ export default function MedicaoDetalhe() {
     toast.success("Aprovação registrada"); load();
   };
 
-  const exportarPDF = () => {
-    const doc = new jsPDF();
-    doc.setFontSize(14); doc.text("Boletim de Medição", 14, 18);
-    doc.setFontSize(10);
-    doc.text(`Cliente: ${med.contratos.clientes.razao_social}`, 14, 26);
-    doc.text(`Contrato: ${med.contratos.numero_dj}`, 14, 32);
-    doc.text(`Competência: ${fmtCompetencia(med.competencia)}`, 14, 38);
-    doc.text(`Período: ${fmtDate(med.periodo_inicio)} a ${fmtDate(med.periodo_fim)}`, 14, 44);
-    autoTable(doc, {
-      startY: 50,
-      head: [["Tag", "Equipamento", "H. Inf.", "H. Líq.", "H. Pagar", "Valor/h", "Valor Final"]],
-      body: itens.map((i) => [i.equipamentos?.tag, `${i.equipamentos?.tipo} ${i.equipamentos?.modelo}`, fmtNum(i.horas_informadas), fmtNum(i.horas_liquidas), fmtNum(i.horas_a_pagar), fmtBRL(i.valor_hora), fmtBRL(i.valor_final)]),
-      foot: [["", "", "", "", fmtNum(med.total_horas_pagar), "TOTAL", fmtBRL(med.valor_final)]],
-      styles: { fontSize: 8 },
-    });
-    doc.save(`boletim-${med.contratos.numero_dj}-${med.competencia.slice(0, 7)}.pdf`);
+  const exportarPDF = async (preview = false) => {
+    if (!id) return;
+    if (med?.status === "cancelada") {
+      toast.error("Não é permitido gerar PDF de medição cancelada.");
+      return;
+    }
+    try {
+      await gerarBoletimPDF(id, { preview });
+    } catch (e: any) {
+      toast.error(e.message ?? "Falha ao gerar PDF");
+    }
   };
 
   if (!med) return <div className="text-sm text-muted-foreground">Carregando...</div>;
@@ -113,7 +108,21 @@ export default function MedicaoDetalhe() {
       <PageHeader title={`Medição ${fmtCompetencia(med.competencia)}`} description={`${med.contratos.numero_dj} — ${med.contratos.clientes.razao_social}`}
         actions={<div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={med.status} />
-          <Button size="sm" variant="outline" onClick={exportarPDF}><FileDown className="mr-1 h-4 w-4" />PDF</Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" disabled={med.status === "cancelada"}>
+                <FileDown className="mr-1 h-4 w-4" />PDF
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => exportarPDF(true)}>
+                <Eye className="mr-2 h-4 w-4" />Visualizar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportarPDF(false)}>
+                <Download className="mr-2 h-4 w-4" />Baixar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <MedicaoRegrasActions medicaoId={med.id} status={med.status} onApplied={load} />
           {perms.canCancelMedicao(med.status) && (
             <Button size="sm" variant="outline" onClick={() => setCancelOpen(true)}>
