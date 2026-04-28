@@ -38,6 +38,9 @@ interface ItemForm {
   valor_descontos: number;
   observacoes: string;
   motivo: string;
+  data_inicio_operacao_item: string;
+  data_fim_operacao_item: string;
+  motivo_proporcionalidade: string;
 }
 
 const empty = (): ItemForm => ({
@@ -53,7 +56,32 @@ const empty = (): ItemForm => ({
   valor_descontos: 0,
   observacoes: "",
   motivo: "",
+  data_inicio_operacao_item: "",
+  data_fim_operacao_item: "",
+  motivo_proporcionalidade: "",
 });
+
+// Calcula garantia proporcional (espelho da função SQL _calc_proporcionalidade_item)
+function calcProporcionalidade(
+  pIni: string, pFim: string,
+  dIni: string | null, dFim: string | null,
+  garantiaMensal: number, baseDias: number,
+) {
+  const periodoIni = pIni;
+  const periodoFim = pFim;
+  const ini = dIni && dIni.length ? dIni : periodoIni;
+  const fim = dFim && dFim.length ? dFim : periodoFim;
+  let erro: string | null = null;
+  if (dFim && dFim < periodoIni) erro = "Data de fim do equipamento anterior ao início da medição.";
+  else if (dIni && dIni > periodoFim) erro = "Data de início do equipamento posterior ao fim da medição.";
+  else if (ini > fim) erro = "Data de início do equipamento maior que a data fim.";
+  const ms = (a: string, b: string) => Math.round((new Date(b + "T00:00:00").getTime() - new Date(a + "T00:00:00").getTime()) / 86400000);
+  const dias = Math.max(0, ms(ini, fim) + 1);
+  const proporcional = ini > periodoIni || fim < periodoFim;
+  const base = baseDias && baseDias > 0 ? baseDias : 30;
+  const garantiaProp = proporcional ? Math.round(((garantiaMensal || 0) / base) * dias * 100) / 100 : (garantiaMensal || 0);
+  return { ini, fim, dias, proporcional, garantiaProp, erro };
+}
 
 export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, periodoFim, competencia, cliente, contratoNumero, onChanged }: Props) {
   const [contratoEqs, setContratoEqs] = useState<any[]>([]);
@@ -71,7 +99,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
         .select("id, equipamento_id, valor_hora_override, horimetro_inicial, equipamentos(tag, tipo, modelo, serie)")
         .eq("contrato_id", contratoId)
         .eq("ativo", true),
-      supabase.from("contratos").select("valor_hora_padrao, garantia_minima_horas").eq("id", contratoId).single(),
+      supabase.from("contratos").select("valor_hora_padrao, garantia_minima_horas, base_dias_garantia").eq("id", contratoId).single(),
       supabase.from("medicao_itens").select("*, equipamentos(tag, tipo, modelo, serie)").eq("medicao_id", medicaoId).order("created_at"),
     ]);
     setContratoEqs(ce.data ?? []);
@@ -84,7 +112,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contratoId, medicaoId]);
 
-  // Cálculos automáticos
+  // Cálculos automáticos (com proporcionalidade)
   const calc = useMemo(() => {
     const ht_calc = Math.max(0, Number(form.horimetro_final) - Number(form.horimetro_inicial));
     const ht_informado = Number(form.horas_informadas_input) || 0;
@@ -92,12 +120,29 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
     const horas_liquidas = Math.max(0, ht_informado - Number(form.horas_mecanicas));
     const ce = contratoEqs.find((x) => x.id === form.contrato_equipamento_id);
     const valor_hora = Number(ce?.valor_hora_override ?? contrato?.valor_hora_padrao ?? 0);
-    const garantia = Number(contrato?.garantia_minima_horas ?? 0);
-    const horas_a_pagar = Math.max(horas_liquidas, garantia);
+    const garantia_mensal = Number(contrato?.garantia_minima_horas ?? 0);
+    const base_dias = Number(contrato?.base_dias_garantia ?? 30);
+    const prop = calcProporcionalidade(
+      periodoInicio, periodoFim,
+      form.data_inicio_operacao_item || null,
+      form.data_fim_operacao_item || null,
+      garantia_mensal, base_dias,
+    );
+    const garantia_efetiva = prop.proporcional ? prop.garantiaProp : garantia_mensal;
+    const horas_a_pagar = Math.max(horas_liquidas, garantia_efetiva);
     const valor_bruto = horas_a_pagar * valor_hora;
     const valor_final = valor_bruto + Number(form.valor_complementares) - Number(form.valor_descontos);
-    return { ht_calc, ht_informado, divergencia_ht, horas_liquidas, horas_a_pagar, valor_hora, valor_bruto, valor_final, garantia };
-  }, [form, contratoEqs, contrato]);
+    return {
+      ht_calc, ht_informado, divergencia_ht, horas_liquidas, horas_a_pagar,
+      valor_hora, valor_bruto, valor_final,
+      garantia: garantia_efetiva, garantia_mensal,
+      garantia_proporcional: prop.garantiaProp,
+      dias_considerados: prop.dias,
+      aplicar_proporcional: prop.proporcional,
+      erro_data: prop.erro,
+      base_dias,
+    };
+  }, [form, contratoEqs, contrato, periodoInicio, periodoFim]);
 
   const recalcTotais = async () => {
     const { data } = await supabase.from("medicao_itens").select("horas_informadas, horas_liquidas, horas_a_pagar, valor_bruto, valor_complementares, valor_descontos, valor_final").eq("medicao_id", medicaoId);
@@ -129,6 +174,9 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
       valor_descontos: Number(it.valor_descontos ?? 0),
       observacoes: it.observacoes ?? "",
       motivo: "",
+      data_inicio_operacao_item: it.data_inicio_operacao_item ?? "",
+      data_fim_operacao_item: it.data_fim_operacao_item ?? "",
+      motivo_proporcionalidade: it.motivo_proporcionalidade ?? "",
     });
     setOpen(true);
   };
@@ -149,12 +197,12 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
     if (Number(form.horimetro_final) < Number(form.horimetro_inicial)) return toast.error("Horímetro final deve ser ≥ inicial");
     if (Number(form.horas_informadas_input) < 0) return toast.error("HT informado não pode ser negativo");
     if (Number(form.horas_mecanicas) < 0) return toast.error("Horas mecânicas não pode ser negativa");
+    if (calc.erro_data) return toast.error(calc.erro_data);
     if (calc.valor_final < 0) return toast.error("Valor final não pode ser negativo");
 
     setSaving(true);
     try {
       if (form.id) {
-        // Edição via RPC com motivo obrigatório e log automático
         if (!form.motivo || form.motivo.trim().length < 5) {
           setSaving(false);
           return toast.error("Informe o motivo da alteração (mínimo 5 caracteres)");
@@ -171,10 +219,12 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
           _valor_complementares: form.valor_complementares,
           _valor_descontos: form.valor_descontos,
           _observacoes: form.observacoes || "",
-        });
+          _data_inicio_operacao_item: form.data_inicio_operacao_item || null,
+          _data_fim_operacao_item: form.data_fim_operacao_item || null,
+          _motivo_proporcionalidade: form.motivo_proporcionalidade || null,
+        } as any);
         if (error) { setSaving(false); return toast.error(error.message); }
       } else {
-        // Inserção direta (sem log de campos — é criação inicial)
         const payload: any = {
           medicao_id: medicaoId,
           contrato_equipamento_id: form.contrato_equipamento_id,
@@ -190,6 +240,13 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
           horas_descontaveis: form.horas_mecanicas,
           horas_liquidas: calc.horas_liquidas,
           garantia_minima: calc.garantia,
+          garantia_mensal_horas: calc.garantia_mensal,
+          garantia_proporcional_horas: calc.garantia_proporcional,
+          aplicar_garantia_proporcional: calc.aplicar_proporcional,
+          dias_considerados: calc.dias_considerados,
+          data_inicio_operacao_item: form.data_inicio_operacao_item || null,
+          data_fim_operacao_item: form.data_fim_operacao_item || null,
+          motivo_proporcionalidade: form.motivo_proporcionalidade || null,
           horas_a_pagar: calc.horas_a_pagar,
           valor_hora: calc.valor_hora,
           valor_bruto: calc.valor_bruto,
@@ -267,6 +324,9 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                 <TableHead className="text-right whitespace-nowrap">HT Inf.</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Diverg. HT</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Garantia</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Garant. Prop.</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Dias Cons.</TableHead>
+                <TableHead className="text-center whitespace-nowrap">Proporc.</TableHead>
                 <TableHead className="text-right whitespace-nowrap">H. Mec.</TableHead>
                 <TableHead className="text-right whitespace-nowrap">H. Líq.</TableHead>
                 <TableHead className="text-right whitespace-nowrap font-semibold">Horas a pagar</TableHead>
@@ -281,7 +341,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
               </TableRow>
             </TableHeader>
             <TableBody>
-              {itens.length === 0 && <TableRow><TableCell colSpan={21} className="text-center py-6 text-sm text-muted-foreground">Nenhum item. Clique em "Adicionar item".</TableCell></TableRow>}
+              {itens.length === 0 && <TableRow><TableCell colSpan={24} className="text-center py-6 text-sm text-muted-foreground">Nenhum item. Clique em "Adicionar item".</TableCell></TableRow>}
               {itens.map((i) => {
                 const htCalc = Math.max(0, Number(i.horimetro_final ?? 0) - Number(i.horimetro_inicial ?? 0));
                 const diverg = Number(i.horas_informadas ?? 0) - htCalc;
@@ -297,6 +357,9 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                     <TableCell className="text-right num">{fmtNum(i.horas_informadas)}</TableCell>
                     <TableCell className={`text-right num ${Math.abs(diverg) > 0.01 ? "text-destructive" : ""}`}>{fmtNum(diverg)}</TableCell>
                     <TableCell className="text-right num">{fmtNum(i.garantia_minima)}</TableCell>
+                    <TableCell className="text-right num">{i.aplicar_garantia_proporcional ? fmtNum(i.garantia_proporcional_horas) : "-"}</TableCell>
+                    <TableCell className="text-right num">{i.dias_considerados ?? "-"}</TableCell>
+                    <TableCell className="text-center text-xs">{i.aplicar_garantia_proporcional ? <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-amber-700 dark:text-amber-400">Sim</span> : <span className="text-muted-foreground">Não</span>}</TableCell>
                     <TableCell className="text-right num">{fmtNum(i.horas_mecanicas)}</TableCell>
                     <TableCell className="text-right num">{fmtNum(i.horas_liquidas)}</TableCell>
                     <TableCell className="text-right num font-semibold">{fmtNum(i.horas_a_pagar)}</TableCell>
@@ -390,6 +453,45 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                 </div>
               </section>
 
+              <section>
+                <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Período efetivo do equipamento (proporcionalidade)</h4>
+                <div className="rounded-md border bg-muted/20 p-3 space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    Período da medição: <strong>{periodoInicio}</strong> a <strong>{periodoFim}</strong>. Se o equipamento foi mobilizado/desmobilizado dentro do período, informe as datas para aplicar garantia proporcional. Em branco, considera o período inteiro.
+                  </p>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div>
+                      <Label>Data início operação</Label>
+                      <Input type="date" value={form.data_inicio_operacao_item} onChange={(e) => setForm({ ...form, data_inicio_operacao_item: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label>Data fim operação / desmobilização</Label>
+                      <Input type="date" value={form.data_fim_operacao_item} onChange={(e) => setForm({ ...form, data_fim_operacao_item: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-4 text-xs">
+                    <div><span className="text-muted-foreground">Dias considerados:</span> <strong>{calc.dias_considerados}</strong></div>
+                    <div><span className="text-muted-foreground">Garantia mensal:</span> <strong>{fmtNum(calc.garantia_mensal)}h</strong></div>
+                    <div><span className="text-muted-foreground">Base de dias:</span> <strong>{calc.base_dias}</strong></div>
+                    <div><span className="text-muted-foreground">Garantia proporcional:</span> <strong className={calc.aplicar_proporcional ? "text-amber-600" : ""}>{fmtNum(calc.garantia_proporcional)}h</strong></div>
+                  </div>
+                  {calc.aplicar_proporcional && (
+                    <div>
+                      <Label>Motivo da proporcionalidade</Label>
+                      <Textarea rows={2} placeholder="Ex.: equipamento desmobilizado em 28/03/2026"
+                        value={form.motivo_proporcionalidade}
+                        onChange={(e) => setForm({ ...form, motivo_proporcionalidade: e.target.value })} />
+                    </div>
+                  )}
+                  {calc.erro_data && (
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>{calc.erro_data}</AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              </section>
+
               {Math.abs(calc.divergencia_ht) > 0.01 && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
@@ -405,8 +507,8 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                   <FieldRO label="HT calculado" value={fmtNum(calc.ht_calc)} hint="final − inicial" />
                   <FieldRO label="Divergência HT" value={fmtNum(calc.divergencia_ht)} hint="informado − calculado" accent={Math.abs(calc.divergencia_ht) > 0.01} />
                   <FieldRO label="Horas líquidas" value={fmtNum(calc.horas_liquidas)} hint="HT inf. − mecânicas" />
-                  <FieldRO label="Garantia contratual" value={fmtNum(calc.garantia)} />
-                  <FieldRO label="Horas a pagar" value={fmtNum(calc.horas_a_pagar)} hint="máx(líq, garantia)" />
+                  <FieldRO label={calc.aplicar_proporcional ? "Garantia (proporcional)" : "Garantia contratual"} value={fmtNum(calc.garantia)} hint={calc.aplicar_proporcional ? `${fmtNum(calc.garantia_mensal)}h ÷ ${calc.base_dias} × ${calc.dias_considerados} dias` : undefined} accent={calc.aplicar_proporcional} />
+                  <FieldRO label="Horas a pagar" value={fmtNum(calc.horas_a_pagar)} hint="máx(líq, garantia efetiva)" />
                   <FieldRO label="Valor/hora" value={fmtBRL(calc.valor_hora)} />
                   <div className="md:col-span-3">
                     <FieldRO label="Valor final" value={fmtBRL(calc.valor_final)} hint={`${fmtNum(calc.horas_a_pagar)}h × ${fmtBRL(calc.valor_hora)} + compl. − desc.`} accent />
@@ -432,7 +534,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
-              <Button onClick={salvar} disabled={saving || (!!form.id && form.motivo.trim().length < 5)}>Salvar item</Button>
+              <Button onClick={salvar} disabled={saving || !!calc.erro_data || (!!form.id && form.motivo.trim().length < 5)}>Salvar item</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
