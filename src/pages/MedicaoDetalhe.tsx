@@ -154,31 +154,51 @@ export default function MedicaoDetalhe() {
         <Kpi l="Valor final" v={fmtBRL(med.valor_final)} accent />
       </div>
 
-      <MedicaoItensEditor
-        medicaoId={med.id}
-        contratoId={med.contrato_id}
-        periodoInicio={med.periodo_inicio}
-        periodoFim={med.periodo_fim}
-        competencia={med.competencia}
-        cliente={med.contratos?.clientes?.razao_social}
-        contratoNumero={med.contratos?.numero_dj}
-        onChanged={load}
-      />
+      <Tabs defaultValue="itens" className="mt-2">
+        <TabsList>
+          <TabsTrigger value="itens">Itens</TabsTrigger>
+          <TabsTrigger value="historico">Histórico de alterações</TabsTrigger>
+          <TabsTrigger value="aprovacoes">Aprovações</TabsTrigger>
+        </TabsList>
 
-      {aprovs.length > 0 && <Card className="mt-4"><CardContent className="p-4">
-        <h3 className="mb-3 text-sm font-semibold">Histórico de aprovações</h3>
-        <div className="space-y-2">
-          {aprovs.map((a) => (
-            <div key={a.id} className="flex items-start gap-3 rounded border p-3 text-sm">
-              <div className="flex-1">
-                <p className="font-medium">{a.etapa === "revisao_tecnica" ? "Revisão técnica" : "Aprovação gerencial"} — <span className={a.resultado === "aprovado" ? "text-success" : "text-destructive"}>{a.resultado}</span></p>
-                {a.comentario && <p className="text-muted-foreground">{a.comentario}</p>}
-                <p className="text-xs text-muted-foreground mt-1 num">{fmtDate(a.created_at)}</p>
+        <TabsContent value="itens" className="mt-4">
+          <MedicaoItensEditor
+            medicaoId={med.id}
+            contratoId={med.contrato_id}
+            periodoInicio={med.periodo_inicio}
+            periodoFim={med.periodo_fim}
+            competencia={med.competencia}
+            cliente={med.contratos?.clientes?.razao_social}
+            contratoNumero={med.contratos?.numero_dj}
+            onChanged={load}
+          />
+        </TabsContent>
+
+        <TabsContent value="historico" className="mt-4">
+          <MedicaoHistoricoTab medicaoId={med.id} />
+        </TabsContent>
+
+        <TabsContent value="aprovacoes" className="mt-4">
+          <Card><CardContent className="p-4">
+            <h3 className="mb-3 text-sm font-semibold">Histórico de aprovações</h3>
+            {aprovs.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma aprovação registrada.</p>
+            ) : (
+              <div className="space-y-2">
+                {aprovs.map((a) => (
+                  <div key={a.id} className="flex items-start gap-3 rounded border p-3 text-sm">
+                    <div className="flex-1">
+                      <p className="font-medium">{a.etapa === "revisao_tecnica" ? "Revisão técnica" : "Aprovação gerencial"} — <span className={a.resultado === "aprovado" ? "text-success" : "text-destructive"}>{a.resultado}</span></p>
+                      {a.comentario && <p className="text-muted-foreground">{a.comentario}</p>}
+                      <p className="text-xs text-muted-foreground mt-1 num">{fmtDate(a.created_at)}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          ))}
-        </div>
-      </CardContent></Card>}
+            )}
+          </CardContent></Card>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={dlg.open} onOpenChange={(o) => setDlg({ ...dlg, open: o })}>
         <DialogContent>
