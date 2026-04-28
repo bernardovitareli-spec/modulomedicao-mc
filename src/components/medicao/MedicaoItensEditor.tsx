@@ -250,6 +250,9 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
           </div>
         </div>
 
+        <p className="mb-2 text-xs text-muted-foreground">
+          As colunas <strong>Série</strong>, <strong>Tag</strong>, <strong>Tipo Equipamento</strong> e <strong>Modelo</strong> ficam fixas. Role horizontalmente para ver os demais campos →
+        </p>
         <div className="relative w-full overflow-x-auto overflow-y-visible border rounded-md scrollbar-thin">
           <Table className="min-w-max text-sm">
             <TableHeader>
@@ -257,7 +260,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                 <TableHead className="sticky left-0 z-20 bg-background border-r min-w-[110px]">Série</TableHead>
                 <TableHead className="sticky left-[110px] z-20 bg-background border-r min-w-[90px]">Tag</TableHead>
                 <TableHead className="sticky left-[200px] z-20 bg-background border-r min-w-[170px] whitespace-nowrap">Tipo Equipamento</TableHead>
-                <TableHead className="sticky left-[370px] z-20 bg-background border-r min-w-[150px] whitespace-nowrap">Modelo</TableHead>
+                <TableHead className="sticky left-[370px] z-20 bg-background border-r-2 border-r-border shadow-[2px_0_4px_-2px_rgba(0,0,0,0.15)] min-w-[150px] whitespace-nowrap">Modelo</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Horím. Ini.</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Horím. Fin.</TableHead>
                 <TableHead className="text-right whitespace-nowrap">HT Calc.</TableHead>
