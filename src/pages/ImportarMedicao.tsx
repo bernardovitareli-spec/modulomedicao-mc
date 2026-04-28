@@ -34,7 +34,7 @@ const COLUMN_ALIASES: Record<string, string[]> = {
   contratado: ["contratado", "contratante", "cliente", "razao social"],
   cnpj: ["cnpj"],
   tipo_servico: ["tipo servico", "servico"],
-  tipo_equip: ["tipo equipamento", "tipo equip", "tipo equip", "tipo"],
+  tipo_equip: ["tipo equipamento", "tipo equip", "tipo de equipamento", "tipoequip"],
   modelo: ["modelo"],
   serie: ["serie", "n serie", "numero serie"],
   tag: ["tag", "patrimonio"],
