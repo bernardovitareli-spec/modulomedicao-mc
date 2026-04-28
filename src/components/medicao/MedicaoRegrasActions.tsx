@@ -107,12 +107,17 @@ export default function MedicaoRegrasActions({ medicaoId, status, onApplied }: P
             </Alert>
           )}
 
-          {/* Estatísticas */}
+          {/* Estatísticas de regras */}
           <div className="grid gap-2 md:grid-cols-4">
             <MiniStat label="Regras encontradas" value={String(stats.total_regras ?? 0)} />
-            <MiniStat label="Regras aplicáveis ao período" value={String(stats.regras_aplicaveis ?? 0)} />
+            <MiniStat label="Aplicáveis ao período" value={String(stats.regras_aplicaveis ?? 0)} />
             <MiniStat label="Equipamentos afetados" value={String(stats.equipamentos_afetados ?? 0)} highlight />
             <MiniStat label="Equipamentos não afetados" value={String(stats.equipamentos_nao_afetados ?? 0)} />
+          </div>
+          <div className="grid gap-2 md:grid-cols-3">
+            <MiniStat label="Regras gerais" value={String(stats.regras_gerais ?? 0)} />
+            <MiniStat label="Por tipo de equipamento" value={String(stats.regras_por_tipo ?? 0)} />
+            <MiniStat label="Por equipamento específico" value={String(stats.regras_por_equipamento ?? 0)} />
           </div>
 
           {/* Totais */}
@@ -122,15 +127,20 @@ export default function MedicaoRegrasActions({ medicaoId, status, onApplied }: P
             <Stat label="Diferença" value={fmtBRL(diff)} highlight={Math.abs(diff) > 0.01} />
           </div>
 
-          {/* Alertas de regras específicas sem equipamento */}
+          {/* Alertas */}
           {alertas.length > 0 && (
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription className="text-xs space-y-1">
                 {alertas.map((a, i) => (
                   <div key={i}>
-                    <strong>{labelTipo(a.regra_tipo)}</strong> — equipamento{" "}
-                    <span className="font-mono">{a.equipamento_serie ?? "?"} / {a.equipamento_tag ?? "?"}</span>: {a.mensagem}
+                    <strong>{labelTipo(a.regra_tipo)}</strong>{" "}
+                    {a.tipo === "regra_sem_equipamento" && (
+                      <>— equipamento <span className="font-mono">{a.equipamento_serie ?? "?"} / {a.equipamento_tag ?? "?"}</span>: {a.mensagem}</>
+                    )}
+                    {a.tipo === "regra_sem_tipo" && (
+                      <>— tipo <span className="font-mono">{a.tipo_equipamento ?? "?"}</span>: {a.mensagem}</>
+                    )}
                   </div>
                 ))}
               </AlertDescription>
@@ -142,7 +152,7 @@ export default function MedicaoRegrasActions({ medicaoId, status, onApplied }: P
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription className="text-xs">
                 Uma regra específica de equipamento está afetando <strong>mais de um equipamento</strong>.
-                Verifique a tabela abaixo. Marque a confirmação para liberar a aplicação.
+                Marque a confirmação para liberar a aplicação.
               </AlertDescription>
             </Alert>
           )}
@@ -161,6 +171,12 @@ export default function MedicaoRegrasActions({ medicaoId, status, onApplied }: P
                 {itens.map((it: any) => {
                   const d = Number(it.diferenca ?? 0);
                   const regras: any[] = it.regras_aplicadas ?? [];
+                  const escopoLabel = (r: any) =>
+                    r.origem === "equipamento" ? "Equipamento específico"
+                    : r.origem === "tipo_equipamento" ? `Tipo — ${r.tipo_equipamento ?? ""}`
+                    : "Geral do contrato";
+                  const badgeVariant = (origem: string) =>
+                    origem === "equipamento" ? "default" : origem === "tipo_equipamento" ? "outline" : "secondary";
                   return (
                     <TableRow key={it.item_id}>
                       <TableCell className="text-xs">{eqLabel(it)}</TableCell>
@@ -168,12 +184,13 @@ export default function MedicaoRegrasActions({ medicaoId, status, onApplied }: P
                       <TableCell className="text-right num font-medium">{fmtBRL(it.valor_recalculado)}</TableCell>
                       <TableCell className={`text-right num ${Math.abs(d) > 0.01 ? "text-primary font-semibold" : "text-muted-foreground"}`}>{fmtBRL(d)}</TableCell>
                       <TableCell>
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-col gap-1">
                           {regras.length === 0 && <span className="text-xs text-muted-foreground">— sem regra aplicada —</span>}
                           {regras.map((r: any, j: number) => (
-                            <Badge key={j} variant={r.origem === "equipamento" ? "default" : "secondary"} className="text-[10px]">
-                              {labelTipo(r.tipo)}{r.origem === "equipamento" ? " ⚙" : ""}
-                            </Badge>
+                            <div key={j} className="flex flex-wrap items-center gap-1">
+                              <Badge variant={badgeVariant(r.origem) as any} className="text-[10px]">{labelTipo(r.tipo)}</Badge>
+                              <span className="text-[10px] text-muted-foreground">{escopoLabel(r)}</span>
+                            </div>
                           ))}
                         </div>
                       </TableCell>
