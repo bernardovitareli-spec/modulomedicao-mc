@@ -184,6 +184,25 @@ export default function MedicaoDetalhe() {
           <DialogFooter><Button variant="outline" onClick={() => setDlg({ ...dlg, open: false })}>Cancelar</Button><Button onClick={registrar}>Confirmar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmDialog
+        open={delOpen}
+        onOpenChange={setDelOpen}
+        title="Excluir medição"
+        message="Tem certeza que deseja excluir esta medição? Esta ação removerá todos os itens da medição e não poderá ser desfeita."
+        confirmWord="EXCLUIR"
+        loading={busy}
+        onConfirm={onDelete}
+      />
+      <DeleteConfirmDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        title="Cancelar medição"
+        message="Cancelar mantém o histórico e marca o status como 'cancelada'. Informe o motivo."
+        confirmWord="CANCELAR"
+        loading={busy}
+        onConfirm={onCancel}
+      />
     </div>
   );
 }
