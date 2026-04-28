@@ -126,7 +126,7 @@ export default function ContratoRegras() {
                     <TableCell>
                       {!r.ativa
                         ? <Badge variant="secondary">inativa</Badge>
-                        : vigente ? <Badge>vigente</Badge> : <Badge variant="outline">fora vigência</Badge>}
+                        : vigente ? <Badge>Vigente hoje</Badge> : <Badge variant="outline">Fora da vigência hoje</Badge>}
                     </TableCell>
                     <TableCell>
                       <Button asChild size="icon" variant="ghost" title="Abrir contrato">
