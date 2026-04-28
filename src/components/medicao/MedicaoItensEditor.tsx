@@ -411,69 +411,6 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
             </DialogFooter>
           </DialogContent>
         </Dialog>
-
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>{form.id ? "Editar item" : "Novo item de medição"}</DialogTitle></DialogHeader>
-
-            <div className="space-y-4">
-              <div>
-                <Label>Equipamento *</Label>
-                <Select value={form.contrato_equipamento_id} onValueChange={onSelectEq} disabled={!!form.id}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {(form.id ? contratoEqs : eqOptions).map((ce) => (
-                      <SelectItem key={ce.id} value={ce.id}>
-                        {ce.equipamentos?.tag} — {ce.equipamentos?.tipo} {ce.equipamentos?.modelo}
-                        {ce.equipamentos?.serie ? ` (S/N ${ce.equipamentos.serie})` : ""}
-                      </SelectItem>
-                    ))}
-                    {!form.id && eqOptions.length === 0 && <div className="px-2 py-2 text-xs text-muted-foreground">Todos os equipamentos do contrato já foram adicionados.</div>}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <Field label="Horímetro inicial" value={form.horimetro_inicial} onChange={(v) => setForm({ ...form, horimetro_inicial: v })} />
-                <Field label="Horímetro final" value={form.horimetro_final} onChange={(v) => setForm({ ...form, horimetro_final: v })} />
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-3">
-                <FieldRO label="HT calculado" value={fmtNum(calc.ht_calc)} hint="final − inicial" />
-                <Field label="HT informado (boletim)" value={form.horas_informadas_input} onChange={(v) => setForm({ ...form, horas_informadas_input: v })} />
-                <FieldRO label="Divergência HT" value={fmtNum(calc.divergencia_ht)} hint="informado − calculado" accent={Math.abs(calc.divergencia_ht) > 0.01} />
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-3">
-                <Field label="Horas mecânicas" value={form.horas_mecanicas} onChange={(v) => setForm({ ...form, horas_mecanicas: v })} />
-                <Field label="Período chuvoso (h)" value={form.horas_chuvoso} onChange={(v) => setForm({ ...form, horas_chuvoso: v })} />
-                <Field label="Exceção chuvoso (h)" value={form.horas_excecao_chuvoso} onChange={(v) => setForm({ ...form, horas_excecao_chuvoso: v })} />
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <Field label="Complementares (R$)" value={form.valor_complementares} onChange={(v) => setForm({ ...form, valor_complementares: v })} />
-                <Field label="Descontos (R$)" value={form.valor_descontos} onChange={(v) => setForm({ ...form, valor_descontos: v })} />
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-4 rounded-md border bg-muted/30 p-3">
-                <FieldRO label="Horas líquidas" value={fmtNum(calc.horas_liquidas)} hint="HT inf. − mecânicas" />
-                <FieldRO label="Garantia mínima" value={fmtNum(calc.garantia)} />
-                <FieldRO label="Horas a pagar" value={fmtNum(calc.horas_a_pagar)} hint="máx(líq, garantia)" />
-                <FieldRO label="Valor final" value={fmtBRL(calc.valor_final)} hint={`${fmtNum(calc.horas_a_pagar)}h × ${fmtBRL(calc.valor_hora)}`} accent />
-              </div>
-
-              <div>
-                <Label>Observações</Label>
-                <Textarea rows={2} value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-              <Button onClick={salvar} disabled={saving}>Salvar item</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </CardContent>
     </Card>
   );
