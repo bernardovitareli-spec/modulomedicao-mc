@@ -167,7 +167,7 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
   doc.setTextColor(30, 41, 59);
-  doc.text("MedControl", marginX, y);
+  doc.text("Módulo de Medição - MC Terraplenagem", marginX, y);
   doc.setFontSize(11);
   doc.setTextColor(100, 116, 139);
   doc.text(`Boletim de Medição${modo === "cliente" ? " — Versão Cliente" : ""}`, marginX, y + 5.5);
@@ -581,7 +581,7 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     doc.setFontSize(7);
     doc.setTextColor(100, 116, 139);
     doc.setFont("helvetica", "normal");
-    doc.text(`Documento gerado automaticamente pelo MedControl${modo === "cliente" ? " - Versão Cliente" : ""}`, 10, curH - 7);
+    doc.text(`Documento gerado automaticamente pelo Módulo de Medição - MC Terraplenagem${modo === "cliente" ? " - Versão Cliente" : ""}`, 10, curH - 7);
     doc.text(geradoEm, curW / 2, curH - 7, { align: "center" });
     doc.text(`Página ${p} de ${total}`, curW - 10, curH - 7, { align: "right" });
     doc.setTextColor(0, 0, 0);

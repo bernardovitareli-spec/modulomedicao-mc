@@ -23,7 +23,7 @@ export default function AppLayout() {
           <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur">
             <SidebarTrigger />
             <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="hidden sm:inline">Sistema de Controle de Medições Mensais</span>
+              <span className="hidden sm:inline">Módulo de Medição - MC Terraplenagem</span>
             </div>
           </header>
           <main className="flex-1 overflow-x-hidden p-4 md:p-6">

@@ -69,7 +69,7 @@ export default function Auth() {
             <HardHat className="h-7 w-7" />
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-bold">MedControl</h1>
+            <h1 className="text-2xl font-bold">Módulo de Medição - MC Terraplenagem</h1>
             <p className="text-sm opacity-80">Gestão de medições mensais</p>
           </div>
         </div>
