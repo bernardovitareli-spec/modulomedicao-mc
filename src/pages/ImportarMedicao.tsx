@@ -562,6 +562,7 @@ export default function ImportarMedicao() {
     const djs = Array.from(new Set(validas.map((l) => l.numero_dj)));
     for (const dj of djs) {
       const o = overrides[dj] ?? {};
+      if (!o.cliente_id) m1Pendencias.push(`Contrato ${dj}: selecione o Cliente/Contratante`);
       if (!o.tipo_servico) m1Pendencias.push(`Contrato ${dj}: tipo de serviço obrigatório`);
       if (!o.periodo_inicio) m1Pendencias.push(`Contrato ${dj}: período início obrigatório`);
       if (!o.periodo_fim) m1Pendencias.push(`Contrato ${dj}: período fim obrigatório`);
