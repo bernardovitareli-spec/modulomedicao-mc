@@ -142,7 +142,11 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
 
   const salvar = async () => {
     if (!form.contrato_equipamento_id) return toast.error("Selecione o equipamento");
+    if (Number(form.horimetro_inicial) < 0) return toast.error("Horímetro inicial não pode ser negativo");
     if (Number(form.horimetro_final) < Number(form.horimetro_inicial)) return toast.error("Horímetro final deve ser ≥ inicial");
+    if (Number(form.horas_informadas_input) < 0) return toast.error("HT informado não pode ser negativo");
+    if (Number(form.horas_mecanicas) < 0) return toast.error("Horas mecânicas não pode ser negativa");
+    if (calc.valor_final < 0) return toast.error("Valor final não pode ser negativo");
     setSaving(true);
     const payload: any = {
       medicao_id: medicaoId,
@@ -176,7 +180,41 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
     await load();
     await recalcTotais();
     onChanged?.();
-    toast.success("Item salvo");
+    toast.success("Item salvo e totais atualizados");
+  };
+
+  const recalcularMedicao = async () => {
+    if (!confirm("Recalcular todos os itens da medição com base nas regras atuais do contrato?")) return;
+    setSaving(true);
+    try {
+      const { data: its } = await supabase
+        .from("medicao_itens")
+        .select("*")
+        .eq("medicao_id", medicaoId);
+      const valorHoraPadrao = Number(contrato?.valor_hora_padrao ?? 0);
+      const garantia = Number(contrato?.garantia_minima_horas ?? 0);
+      for (const it of its ?? []) {
+        const ce = contratoEqs.find((x) => x.id === it.contrato_equipamento_id);
+        const valor_hora = Number(ce?.valor_hora_override ?? valorHoraPadrao);
+        const ht_informado = Number(it.horas_informadas ?? 0);
+        const horas_liquidas = Math.max(0, ht_informado - Number(it.horas_mecanicas ?? 0));
+        const horas_a_pagar = Math.max(horas_liquidas, garantia);
+        const valor_bruto = horas_a_pagar * valor_hora;
+        const valor_final = valor_bruto + Number(it.valor_complementares ?? 0) - Number(it.valor_descontos ?? 0);
+        await supabase.from("medicao_itens").update({
+          horas_liquidas, garantia_minima: garantia, horas_a_pagar,
+          valor_hora, valor_bruto, valor_final,
+        }).eq("id", it.id);
+      }
+      await load();
+      await recalcTotais();
+      onChanged?.();
+      toast.success("Medição recalculada");
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro ao recalcular");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const excluir = async (id: string) => {
