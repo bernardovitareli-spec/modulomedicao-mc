@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { fmtBRL, fmtCompetencia } from "@/lib/format";
+import { fmtBRL, fmtCompetencia, fmtDate } from "@/lib/format";
 import { calcularItem } from "@/lib/calculo";
 
 const SHEET_MODELO_1 = "BASE DE DADOS";
@@ -60,8 +60,27 @@ const COLUMN_ALIASES: Record<string, string[]> = {
 
 // Modelo 1 (BASE DE DADOS) requer mes_ref e desc_manutencao
 const REQUIRED_M1 = ["mes_ref", "numero_dj", "contratado", "serie", "tag", "valor_hora"];
-// Modelo 2 (Template Medição) usa periodo_fim no lugar de mes_ref
-const REQUIRED_M2 = ["numero_dj", "contratado", "serie", "tag", "valor_hora", "periodo_fim"];
+// Modelo 2 (Template Medição) possui layout fixo A:W; não pode depender de aliases soltos.
+const REQUIRED_M2 = ["contratado", "cnpj", "numero_dj", "tipo_servico", "centro_custo", "periodo_inicio", "periodo_fim", "tipo_equip", "modelo", "serie", "tag", "hor_inicial", "hor_final", "ht_informado", "garantia", "periodo_chuvoso", "excecao_chuvoso", "horas_mec", "valor_hora", "complementares", "observacoes", "inicio_op", "termino_contrato"];
+
+const M2_FIXED_COL_MAP: Record<string, number> = {
+  contratado: 0, cnpj: 1, numero_dj: 2, tipo_servico: 3, centro_custo: 4,
+  periodo_inicio: 5, periodo_fim: 6, tipo_equip: 7, modelo: 8, serie: 9, tag: 10,
+  hor_inicial: 11, hor_final: 12, ht_informado: 13, garantia: 14,
+  periodo_chuvoso: 15, excecao_chuvoso: 16, horas_mec: 17, valor_hora: 18,
+  complementares: 19, observacoes: 20, inicio_op: 21, termino_contrato: 22,
+};
+
+const M2_EXPECTED_HEADERS: Record<string, string[]> = {
+  contratado: ["contratante"], cnpj: ["cnpj"], numero_dj: ["n dj", "no dj", "numero dj"],
+  tipo_servico: ["tipo servico"], centro_custo: ["centro custo"], periodo_inicio: ["periodo inicio"],
+  periodo_fim: ["periodo fim"], tipo_equip: ["tipo equip"], modelo: ["modelo"], serie: ["serie"], tag: ["tag"],
+  hor_inicial: ["h inicial"], hor_final: ["h final"], ht_informado: ["ht informado"],
+  garantia: ["garantia contratual"], periodo_chuvoso: ["periodo chuvoso s n", "periodo chuvoso"],
+  excecao_chuvoso: ["excecao chuvoso s n", "excecao chuvoso"], horas_mec: ["h mecanicas"],
+  valor_hora: ["valor hora"], complementares: ["complementares"], observacoes: ["observacoes"],
+  inicio_op: ["inicio operacao"], termino_contrato: ["termino contrato"],
+};
 
 // ---------- Parsers ----------
 const num = (v: any): number => {
@@ -161,6 +180,24 @@ function detectHeader(matrix: any[][], required: string[], maxRows = 30): Header
   return best;
 }
 
+function detectHeaderM2(matrix: any[][], maxRows = 5): HeaderInfo {
+  const maxScan = Math.min(matrix.length, maxRows);
+  let best: HeaderInfo = { rowIndex: -1, colMap: { ...M2_FIXED_COL_MAP }, missingRequired: REQUIRED_M2.slice() };
+  for (let i = 0; i < maxScan; i++) {
+    const row = matrix[i] ?? [];
+    const missing = REQUIRED_M2.filter((field) => {
+      const col = M2_FIXED_COL_MAP[field];
+      const cell = normalize(row[col]);
+      return !(M2_EXPECTED_HEADERS[field] ?? []).some((h) => cell === h || cell.startsWith(h + " "));
+    });
+    if (missing.length < best.missingRequired.length) {
+      best = { rowIndex: i, colMap: { ...M2_FIXED_COL_MAP }, missingRequired: missing };
+      if (missing.length === 0) return best;
+    }
+  }
+  return best;
+}
+
 // ---------- Modelo ----------
 type ModeloLayout = "M1" | "M2";
 
@@ -252,9 +289,9 @@ export default function ImportarMedicao() {
 
       let hdr: HeaderInfo;
       if (!modeloDetectado) {
-        const tryM2 = detectHeader(matrix, REQUIRED_M2, 5);
+        const tryM2 = detectHeaderM2(matrix, 5);
         if (tryM2.rowIndex >= 0 && tryM2.missingRequired.length === 0) {
-          modeloDetectado = "M2"; required = REQUIRED_M2; hdr = tryM2;
+          modeloDetectado = "M2"; required = REQUIRED_M2; hdr = detectHeaderM2(matrix, 5);
         } else {
           const tryM1 = detectHeader(matrix, REQUIRED_M1, 30);
           if (tryM1.rowIndex >= 0 && tryM1.missingRequired.length === 0) {
@@ -268,7 +305,7 @@ export default function ImportarMedicao() {
           }
         }
       } else {
-        hdr = detectHeader(matrix, required, headerSearchRows);
+        hdr = modeloDetectado === "M2" ? detectHeaderM2(matrix, headerSearchRows) : detectHeader(matrix, required, headerSearchRows);
       }
 
       setModelo(modeloDetectado);
@@ -328,7 +365,10 @@ export default function ImportarMedicao() {
         if (!serie) faltando.push("Série");
         if (!tag) faltando.push("Tag");
         if (!valor_hora) faltando.push("Valor/Hora");
+        if (modeloDetectado === "M2" && !periodo_inicio) faltando.push("Período Início");
         if (modeloDetectado === "M2" && !periodo_fim) faltando.push("Período Fim");
+        if (modeloDetectado === "M2" && !str(get(row, "tipo_equip"))) faltando.push("Tipo Equip.");
+        if (modeloDetectado === "M2" && !str(get(row, "modelo"))) faltando.push("Modelo");
         if (faltando.length) {
           ign.push({
             rowExcel,
@@ -361,6 +401,8 @@ export default function ImportarMedicao() {
         const erros: string[] = [];
         const alertas: string[] = [];
         if (!mes_ref) erros.push("Competência inválida");
+        if (modeloDetectado === "M2" && !periodo_inicio) erros.push("Período início inválido");
+        if (modeloDetectado === "M2" && !periodo_fim) erros.push("Período fim inválido");
         if (hor_final < hor_inicial) erros.push("Horímetro final < inicial");
         if (!garantia) alertas.push("Garantia contratual ausente");
         if (Math.abs(divergencia_ht) > 0.01) alertas.push(`Divergência HT: ${divergencia_ht.toFixed(2)}h`);
@@ -426,13 +468,14 @@ export default function ImportarMedicao() {
   const totalComplementares = validas.reduce((s, l) => s + l.complementares, 0);
   const totalDesc = validas.reduce((s, l) => s + l.desc_manutencao, 0);
 
-  const podeImportar = !headerError && validas.length > 0;
-
   // Validação: tipo_equip == tipo_servico em todos os itens (provável mapeamento errado)
   const itensComTipoEquip = validas.filter((l) => l.tipo_equip);
   const tipoEquipIgualServico =
     itensComTipoEquip.length > 0 &&
     itensComTipoEquip.every((l) => normalize(l.tipo_equip) === normalize(l.tipo_servico));
+  const erroMapeamentoTipoEquip = modelo === "M2" && tipoEquipIgualServico;
+
+  const podeImportar = !headerError && validas.length > 0 && !erroMapeamentoTipoEquip;
 
   const confirmar = async () => {
     if (!podeImportar) { toast.error("Não é possível importar"); return; }
@@ -454,6 +497,7 @@ export default function ImportarMedicao() {
       eqp?.forEach((e: any) => equipsCache.set(`${e.serie ?? ""}|${e.tag ?? ""}`, e.id));
 
       let createdCli = 0, createdCtr = 0, createdEqp = 0, createdMed = 0, createdItens = 0;
+      const periodoPorMedicao = new Map<string, { inicio: string; fim: string }>();
 
       for (const l of validas) {
         const cliKey = l.contratado.toUpperCase();
@@ -483,6 +527,11 @@ export default function ImportarMedicao() {
           if (error) throw error;
           contrato = { id: data.id, valor_hora: Number(data.valor_hora_padrao ?? 0), garantia: Number(data.garantia_minima_horas ?? 0) };
           contratosCache.set(l.numero_dj, contrato); createdCtr++;
+        } else if (l.tipo_servico || l.centro_custo) {
+          await supabase.from("contratos").update({
+            tipo_servico: l.tipo_servico || undefined,
+            centro_custo: l.centro_custo || null,
+          } as any).eq("id", contrato.id);
         }
 
         const eqpKey = `${l.serie}|${l.tag}`;
@@ -493,6 +542,13 @@ export default function ImportarMedicao() {
           } as any).select("id").single();
           if (error) throw error;
           equipId = data.id; equipsCache.set(eqpKey, equipId); createdEqp++;
+        } else {
+          await supabase.from("equipamentos").update({
+            tag: l.tag,
+            serie: l.serie,
+            modelo: l.modelo || "—",
+            tipo: l.tipo_equip || "—",
+          } as any).eq("id", equipId);
         }
 
         const ceKey = `${contrato.id}|${equipId}`;
@@ -514,8 +570,18 @@ export default function ImportarMedicao() {
         }
 
         const medKey = `${contrato.id}|${l.mes_ref}`;
-        const periodoIniMed = l.periodo_inicio ?? l.mes_ref!;
-        const periodoFimMed = l.periodo_fim ?? lastDayOfMonth(l.mes_ref!);
+        if (!periodoPorMedicao.has(medKey)) {
+          const mesmasMedicao = validas.filter((x) => x.numero_dj === l.numero_dj && x.mes_ref === l.mes_ref);
+          const inicios = mesmasMedicao.map((x) => x.periodo_inicio).filter(Boolean).sort() as string[];
+          const fins = mesmasMedicao.map((x) => x.periodo_fim).filter(Boolean).sort() as string[];
+          periodoPorMedicao.set(medKey, {
+            inicio: inicios[0] ?? l.mes_ref!,
+            fim: fins[fins.length - 1] ?? lastDayOfMonth(l.mes_ref!),
+          });
+        }
+        const periodoMed = periodoPorMedicao.get(medKey)!;
+        const periodoIniMed = periodoMed.inicio;
+        const periodoFimMed = periodoMed.fim;
         let medicaoId = medicoesCache.get(medKey);
         if (!medicaoId) {
           const { data: existing } = await supabase.from("medicoes")
@@ -553,7 +619,7 @@ export default function ImportarMedicao() {
 
         const { error: errIt } = await supabase.from("medicao_itens").insert({
           medicao_id: medicaoId, equipamento_id: equipId, contrato_equipamento_id: ceId,
-          periodo_inicio: periodoIniMed, periodo_fim: periodoFimMed,
+          periodo_inicio: l.periodo_inicio ?? periodoIniMed, periodo_fim: l.periodo_fim ?? periodoFimMed,
           horimetro_inicial: l.hor_inicial, horimetro_final: l.hor_final,
           horas_informadas: l.ht_informado,
           horas_mecanicas: l.horas_mec,
@@ -631,13 +697,12 @@ export default function ImportarMedicao() {
         </Alert>
       )}
 
-      {tipoEquipIgualServico && (
+      {erroMapeamentoTipoEquip && (
         <Alert variant="destructive" className="mb-4">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="text-xs">
-            <strong>Possível erro de mapeamento:</strong> Tipo Equipamento está igual ao Tipo Serviço em todas as linhas.
-            Verifique se as colunas <em>"Tipo Serviço"</em> e <em>"Tipo Equip."</em> estão sendo lidas separadamente na planilha.
-            Se já houver uma medição importada com esse problema, exclua-a e importe novamente após a correção.
+            <strong>Erro de mapeamento:</strong> Tipo Equipamento está sendo preenchido com Tipo Serviço.
+            A importação foi bloqueada; revise a aba "Template Medição" e confirme que a coluna H contém o Tipo Equip.
           </AlertDescription>
         </Alert>
       )}
@@ -680,6 +745,38 @@ export default function ImportarMedicao() {
               </div>
             </div>
           </CardContent></Card>
+
+          {validas.length > 0 && (
+            <Card className="mb-4"><CardContent className="p-4">
+              <h3 className="mb-2 text-sm font-semibold">Amostra do mapeamento — primeiras 5 linhas válidas</h3>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>Tipo Serviço</TableHead>
+                    <TableHead>Tipo Equipamento</TableHead>
+                    <TableHead>Modelo</TableHead>
+                    <TableHead>Série</TableHead>
+                    <TableHead>Tag</TableHead>
+                    <TableHead>Período Início</TableHead>
+                    <TableHead>Período Fim</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {validas.slice(0, 5).map((l) => (
+                      <TableRow key={`sample-${l.rowExcel}`}>
+                        <TableCell className="text-xs">{l.tipo_servico || "—"}</TableCell>
+                        <TableCell className="text-xs font-medium">{l.tipo_equip || "—"}</TableCell>
+                        <TableCell className="text-xs">{l.modelo || "—"}</TableCell>
+                        <TableCell className="font-mono text-xs">{l.serie || "—"}</TableCell>
+                        <TableCell className="font-mono text-xs">{l.tag || "—"}</TableCell>
+                        <TableCell className="text-xs num">{fmtDate(l.periodo_inicio)}</TableCell>
+                        <TableCell className="text-xs num">{fmtDate(l.periodo_fim)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent></Card>
+          )}
 
           {ignoradas.length > 0 && (
             <Card className="mb-4"><CardContent className="p-4">
