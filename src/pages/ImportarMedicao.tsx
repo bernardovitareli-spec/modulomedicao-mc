@@ -535,6 +535,9 @@ export default function ImportarMedicao() {
   const periodoIniMin = periodosIni.length ? periodosIni.sort()[0] : "";
   const periodoFimMax = periodosFim.length ? periodosFim.sort().reverse()[0] : "";
   const totalValor = validas.reduce((s, l) => s + l.valor_final, 0);
+  const totalValorPlanilha = validas.reduce((s, l) => s + (l.valor_planilha || 0), 0);
+  const totalDifCalc = totalValorPlanilha - totalValor;
+  const linhasComDivergencia = validas.filter((l) => l.valor_planilha && Math.abs(l.diferenca_calc) > 0.10).length;
   const totalHorasInf = validas.reduce((s, l) => s + l.ht_informado, 0);
   const totalHorasDisp = validas.reduce((s, l) => s + l.horas_disp, 0);
   const totalHorasMec = validas.reduce((s, l) => s + l.horas_mec, 0);
@@ -548,7 +551,28 @@ export default function ImportarMedicao() {
     itensComTipoEquip.every((l) => normalize(l.tipo_equip) === normalize(l.tipo_servico));
   const erroMapeamentoTipoEquip = modelo === "M2" && tipoEquipIgualServico;
 
-  const podeImportar = !headerError && validas.length > 0 && !erroMapeamentoTipoEquip;
+  // Validação dos overrides obrigatórios M1
+  const m1Pendencias: string[] = [];
+  if (modelo === "M1") {
+    const djs = Array.from(new Set(validas.map((l) => l.numero_dj)));
+    for (const dj of djs) {
+      const o = overrides[dj] ?? {};
+      if (!o.tipo_servico) m1Pendencias.push(`Contrato ${dj}: tipo de serviço obrigatório`);
+      if (!o.periodo_inicio) m1Pendencias.push(`Contrato ${dj}: período início obrigatório`);
+      if (!o.periodo_fim) m1Pendencias.push(`Contrato ${dj}: período fim obrigatório`);
+      if (o.periodo_inicio && o.periodo_fim && o.periodo_fim < o.periodo_inicio) {
+        m1Pendencias.push(`Contrato ${dj}: período fim não pode ser anterior ao início`);
+      }
+    }
+  }
+
+  const precisaConfirmarDivergencia = modelo === "M1" && linhasComDivergencia > 0;
+  const podeImportar =
+    !headerError &&
+    validas.length > 0 &&
+    !erroMapeamentoTipoEquip &&
+    m1Pendencias.length === 0 &&
+    (!precisaConfirmarDivergencia || confirmDivergencia);
 
   const confirmar = async () => {
     if (!podeImportar) { toast.error("Não é possível importar"); return; }
