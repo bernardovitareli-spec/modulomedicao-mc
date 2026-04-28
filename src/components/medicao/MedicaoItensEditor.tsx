@@ -52,6 +52,7 @@ const empty = (): ItemForm => ({
   valor_complementares: 0,
   valor_descontos: 0,
   observacoes: "",
+  motivo: "",
 });
 
 export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, periodoFim, competencia, cliente, contratoNumero, onChanged }: Props) {
