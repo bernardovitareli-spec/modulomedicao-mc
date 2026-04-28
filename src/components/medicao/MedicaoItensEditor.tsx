@@ -26,8 +26,9 @@ interface ItemForm {
   equipamento_id: string;
   horimetro_inicial: number;
   horimetro_final: number;
+  horas_informadas_input: number; // HT Informado (Boletim) — operacional
   horas_mecanicas: number;
-  horas_paradas: number; // "horas à disposição"
+  horas_chuvoso: number;
   horas_excecao_chuvoso: number;
   valor_complementares: number;
   valor_descontos: number;
@@ -39,8 +40,9 @@ const empty = (): ItemForm => ({
   equipamento_id: "",
   horimetro_inicial: 0,
   horimetro_final: 0,
+  horas_informadas_input: 0,
   horas_mecanicas: 0,
-  horas_paradas: 0,
+  horas_chuvoso: 0,
   horas_excecao_chuvoso: 0,
   valor_complementares: 0,
   valor_descontos: 0,
@@ -59,11 +61,11 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
     const [ce, c, it] = await Promise.all([
       supabase
         .from("contrato_equipamentos")
-        .select("id, equipamento_id, valor_hora_override, horimetro_inicial, equipamentos(tag, tipo, modelo)")
+        .select("id, equipamento_id, valor_hora_override, horimetro_inicial, equipamentos(tag, tipo, modelo, serie)")
         .eq("contrato_id", contratoId)
         .eq("ativo", true),
       supabase.from("contratos").select("valor_hora_padrao, garantia_minima_horas").eq("id", contratoId).single(),
-      supabase.from("medicao_itens").select("*, equipamentos(tag, tipo, modelo)").eq("medicao_id", medicaoId).order("created_at"),
+      supabase.from("medicao_itens").select("*, equipamentos(tag, tipo, modelo, serie)").eq("medicao_id", medicaoId).order("created_at"),
     ]);
     setContratoEqs(ce.data ?? []);
     setContrato(c.data);
@@ -77,15 +79,17 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
 
   // Cálculos automáticos
   const calc = useMemo(() => {
-    const horas_informadas = Math.max(0, Number(form.horimetro_final) - Number(form.horimetro_inicial));
-    const horas_liquidas = Math.max(0, horas_informadas - Number(form.horas_mecanicas));
+    const ht_calc = Math.max(0, Number(form.horimetro_final) - Number(form.horimetro_inicial));
+    const ht_informado = Number(form.horas_informadas_input) || 0;
+    const divergencia_ht = ht_informado - ht_calc;
+    const horas_liquidas = Math.max(0, ht_informado - Number(form.horas_mecanicas));
     const ce = contratoEqs.find((x) => x.id === form.contrato_equipamento_id);
     const valor_hora = Number(ce?.valor_hora_override ?? contrato?.valor_hora_padrao ?? 0);
     const garantia = Number(contrato?.garantia_minima_horas ?? 0);
     const horas_a_pagar = Math.max(horas_liquidas, garantia);
     const valor_bruto = horas_a_pagar * valor_hora;
     const valor_final = valor_bruto + Number(form.valor_complementares) - Number(form.valor_descontos);
-    return { horas_informadas, horas_liquidas, horas_a_pagar, valor_hora, valor_bruto, valor_final, garantia };
+    return { ht_calc, ht_informado, divergencia_ht, horas_liquidas, horas_a_pagar, valor_hora, valor_bruto, valor_final, garantia };
   }, [form, contratoEqs, contrato]);
 
   const recalcTotais = async () => {
@@ -110,8 +114,9 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
       equipamento_id: it.equipamento_id,
       horimetro_inicial: Number(it.horimetro_inicial ?? 0),
       horimetro_final: Number(it.horimetro_final ?? 0),
+      horas_informadas_input: Number(it.horas_informadas ?? 0),
       horas_mecanicas: Number(it.horas_mecanicas ?? 0),
-      horas_paradas: Number(it.horas_paradas ?? 0),
+      horas_chuvoso: Number(it.horas_chuvoso ?? 0),
       horas_excecao_chuvoso: Number(it.horas_excecao_chuvoso ?? 0),
       valor_complementares: Number(it.valor_complementares ?? 0),
       valor_descontos: Number(it.valor_descontos ?? 0),
@@ -142,9 +147,9 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
       periodo_fim: periodoFim,
       horimetro_inicial: form.horimetro_inicial,
       horimetro_final: form.horimetro_final,
-      horas_informadas: calc.horas_informadas,
+      horas_informadas: calc.ht_informado,
       horas_mecanicas: form.horas_mecanicas,
-      horas_paradas: form.horas_paradas,
+      horas_chuvoso: form.horas_chuvoso,
       horas_excecao_chuvoso: form.horas_excecao_chuvoso,
       horas_descontaveis: form.horas_mecanicas,
       horas_liquidas: calc.horas_liquidas,
@@ -192,34 +197,65 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
 
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader><TableRow>
-              <TableHead>Tag</TableHead><TableHead>Equipamento</TableHead>
-              <TableHead className="text-right">Horím. Ini.</TableHead><TableHead className="text-right">Horím. Fin.</TableHead>
-              <TableHead className="text-right">H. Calc.</TableHead><TableHead className="text-right">H. Mec.</TableHead>
-              <TableHead className="text-right">H. Líq.</TableHead><TableHead className="text-right">H. Pagar</TableHead>
-              <TableHead className="text-right">Valor/h</TableHead><TableHead className="text-right">Final</TableHead>
-              <TableHead></TableHead>
-            </TableRow></TableHeader>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Série</TableHead>
+                <TableHead>Tag</TableHead>
+                <TableHead>Tipo Equip.</TableHead>
+                <TableHead>Modelo</TableHead>
+                <TableHead className="text-right">Horím. Ini.</TableHead>
+                <TableHead className="text-right">Horím. Fin.</TableHead>
+                <TableHead className="text-right">HT Calc.</TableHead>
+                <TableHead className="text-right">HT Inf.</TableHead>
+                <TableHead className="text-right">Diverg. HT</TableHead>
+                <TableHead className="text-right">Garantia</TableHead>
+                <TableHead className="text-right">H. Mec.</TableHead>
+                <TableHead className="text-right">H. Líq.</TableHead>
+                <TableHead className="text-right">H. Pagar</TableHead>
+                <TableHead className="text-right">Valor/h</TableHead>
+                <TableHead className="text-right">Compl.</TableHead>
+                <TableHead className="text-right">Desc.</TableHead>
+                <TableHead className="text-right">Valor Final</TableHead>
+                <TableHead className="text-right">Chuvoso</TableHead>
+                <TableHead className="text-right">Exc. Chuv.</TableHead>
+                <TableHead>Obs.</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
             <TableBody>
-              {itens.length === 0 && <TableRow><TableCell colSpan={11} className="text-center py-6 text-sm text-muted-foreground">Nenhum item. Clique em "Adicionar item".</TableCell></TableRow>}
-              {itens.map((i) => (
-                <TableRow key={i.id}>
-                  <TableCell className="font-mono">{i.equipamentos?.tag}</TableCell>
-                  <TableCell className="text-sm">{i.equipamentos?.tipo} {i.equipamentos?.modelo}</TableCell>
-                  <TableCell className="text-right num">{fmtNum(i.horimetro_inicial)}</TableCell>
-                  <TableCell className="text-right num">{fmtNum(i.horimetro_final)}</TableCell>
-                  <TableCell className="text-right num">{fmtNum(i.horas_informadas)}</TableCell>
-                  <TableCell className="text-right num">{fmtNum(i.horas_mecanicas)}</TableCell>
-                  <TableCell className="text-right num">{fmtNum(i.horas_liquidas)}</TableCell>
-                  <TableCell className="text-right num font-semibold">{fmtNum(i.horas_a_pagar)}</TableCell>
-                  <TableCell className="text-right num">{fmtBRL(i.valor_hora)}</TableCell>
-                  <TableCell className="text-right num font-semibold text-primary">{fmtBRL(i.valor_final)}</TableCell>
-                  <TableCell className="text-right whitespace-nowrap">
-                    <Button size="icon" variant="ghost" onClick={() => openEditar(i)}><Pencil className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => excluir(i.id)}><Trash2 className="h-4 w-4" /></Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {itens.length === 0 && <TableRow><TableCell colSpan={21} className="text-center py-6 text-sm text-muted-foreground">Nenhum item. Clique em "Adicionar item".</TableCell></TableRow>}
+              {itens.map((i) => {
+                const htCalc = Math.max(0, Number(i.horimetro_final ?? 0) - Number(i.horimetro_inicial ?? 0));
+                const diverg = Number(i.horas_informadas ?? 0) - htCalc;
+                return (
+                  <TableRow key={i.id}>
+                    <TableCell className="font-mono text-xs">{i.equipamentos?.serie ?? "-"}</TableCell>
+                    <TableCell className="font-mono text-xs">{i.equipamentos?.tag}</TableCell>
+                    <TableCell className="text-xs">{i.equipamentos?.tipo}</TableCell>
+                    <TableCell className="text-xs">{i.equipamentos?.modelo}</TableCell>
+                    <TableCell className="text-right num">{fmtNum(i.horimetro_inicial)}</TableCell>
+                    <TableCell className="text-right num">{fmtNum(i.horimetro_final)}</TableCell>
+                    <TableCell className="text-right num">{fmtNum(htCalc)}</TableCell>
+                    <TableCell className="text-right num">{fmtNum(i.horas_informadas)}</TableCell>
+                    <TableCell className={`text-right num ${Math.abs(diverg) > 0.01 ? "text-destructive" : ""}`}>{fmtNum(diverg)}</TableCell>
+                    <TableCell className="text-right num">{fmtNum(i.garantia_minima)}</TableCell>
+                    <TableCell className="text-right num">{fmtNum(i.horas_mecanicas)}</TableCell>
+                    <TableCell className="text-right num">{fmtNum(i.horas_liquidas)}</TableCell>
+                    <TableCell className="text-right num font-semibold">{fmtNum(i.horas_a_pagar)}</TableCell>
+                    <TableCell className="text-right num">{fmtBRL(i.valor_hora)}</TableCell>
+                    <TableCell className="text-right num">{fmtBRL(i.valor_complementares)}</TableCell>
+                    <TableCell className="text-right num">{fmtBRL(i.valor_descontos)}</TableCell>
+                    <TableCell className="text-right num font-semibold text-primary">{fmtBRL(i.valor_final)}</TableCell>
+                    <TableCell className="text-right num">{fmtNum(i.horas_chuvoso)}</TableCell>
+                    <TableCell className="text-right num">{fmtNum(i.horas_excecao_chuvoso)}</TableCell>
+                    <TableCell className="text-xs max-w-[160px] truncate" title={i.observacoes ?? ""}>{i.observacoes ?? "-"}</TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
+                      <Button size="sm" variant="outline" onClick={() => openEditar(i)}><Pencil className="mr-1 h-3 w-3" />Editar</Button>
+                      <Button size="icon" variant="ghost" onClick={() => excluir(i.id)}><Trash2 className="h-4 w-4" /></Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -237,6 +273,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                     {(form.id ? contratoEqs : eqOptions).map((ce) => (
                       <SelectItem key={ce.id} value={ce.id}>
                         {ce.equipamentos?.tag} — {ce.equipamentos?.tipo} {ce.equipamentos?.modelo}
+                        {ce.equipamentos?.serie ? ` (S/N ${ce.equipamentos.serie})` : ""}
                       </SelectItem>
                     ))}
                     {!form.id && eqOptions.length === 0 && <div className="px-2 py-2 text-xs text-muted-foreground">Todos os equipamentos do contrato já foram adicionados.</div>}
@@ -250,19 +287,24 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
               </div>
 
               <div className="grid gap-3 md:grid-cols-3">
-                <FieldRO label="Horas calculadas" value={fmtNum(calc.horas_informadas)} hint="final − inicial" />
-                <Field label="Horas mecânicas" value={form.horas_mecanicas} onChange={(v) => setForm({ ...form, horas_mecanicas: v })} />
-                <Field label="Horas à disposição" value={form.horas_paradas} onChange={(v) => setForm({ ...form, horas_paradas: v })} />
+                <FieldRO label="HT calculado" value={fmtNum(calc.ht_calc)} hint="final − inicial" />
+                <Field label="HT informado (boletim)" value={form.horas_informadas_input} onChange={(v) => setForm({ ...form, horas_informadas_input: v })} />
+                <FieldRO label="Divergência HT" value={fmtNum(calc.divergencia_ht)} hint="informado − calculado" accent={Math.abs(calc.divergencia_ht) > 0.01} />
               </div>
 
               <div className="grid gap-3 md:grid-cols-3">
+                <Field label="Horas mecânicas" value={form.horas_mecanicas} onChange={(v) => setForm({ ...form, horas_mecanicas: v })} />
+                <Field label="Período chuvoso (h)" value={form.horas_chuvoso} onChange={(v) => setForm({ ...form, horas_chuvoso: v })} />
                 <Field label="Exceção chuvoso (h)" value={form.horas_excecao_chuvoso} onChange={(v) => setForm({ ...form, horas_excecao_chuvoso: v })} />
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
                 <Field label="Complementares (R$)" value={form.valor_complementares} onChange={(v) => setForm({ ...form, valor_complementares: v })} />
                 <Field label="Descontos (R$)" value={form.valor_descontos} onChange={(v) => setForm({ ...form, valor_descontos: v })} />
               </div>
 
               <div className="grid gap-3 md:grid-cols-4 rounded-md border bg-muted/30 p-3">
-                <FieldRO label="Horas líquidas" value={fmtNum(calc.horas_liquidas)} hint="calc − mecânicas" />
+                <FieldRO label="Horas líquidas" value={fmtNum(calc.horas_liquidas)} hint="HT inf. − mecânicas" />
                 <FieldRO label="Garantia mínima" value={fmtNum(calc.garantia)} />
                 <FieldRO label="Horas a pagar" value={fmtNum(calc.horas_a_pagar)} hint="máx(líq, garantia)" />
                 <FieldRO label="Valor final" value={fmtBRL(calc.valor_final)} hint={`${fmtNum(calc.horas_a_pagar)}h × ${fmtBRL(calc.valor_hora)}`} accent />

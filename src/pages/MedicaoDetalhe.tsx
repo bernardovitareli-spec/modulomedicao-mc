@@ -29,7 +29,7 @@ export default function MedicaoDetalhe() {
   const load = async () => {
     if (!id) return;
     const [m, i, a] = await Promise.all([
-      supabase.from("medicoes").select("*, contratos(numero_dj, clientes(razao_social, cnpj))").eq("id", id).single(),
+      supabase.from("medicoes").select("*, contratos(numero_dj, tipo_servico, centro_custo, clientes(razao_social, cnpj))").eq("id", id).single(),
       supabase.from("medicao_itens").select("*, equipamentos(tag, tipo, modelo)").eq("medicao_id", id).order("created_at"),
       supabase.from("aprovacoes").select("*").eq("medicao_id", id).order("created_at"),
     ]);
@@ -92,6 +92,23 @@ export default function MedicaoDetalhe() {
           </>)}
         </div>} />
 
+      <Card className="mb-4">
+        <CardContent className="p-4 grid gap-3 md:grid-cols-3 lg:grid-cols-5 text-sm">
+          <Info l="Cliente" v={med.contratos?.clientes?.razao_social ?? "-"} />
+          <Info l="CNPJ" v={med.contratos?.clientes?.cnpj ?? "-"} />
+          <Info l="Contrato / Nº DJ" v={med.contratos?.numero_dj ?? "-"} />
+          <Info l="Tipo de serviço" v={med.contratos?.tipo_servico ?? "-"} />
+          <Info l="Centro de custo" v={med.contratos?.centro_custo ?? "-"} />
+          <Info l="Competência" v={fmtCompetencia(med.competencia)} />
+          <Info l="Período início" v={fmtDate(med.periodo_inicio)} />
+          <Info l="Período fim" v={fmtDate(med.periodo_fim)} />
+          <div>
+            <p className="text-xs text-muted-foreground">Status</p>
+            <div className="mt-1"><StatusBadge status={med.status} /></div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="mb-4 grid gap-3 md:grid-cols-5">
         <Kpi l="Horas informadas" v={fmtNum(med.total_horas_informadas)} />
         <Kpi l="Horas líquidas" v={fmtNum(med.total_horas_liquidas)} />
@@ -136,4 +153,8 @@ export default function MedicaoDetalhe() {
 
 function Kpi({ l, v, accent }: { l: string; v: string; accent?: boolean }) {
   return <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">{l}</p><p className={`mt-1 text-lg font-bold num ${accent ? "text-primary" : ""}`}>{v}</p></CardContent></Card>;
+}
+
+function Info({ l, v }: { l: string; v: string }) {
+  return <div><p className="text-xs text-muted-foreground">{l}</p><p className="mt-0.5 font-medium">{v}</p></div>;
 }
