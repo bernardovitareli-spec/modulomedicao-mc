@@ -112,7 +112,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contratoId, medicaoId]);
 
-  // Cálculos automáticos
+  // Cálculos automáticos (com proporcionalidade)
   const calc = useMemo(() => {
     const ht_calc = Math.max(0, Number(form.horimetro_final) - Number(form.horimetro_inicial));
     const ht_informado = Number(form.horas_informadas_input) || 0;
@@ -120,12 +120,29 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
     const horas_liquidas = Math.max(0, ht_informado - Number(form.horas_mecanicas));
     const ce = contratoEqs.find((x) => x.id === form.contrato_equipamento_id);
     const valor_hora = Number(ce?.valor_hora_override ?? contrato?.valor_hora_padrao ?? 0);
-    const garantia = Number(contrato?.garantia_minima_horas ?? 0);
-    const horas_a_pagar = Math.max(horas_liquidas, garantia);
+    const garantia_mensal = Number(contrato?.garantia_minima_horas ?? 0);
+    const base_dias = Number(contrato?.base_dias_garantia ?? 30);
+    const prop = calcProporcionalidade(
+      periodoInicio, periodoFim,
+      form.data_inicio_operacao_item || null,
+      form.data_fim_operacao_item || null,
+      garantia_mensal, base_dias,
+    );
+    const garantia_efetiva = prop.proporcional ? prop.garantiaProp : garantia_mensal;
+    const horas_a_pagar = Math.max(horas_liquidas, garantia_efetiva);
     const valor_bruto = horas_a_pagar * valor_hora;
     const valor_final = valor_bruto + Number(form.valor_complementares) - Number(form.valor_descontos);
-    return { ht_calc, ht_informado, divergencia_ht, horas_liquidas, horas_a_pagar, valor_hora, valor_bruto, valor_final, garantia };
-  }, [form, contratoEqs, contrato]);
+    return {
+      ht_calc, ht_informado, divergencia_ht, horas_liquidas, horas_a_pagar,
+      valor_hora, valor_bruto, valor_final,
+      garantia: garantia_efetiva, garantia_mensal,
+      garantia_proporcional: prop.garantiaProp,
+      dias_considerados: prop.dias,
+      aplicar_proporcional: prop.proporcional,
+      erro_data: prop.erro,
+      base_dias,
+    };
+  }, [form, contratoEqs, contrato, periodoInicio, periodoFim]);
 
   const recalcTotais = async () => {
     const { data } = await supabase.from("medicao_itens").select("horas_informadas, horas_liquidas, horas_a_pagar, valor_bruto, valor_complementares, valor_descontos, valor_final").eq("medicao_id", medicaoId);
@@ -157,6 +174,9 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
       valor_descontos: Number(it.valor_descontos ?? 0),
       observacoes: it.observacoes ?? "",
       motivo: "",
+      data_inicio_operacao_item: it.data_inicio_operacao_item ?? "",
+      data_fim_operacao_item: it.data_fim_operacao_item ?? "",
+      motivo_proporcionalidade: it.motivo_proporcionalidade ?? "",
     });
     setOpen(true);
   };
