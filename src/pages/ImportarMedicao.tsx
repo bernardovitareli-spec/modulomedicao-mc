@@ -530,7 +530,7 @@ export default function ImportarMedicao() {
   // Resumo agregado
   const clientes = Array.from(new Set(validas.map((l) => l.contratado)));
   const cnpjs = Array.from(new Set(validas.map(cnpjEf).filter(Boolean)));
-  const codigosCliente = Array.from(new Set(validas.map(codClienteEf).filter(Boolean)));
+  const codigosFornecedor = Array.from(new Set(validas.map(codFornecedorEf).filter(Boolean)));
   const contratos = Array.from(new Set(validas.map((l) => l.numero_dj)));
   const tiposServico = Array.from(new Set(validas.map(tipoServicoEf).filter(Boolean)));
   const centrosCusto = Array.from(new Set(validas.map((l) => l.centro_custo).filter(Boolean)));
