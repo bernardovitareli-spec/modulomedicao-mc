@@ -250,29 +250,29 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
           </div>
         </div>
 
-        <div className="relative overflow-x-auto border rounded-md">
-          <Table className="min-w-max">
+        <div className="relative w-full overflow-x-auto overflow-y-visible border rounded-md scrollbar-thin">
+          <Table className="min-w-max text-sm">
             <TableHeader>
               <TableRow>
                 <TableHead className="sticky left-0 z-20 bg-background border-r min-w-[110px]">Série</TableHead>
                 <TableHead className="sticky left-[110px] z-20 bg-background border-r min-w-[90px]">Tag</TableHead>
-                <TableHead className="sticky left-[200px] z-20 bg-background border-r min-w-[140px]">Tipo Equip.</TableHead>
-                <TableHead className="sticky left-[340px] z-20 bg-background border-r min-w-[140px]">Modelo</TableHead>
-                <TableHead className="text-right">Horím. Ini.</TableHead>
-                <TableHead className="text-right">Horím. Fin.</TableHead>
-                <TableHead className="text-right">HT Calc.</TableHead>
-                <TableHead className="text-right">HT Inf.</TableHead>
-                <TableHead className="text-right">Diverg. HT</TableHead>
-                <TableHead className="text-right">Garantia</TableHead>
-                <TableHead className="text-right">H. Mec.</TableHead>
-                <TableHead className="text-right">H. Líq.</TableHead>
-                <TableHead className="text-right">H. Pagar</TableHead>
-                <TableHead className="text-right">Valor/h</TableHead>
-                <TableHead className="text-right">Compl.</TableHead>
-                <TableHead className="text-right">Desc.</TableHead>
-                <TableHead className="text-right">Valor Final</TableHead>
-                <TableHead className="text-right">Chuvoso</TableHead>
-                <TableHead className="text-right">Exc. Chuv.</TableHead>
+                <TableHead className="sticky left-[200px] z-20 bg-background border-r min-w-[170px] whitespace-nowrap">Tipo Equipamento</TableHead>
+                <TableHead className="sticky left-[370px] z-20 bg-background border-r min-w-[150px] whitespace-nowrap">Modelo</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Horím. Ini.</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Horím. Fin.</TableHead>
+                <TableHead className="text-right whitespace-nowrap">HT Calc.</TableHead>
+                <TableHead className="text-right whitespace-nowrap">HT Inf.</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Diverg. HT</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Garantia</TableHead>
+                <TableHead className="text-right whitespace-nowrap">H. Mec.</TableHead>
+                <TableHead className="text-right whitespace-nowrap">H. Líq.</TableHead>
+                <TableHead className="text-right whitespace-nowrap font-semibold">Horas a pagar</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Valor/h</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Compl.</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Desc.</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Valor Final</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Chuvoso</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Exc. Chuv.</TableHead>
                 <TableHead>Obs.</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Ações</TableHead>
               </TableRow>
@@ -284,10 +284,10 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                 const diverg = Number(i.horas_informadas ?? 0) - htCalc;
                 return (
                   <TableRow key={i.id} className="group">
-                    <TableCell className="sticky left-0 z-10 bg-background group-hover:bg-muted/50 border-r font-mono text-xs">{i.equipamentos?.serie ?? "-"}</TableCell>
-                    <TableCell className="sticky left-[110px] z-10 bg-background group-hover:bg-muted/50 border-r font-mono text-xs">{i.equipamentos?.tag}</TableCell>
-                    <TableCell className="sticky left-[200px] z-10 bg-background group-hover:bg-muted/50 border-r text-xs">{i.equipamentos?.tipo}</TableCell>
-                    <TableCell className="sticky left-[340px] z-10 bg-background group-hover:bg-muted/50 border-r text-xs">{i.equipamentos?.modelo}</TableCell>
+                    <TableCell className="sticky left-0 z-10 bg-background group-hover:bg-muted/50 border-r font-mono text-xs whitespace-nowrap">{i.equipamentos?.serie ?? "-"}</TableCell>
+                    <TableCell className="sticky left-[110px] z-10 bg-background group-hover:bg-muted/50 border-r font-mono text-xs whitespace-nowrap">{i.equipamentos?.tag}</TableCell>
+                    <TableCell className="sticky left-[200px] z-10 bg-background group-hover:bg-muted/50 border-r text-xs whitespace-nowrap">{i.equipamentos?.tipo}</TableCell>
+                    <TableCell className="sticky left-[370px] z-10 bg-background group-hover:bg-muted/50 border-r text-xs whitespace-nowrap">{i.equipamentos?.modelo}</TableCell>
                     <TableCell className="text-right num">{fmtNum(i.horimetro_inicial)}</TableCell>
                     <TableCell className="text-right num">{fmtNum(i.horimetro_final)}</TableCell>
                     <TableCell className="text-right num">{fmtNum(htCalc)}</TableCell>

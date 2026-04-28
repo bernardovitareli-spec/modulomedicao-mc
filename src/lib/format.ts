@@ -1,5 +1,12 @@
-export const fmtBRL = (v: number | null | undefined) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v ?? 0));
+export const fmtBRL = (v: number | null | undefined) => {
+  const n = Number(v ?? 0);
+  // Garante o símbolo "R$" mesmo em ambientes onde o Intl pt-BR cai para o símbolo genérico "$".
+  const valor = new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n);
+  return `R$ ${valor}`;
+};
 
 export const fmtNum = (v: number | null | undefined, digits = 2) =>
   new Intl.NumberFormat("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(Number(v ?? 0));
