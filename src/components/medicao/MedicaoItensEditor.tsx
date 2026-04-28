@@ -80,7 +80,8 @@ function calcProporcionalidade(
   const dias = Math.max(0, ms(ini, fim) + 1);
   const base = baseDias && baseDias > 0 ? baseDias : 30;
   const proporcional = dias < base;
-  const garantiaProp = proporcional ? Math.round(((garantiaMensal || 0) / base) * dias * 100) / 100 : (garantiaMensal || 0);
+  // Precisão completa: NÃO arredondar. Arredondamento só na exibição.
+  const garantiaProp = proporcional ? ((garantiaMensal || 0) / base) * dias : (garantiaMensal || 0);
   return { ini, fim, dias, proporcional, garantiaProp, erro };
 }
 
@@ -226,6 +227,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
           _motivo_proporcionalidade: form.motivo_proporcionalidade || null,
         } as any);
         if (error) { setSaving(false); return toast.error(error.message); }
+        await recalcTotais();
       } else {
         const payload: any = {
           medicao_id: medicaoId,
