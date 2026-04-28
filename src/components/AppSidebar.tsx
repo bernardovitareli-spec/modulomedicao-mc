@@ -22,6 +22,7 @@ const groups = [
       { title: "Clientes", url: "/clientes", icon: Users },
       { title: "Equipamentos", url: "/equipamentos", icon: Wrench },
       { title: "Contratos", url: "/contratos", icon: FileText },
+      { title: "Regras do Contrato", url: "/contratos/regras", icon: FileText },
     ],
   },
   {
