@@ -99,7 +99,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
         .select("id, equipamento_id, valor_hora_override, horimetro_inicial, equipamentos(tag, tipo, modelo, serie)")
         .eq("contrato_id", contratoId)
         .eq("ativo", true),
-      supabase.from("contratos").select("valor_hora_padrao, garantia_minima_horas").eq("id", contratoId).single(),
+      supabase.from("contratos").select("valor_hora_padrao, garantia_minima_horas, base_dias_garantia").eq("id", contratoId).single(),
       supabase.from("medicao_itens").select("*, equipamentos(tag, tipo, modelo, serie)").eq("medicao_id", medicaoId).order("created_at"),
     ]);
     setContratoEqs(ce.data ?? []);
