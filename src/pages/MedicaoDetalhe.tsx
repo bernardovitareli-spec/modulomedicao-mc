@@ -17,6 +17,8 @@ import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { MedicaoItensEditor } from "@/components/medicao/MedicaoItensEditor";
+import { MedicaoHistoricoTab } from "@/components/medicao/MedicaoHistoricoTab";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export default function MedicaoDetalhe() {
   const { id } = useParams<{ id: string }>();
