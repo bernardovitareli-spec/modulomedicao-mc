@@ -723,8 +723,8 @@ export default function ImportarMedicao() {
               <Stat label="Tipo de serviço" value={tiposServico.length === 1 ? tiposServico[0] : (tiposServico.length ? `${tiposServico.length}` : "—")} />
               <Stat label="Centro de custo" value={centrosCusto.length === 1 ? centrosCusto[0] : (centrosCusto.length ? `${centrosCusto.length}` : "—")} />
               <Stat label="Competência(s)" value={competencias.map((c) => fmtCompetencia(c)).join(", ") || "—"} />
-              <Stat label="Período início" value={periodoIniMin || "—"} />
-              <Stat label="Período fim" value={periodoFimMax || "—"} />
+              <Stat label="Período início" value={periodoIniMin ? fmtDate(periodoIniMin) : "—"} />
+              <Stat label="Período fim" value={periodoFimMax ? fmtDate(periodoFimMax) : "—"} />
               <Stat label="Equipamentos válidos" value={String(validas.length)} />
               <Stat label="Total HT informado" value={totalHorasInf.toFixed(2)} />
               <Stat label="Total horas mecânicas" value={totalHorasMec.toFixed(2)} />
