@@ -730,6 +730,7 @@ export default function ImportarMedicao() {
               <Stat label="Período fim" value={periodoFimMax ? fmtDate(periodoFimMax) : "—"} />
               <Stat label="Equipamentos válidos" value={String(validas.length)} />
               <Stat label="Total HT informado" value={totalHorasInf.toFixed(2)} />
+              {modelo === "M1" && <Stat label="Total horas à disposição" value={totalHorasDisp.toFixed(2)} />}
               <Stat label="Total horas mecânicas" value={totalHorasMec.toFixed(2)} />
               <Stat label="Total complementares" value={fmtBRL(totalComplementares)} />
               <Stat label="Total descontos" value={fmtBRL(totalDesc)} />
