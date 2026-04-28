@@ -160,18 +160,28 @@ function detectHeader(matrix: any[][], required: string[], maxRows = 30): Header
 }
 
 // ---------- Modelo ----------
+type ModeloLayout = "M1" | "M2";
+
+const parseSN = (v: any): boolean => {
+  const s = normalize(v);
+  return s === "s" || s === "sim" || s === "yes" || s === "true" || s === "1";
+};
+
 interface LinhaLida {
   rowExcel: number;
   raw: any[];
-  // valores
   mes_ref: string | null;
   numero_dj: string;
   contratado: string;
+  cnpj: string;
+  tipo_servico: string;
   tipo_equip: string;
   modelo: string;
   serie: string;
   tag: string;
   centro_custo: string;
+  periodo_inicio: string | null;
+  periodo_fim: string | null;
   inicio_op: string | null;
   termino_contrato: string | null;
   hor_inicial: number;
@@ -185,6 +195,7 @@ interface LinhaLida {
   complementares: number;
   valor_hora: number;
   desc_manutencao: number;
+  periodo_chuvoso: boolean;
   excecao_chuvoso: number;
   observacoes: string;
   horas_liquidas: number;
@@ -207,25 +218,63 @@ export default function ImportarMedicao() {
   const [ignoradas, setIgnoradas] = useState<LinhaIgnorada[]>([]);
   const [headerInfo, setHeaderInfo] = useState<HeaderInfo | null>(null);
   const [headerError, setHeaderError] = useState<string>("");
+  const [modelo, setModelo] = useState<ModeloLayout | null>(null);
+  const [sheetUsed, setSheetUsed] = useState<string>("");
   const [importing, setImporting] = useState(false);
 
   const onFile = async (file: File) => {
     setFilename(file.name);
-    setLinhas([]); setIgnoradas([]); setHeaderError(""); setHeaderInfo(null);
+    setLinhas([]); setIgnoradas([]); setHeaderError(""); setHeaderInfo(null); setModelo(null); setSheetUsed("");
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { cellDates: true });
-      const sheetName = wb.SheetNames.find((n) => normalize(n) === normalize(SHEET_NAME)) ?? wb.SheetNames[0];
-      if (normalize(sheetName) !== normalize(SHEET_NAME)) {
-        toast.warning(`Aba "${SHEET_NAME}" não encontrada. Usando "${sheetName}".`);
+
+      const sheetM1 = wb.SheetNames.find((n) => normalize(n) === normalize(SHEET_MODELO_1));
+      const sheetM2 = wb.SheetNames.find((n) => normalize(n) === normalize(SHEET_MODELO_2));
+
+      let modeloDetectado: ModeloLayout | null = null;
+      let sheetName = "";
+      let headerSearchRows = 30;
+      let required: string[] = REQUIRED_M1;
+
+      if (sheetM1) {
+        modeloDetectado = "M1"; sheetName = sheetM1; required = REQUIRED_M1; headerSearchRows = 30;
+      } else if (sheetM2) {
+        modeloDetectado = "M2"; sheetName = sheetM2; required = REQUIRED_M2; headerSearchRows = 5;
+      } else {
+        sheetName = wb.SheetNames[0];
       }
+
       const sheet = wb.Sheets[sheetName];
       const matrix: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", blankrows: false });
 
-      const hdr = detectHeader(matrix);
+      let hdr: HeaderInfo;
+      if (!modeloDetectado) {
+        const tryM2 = detectHeader(matrix, REQUIRED_M2, 5);
+        if (tryM2.rowIndex >= 0 && tryM2.missingRequired.length === 0) {
+          modeloDetectado = "M2"; required = REQUIRED_M2; hdr = tryM2;
+        } else {
+          const tryM1 = detectHeader(matrix, REQUIRED_M1, 30);
+          if (tryM1.rowIndex >= 0 && tryM1.missingRequired.length === 0) {
+            modeloDetectado = "M1"; required = REQUIRED_M1; hdr = tryM1;
+          } else {
+            const msg = `Não foi possível identificar o layout da planilha. Esperadas as abas "${SHEET_MODELO_1}" ou "${SHEET_MODELO_2}", ou um cabeçalho reconhecível.`;
+            setHeaderError(msg);
+            toast.error(msg);
+            setHeaderInfo(tryM1.missingRequired.length <= tryM2.missingRequired.length ? tryM1 : tryM2);
+            return;
+          }
+        }
+      } else {
+        hdr = detectHeader(matrix, required, headerSearchRows);
+      }
+
+      setModelo(modeloDetectado);
+      setSheetUsed(sheetName);
       setHeaderInfo(hdr);
+
       if (hdr.rowIndex < 0 || hdr.missingRequired.length > 0) {
-        const msg = `Cabeçalho não localizado. Colunas obrigatórias ausentes: ${hdr.missingRequired.join(", ")}`;
+        const msg = `Modelo ${modeloDetectado} (aba "${sheetName}"): cabeçalho não localizado. Colunas obrigatórias ausentes: ${hdr.missingRequired.join(", ")}`;
         setHeaderError(msg);
         toast.error(msg);
         return;
@@ -239,13 +288,11 @@ export default function ImportarMedicao() {
 
       for (let i = hdr.rowIndex + 1; i < matrix.length; i++) {
         const row = matrix[i] ?? [];
-        const rowExcel = i + 1; // 1-based para usuário
+        const rowExcel = i + 1;
 
-        // Linha vazia
         const hasAny = row.some((c) => str(c) !== "");
         if (!hasAny) { continue; }
 
-        // TOTAL na primeira coluna (qualquer das principais)
         const firstNonEmpty = row.find((c) => str(c) !== "");
         const firstNorm = normalize(firstNonEmpty);
         if (firstNorm.startsWith("total") || firstNorm === "subtotal") {
@@ -255,18 +302,31 @@ export default function ImportarMedicao() {
 
         const numero_dj = str(get(row, "numero_dj"));
         const contratado = str(get(row, "contratado"));
+        const cnpj = str(get(row, "cnpj"));
         const serie = str(get(row, "serie"));
         const tag = str(get(row, "tag"));
         const valor_hora = num(get(row, "valor_hora"));
-        const mes_ref = parseMesRef(get(row, "mes_ref"));
 
-        // Filtros de descarte automático
+        const trat = (raw: any) => (raw === 0 || raw === "0") ? null : parseDate(raw);
+        const periodo_inicio = trat(get(row, "periodo_inicio"));
+        const periodo_fim = trat(get(row, "periodo_fim"));
+        const inicio_op = trat(get(row, "inicio_op"));
+        const termino_contrato = trat(get(row, "termino_contrato"));
+
+        let mes_ref: string | null = null;
+        if (modeloDetectado === "M1") {
+          mes_ref = parseMesRef(get(row, "mes_ref"));
+        } else if (periodo_fim) {
+          mes_ref = periodo_fim.slice(0, 7) + "-01";
+        }
+
         const faltando: string[] = [];
         if (!numero_dj) faltando.push("Nº DJ");
         if (!contratado) faltando.push("Contratado");
         if (!serie) faltando.push("Série");
         if (!tag) faltando.push("Tag");
         if (!valor_hora) faltando.push("Valor/Hora");
+        if (modeloDetectado === "M2" && !periodo_fim) faltando.push("Período Fim");
         if (faltando.length) {
           ign.push({
             rowExcel,
@@ -283,41 +343,50 @@ export default function ImportarMedicao() {
         const horas_disp = num(get(row, "horas_disp"));
         const horas_mec = num(get(row, "horas_mec"));
         const complementares = num(get(row, "complementares"));
-        const desc_manutencao = num(get(row, "desc_manutencao"));
-        const excecao_chuvoso = num(get(row, "excecao_chuvoso"));
+        const desc_manutencao = modeloDetectado === "M2" ? 0 : num(get(row, "desc_manutencao"));
+        const periodo_chuvoso = parseSN(get(row, "periodo_chuvoso"));
+        const excecao_raw = get(row, "excecao_chuvoso");
+        const excecao_chuvoso = modeloDetectado === "M2"
+          ? (parseSN(excecao_raw) ? 1 : 0)
+          : num(excecao_raw);
 
         const ht_calculado = hor_final - hor_inicial;
-        const divergencia_ht = ht_informado - ht_calculado;
+        const divergencia_ht = ht_calculado - ht_informado;
         const horas_liquidas = Math.max(0, ht_informado - horas_mec);
         const horas_a_pagar = Math.max(horas_liquidas, garantia);
         const valor_final = horas_a_pagar * valor_hora + complementares - desc_manutencao;
 
         const erros: string[] = [];
         const alertas: string[] = [];
-        if (!mes_ref) erros.push("Mês Referência inválido");
+        if (!mes_ref) erros.push("Competência inválida");
         if (hor_final < hor_inicial) erros.push("Horímetro final < inicial");
         if (!garantia) alertas.push("Garantia contratual ausente");
         if (Math.abs(divergencia_ht) > 0.01) alertas.push(`Divergência HT: ${divergencia_ht.toFixed(2)}h`);
 
+        const tipo_equip_raw = str(get(row, "tipo_equip"));
+        const tipo_equip = tipo_equip_raw
+          ? tipo_equip_raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase()
+          : "";
+
         lidas.push({
           rowExcel, raw: row,
-          mes_ref, numero_dj, contratado,
-          tipo_equip: str(get(row, "tipo_equip")),
+          mes_ref, numero_dj, contratado, cnpj,
+          tipo_servico: str(get(row, "tipo_servico")),
+          tipo_equip,
           modelo: str(get(row, "modelo")),
           serie, tag,
           centro_custo: str(get(row, "centro_custo")),
-          inicio_op: parseDate(get(row, "inicio_op")),
-          termino_contrato: parseDate(get(row, "termino_contrato")),
+          periodo_inicio, periodo_fim,
+          inicio_op, termino_contrato,
           hor_inicial, hor_final, ht_calculado, ht_informado, divergencia_ht,
           garantia, horas_disp, horas_mec, complementares,
-          valor_hora, desc_manutencao, excecao_chuvoso,
+          valor_hora, desc_manutencao, periodo_chuvoso, excecao_chuvoso,
           observacoes: str(get(row, "observacoes")),
           horas_liquidas, horas_a_pagar, valor_final,
           erros, alertas,
         });
       }
 
-      // Duplicidade: Nº DJ + competência + Série + Tag
       const seen = new Map<string, number>();
       lidas.forEach((l, i) => {
         if (!l.mes_ref) return;
@@ -330,7 +399,7 @@ export default function ImportarMedicao() {
 
       setLinhas(lidas);
       setIgnoradas(ign);
-      toast.success(`${lidas.length} linha(s) lidas, ${ign.length} ignorada(s).`);
+      toast.success(`Modelo ${modeloDetectado} • ${lidas.length} linha(s) lidas, ${ign.length} ignorada(s).`);
     } catch (e: any) {
       toast.error("Erro ao ler planilha: " + e.message);
     }
