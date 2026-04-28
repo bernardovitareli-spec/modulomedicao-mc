@@ -34,7 +34,7 @@ const COLUMN_ALIASES: Record<string, string[]> = {
   contratado: ["contratado", "contratante", "cliente", "razao social"],
   cnpj: ["cnpj"],
   tipo_servico: ["tipo servico", "servico"],
-  tipo_equip: ["tipo equipamento", "tipo equip", "tipo equip", "tipo"],
+  tipo_equip: ["tipo equipamento", "tipo equip", "tipo de equipamento", "tipoequip"],
   modelo: ["modelo"],
   serie: ["serie", "n serie", "numero serie"],
   tag: ["tag", "patrimonio"],
@@ -145,8 +145,10 @@ function detectHeader(matrix: any[][], required: string[], maxRows = 30): Header
       for (let c = 0; c < normCells.length; c++) {
         const cell = normCells[c];
         if (!cell) continue;
-        if (aliases.some((a) => cell === a || cell.includes(a) || a.includes(cell))) {
-          if (!(logical in colMap)) colMap[logical] = c;
+        // Match exato OU cabeçalho começa com alias seguido de espaço (evita "tipo servico" casar com "tipo")
+        const matched = aliases.some((a) => cell === a || cell.startsWith(a + " ") || cell.endsWith(" " + a));
+        if (matched && !(logical in colMap)) {
+          colMap[logical] = c;
         }
       }
     }
@@ -426,6 +428,12 @@ export default function ImportarMedicao() {
 
   const podeImportar = !headerError && validas.length > 0;
 
+  // Validação: tipo_equip == tipo_servico em todos os itens (provável mapeamento errado)
+  const itensComTipoEquip = validas.filter((l) => l.tipo_equip);
+  const tipoEquipIgualServico =
+    itensComTipoEquip.length > 0 &&
+    itensComTipoEquip.every((l) => normalize(l.tipo_equip) === normalize(l.tipo_servico));
+
   const confirmar = async () => {
     if (!podeImportar) { toast.error("Não é possível importar"); return; }
     setImporting(true);
@@ -462,11 +470,11 @@ export default function ImportarMedicao() {
 
         let contrato = contratosCache.get(l.numero_dj);
         if (!contrato) {
-          const inicio = l.inicio_op ?? (l.mes_ref ?? new Date().toISOString().slice(0, 10));
+          const inicio = l.inicio_op ?? l.periodo_inicio ?? (l.mes_ref ?? new Date().toISOString().slice(0, 10));
           const termino = l.termino_contrato ?? new Date(new Date(inicio).getFullYear() + 1, 11, 31).toISOString().slice(0, 10);
           const { data, error } = await supabase.from("contratos").insert({
             numero_dj: l.numero_dj, cliente_id: clienteId,
-            tipo_servico: l.tipo_servico || l.tipo_equip || "Locação",
+            tipo_servico: l.tipo_servico || "Locação",
             centro_custo: l.centro_custo || null,
             inicio_operacao: inicio, termino_contrato: termino,
             valor_hora_padrao: l.valor_hora, garantia_minima_horas: l.garantia,
@@ -506,6 +514,8 @@ export default function ImportarMedicao() {
         }
 
         const medKey = `${contrato.id}|${l.mes_ref}`;
+        const periodoIniMed = l.periodo_inicio ?? l.mes_ref!;
+        const periodoFimMed = l.periodo_fim ?? lastDayOfMonth(l.mes_ref!);
         let medicaoId = medicoesCache.get(medKey);
         if (!medicaoId) {
           const { data: existing } = await supabase.from("medicoes")
@@ -513,10 +523,13 @@ export default function ImportarMedicao() {
           if (existing) {
             medicaoId = existing.id;
             await supabase.from("medicao_itens").delete().eq("medicao_id", medicaoId);
+            await supabase.from("medicoes").update({
+              periodo_inicio: periodoIniMed, periodo_fim: periodoFimMed,
+            } as any).eq("id", medicaoId);
           } else {
             const { data, error } = await supabase.from("medicoes").insert({
               contrato_id: contrato.id, competencia: l.mes_ref!,
-              periodo_inicio: l.mes_ref!, periodo_fim: lastDayOfMonth(l.mes_ref!),
+              periodo_inicio: periodoIniMed, periodo_fim: periodoFimMed,
               status: "rascunho",
               observacoes: `Importado de ${filename}`,
             } as any).select("id").single();
@@ -540,7 +553,7 @@ export default function ImportarMedicao() {
 
         const { error: errIt } = await supabase.from("medicao_itens").insert({
           medicao_id: medicaoId, equipamento_id: equipId, contrato_equipamento_id: ceId,
-          periodo_inicio: l.mes_ref!, periodo_fim: lastDayOfMonth(l.mes_ref!),
+          periodo_inicio: periodoIniMed, periodo_fim: periodoFimMed,
           horimetro_inicial: l.hor_inicial, horimetro_final: l.hor_final,
           horas_informadas: l.ht_informado,
           horas_mecanicas: l.horas_mec,
@@ -614,6 +627,17 @@ export default function ImportarMedicao() {
           <CheckCircle2 className="h-4 w-4" />
           <AlertDescription className="text-xs">
             <strong>Modelo {modelo}</strong> detectado{sheetUsed ? ` (aba "${sheetUsed}")` : ""}. Cabeçalho na linha {headerInfo.rowIndex + 1}. {Object.keys(headerInfo.colMap).length} colunas mapeadas.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {tipoEquipIgualServico && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-xs">
+            <strong>Possível erro de mapeamento:</strong> Tipo Equipamento está igual ao Tipo Serviço em todas as linhas.
+            Verifique se as colunas <em>"Tipo Serviço"</em> e <em>"Tipo Equip."</em> estão sendo lidas separadamente na planilha.
+            Se já houver uma medição importada com esse problema, exclua-a e importe novamente após a correção.
           </AlertDescription>
         </Alert>
       )}
