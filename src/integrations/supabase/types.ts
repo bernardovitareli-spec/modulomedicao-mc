@@ -98,7 +98,7 @@ export type Database = {
         Row: {
           cep: string | null
           cidade: string | null
-          cnpj: string
+          cnpj: string | null
           codigo_cliente: string | null
           contato_email: string | null
           contato_nome: string | null
@@ -118,7 +118,7 @@ export type Database = {
         Insert: {
           cep?: string | null
           cidade?: string | null
-          cnpj: string
+          cnpj?: string | null
           codigo_cliente?: string | null
           contato_email?: string | null
           contato_nome?: string | null
@@ -138,7 +138,7 @@ export type Database = {
         Update: {
           cep?: string | null
           cidade?: string | null
-          cnpj?: string
+          cnpj?: string | null
           codigo_cliente?: string | null
           contato_email?: string | null
           contato_nome?: string | null
