@@ -338,8 +338,8 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     columnStyles: {
       0: { cellWidth: 16 },                                  // Série
       1: { cellWidth: 13 },                                  // Tag
-      2: { cellWidth: 17 },                                  // Tipo
-      3: { cellWidth: 19 },                                  // Modelo
+      2: { cellWidth: 26 },                                  // Tipo
+      3: { cellWidth: 26 },                                  // Modelo
       4: { cellWidth: 14, halign: "right" },                 // Hor. Ini
       5: { cellWidth: 14, halign: "right" },                 // Hor. Fim
       6: { cellWidth: 12, halign: "right" },                 // HT calc
@@ -351,8 +351,8 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
       12: { cellWidth: 11, halign: "center" },               // Prop?
       13: { cellWidth: 14, halign: "right" },                // H. pagar
       14: { cellWidth: 18, halign: "right" },                // Valor/h
-      15: { cellWidth: 16, halign: "right" },                // Compl
-      16: { cellWidth: 16, halign: "right" },                // Desc
+      15: { cellWidth: 14, halign: "right" },                // Compl
+      16: { cellWidth: 14, halign: "right" },                // Desc
       17: { cellWidth: 24, halign: "right", fontStyle: "bold" }, // Valor final
     },
     head: [[
