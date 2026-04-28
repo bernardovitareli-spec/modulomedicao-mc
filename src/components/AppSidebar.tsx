@@ -36,8 +36,21 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const { pathname } = useLocation();
   const { user, signOut } = useAuth();
+  const { isAdmin } = usePermissions();
   const collapsed = state === "collapsed";
   const isActive = (url: string) => (url === "/" ? pathname === "/" : pathname.startsWith(url));
+
+  const allGroups = [
+    ...groups,
+    ...(isAdmin ? [{
+      label: "Administração",
+      items: [
+        { title: "Usuários", url: "/admin/usuarios", icon: UserCog },
+        { title: "Limpar importação", url: "/admin/limpar-importacao", icon: Eraser },
+        { title: "Auditoria", url: "/auditoria", icon: ShieldAlert },
+      ],
+    }] : []),
+  ];
 
   return (
     <Sidebar collapsible="icon">
