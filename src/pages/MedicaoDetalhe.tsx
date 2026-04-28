@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { MedicaoItensEditor } from "@/components/medicao/MedicaoItensEditor";
 
 export default function MedicaoDetalhe() {
   const { id } = useParams<{ id: string }>();
@@ -99,34 +100,13 @@ export default function MedicaoDetalhe() {
         <Kpi l="Valor final" v={fmtBRL(med.valor_final)} accent />
       </div>
 
-      <Card><CardContent className="p-4">
-        <h3 className="mb-3 text-sm font-semibold">Itens por equipamento</h3>
-        <div className="overflow-x-auto"><Table>
-          <TableHeader><TableRow>
-            <TableHead>Tag</TableHead><TableHead>Equipamento</TableHead>
-            <TableHead className="text-right">H. Inf.</TableHead><TableHead className="text-right">H. Mec.</TableHead>
-            <TableHead className="text-right">H. Chuva</TableHead><TableHead className="text-right">H. Líq.</TableHead>
-            <TableHead className="text-right">H. Pagar</TableHead><TableHead className="text-right">Valor/h</TableHead>
-            <TableHead className="text-right">Final</TableHead><TableHead></TableHead>
-          </TableRow></TableHeader>
-          <TableBody>
-            {itens.map((i) => (
-              <TableRow key={i.id}>
-                <TableCell className="font-mono">{i.equipamentos?.tag}</TableCell>
-                <TableCell className="text-sm">{i.equipamentos?.tipo} {i.equipamentos?.modelo}</TableCell>
-                <TableCell className="text-right num">{fmtNum(i.horas_informadas)}</TableCell>
-                <TableCell className="text-right num">{fmtNum(i.horas_mecanicas)}</TableCell>
-                <TableCell className="text-right num">{fmtNum(i.horas_chuvoso)}</TableCell>
-                <TableCell className="text-right num">{fmtNum(i.horas_liquidas)}</TableCell>
-                <TableCell className="text-right num font-semibold">{fmtNum(i.horas_a_pagar)}</TableCell>
-                <TableCell className="text-right num">{fmtBRL(i.valor_hora)}</TableCell>
-                <TableCell className="text-right num font-semibold text-primary">{fmtBRL(i.valor_final)}</TableCell>
-                <TableCell><Button size="sm" variant="ghost" onClick={() => navigate(`/memoria-calculo/${i.id}`)}>Memória</Button></TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table></div>
-      </CardContent></Card>
+      <MedicaoItensEditor
+        medicaoId={med.id}
+        contratoId={med.contrato_id}
+        periodoInicio={med.periodo_inicio}
+        periodoFim={med.periodo_fim}
+        onChanged={load}
+      />
 
       {aprovs.length > 0 && <Card className="mt-4"><CardContent className="p-4">
         <h3 className="mb-3 text-sm font-semibold">Histórico de aprovações</h3>
