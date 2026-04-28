@@ -189,13 +189,13 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   // === Identificação ===
   const cliente = (med as any).contratos?.clientes?.razao_social ?? "-";
   const fornecedorNome = (med as any).contratos?.fornecedor_nome;
-  const fornecedor = fornecedorNome
-    ? `${fornecedorNome}${(med as any).contratos?.fornecedor_codigo ? ` (${(med as any).contratos.fornecedor_codigo})` : ""}`
-    : "Não informado";
+  const fornecedorCodigo = (med as any).contratos?.fornecedor_codigo;
+  const fornecedorTexto = fornecedorNome ? String(fornecedorNome) : "Não informado";
 
   const ident: [string, string][] = [
     ["Cliente / Contratante", cliente],
-    ["Fornecedor / Locadora", fornecedor],
+    ["Fornecedor / Locadora", fornecedorTexto],
+    ...(fornecedorCodigo ? [["Código fornecedor", String(fornecedorCodigo)] as [string, string]] : []),
     ["Contrato / Nº DJ", (med as any).contratos?.numero_dj ?? "-"],
     ["Tipo de serviço", (med as any).contratos?.tipo_servico ?? "-"],
     ["Centro de custo", (med as any).contratos?.centro_custo ?? "-"],
@@ -206,6 +206,9 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
 
   doc.setFontSize(8);
   const colW = (pageW - marginX * 2) / 2;
+  const labelW = 36;
+  const valueW = colW - labelW - 2;
+  let identMaxLine = 0;
   ident.forEach((row, i) => {
     const col = i % 2;
     const line = Math.floor(i / 2);
@@ -216,9 +219,12 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     doc.text(`${row[0]}:`, xx, yy);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(0, 0, 0);
-    doc.text(String(row[1]), xx + 36, yy);
+    const wrapped = doc.splitTextToSize(String(row[1]), valueW);
+    doc.text(wrapped, xx + labelW, yy);
+    identMaxLine = Math.max(identMaxLine, line + (wrapped.length - 1) * 0.8 + 1);
   });
-  y += Math.ceil(ident.length / 2) * 5 + 4;
+  y += Math.ceil(identMaxLine) * 5 + 4;
+
 
   // === Resumo financeiro ===
   sectionTitle("RESUMO FINANCEIRO");
