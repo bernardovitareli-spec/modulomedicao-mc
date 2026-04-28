@@ -590,7 +590,7 @@ export default function ImportarMedicao() {
     <div>
       <PageHeader
         title="Importar planilha de medição"
-        description='Carregue um arquivo .xlsx contendo a aba "BASE DE DADOS"'
+        description='Suporta layouts "BASE DE DADOS" (Modelo 1) e "Template Medição" (Modelo 2)'
         actions={<Button variant="outline" onClick={() => navigate("/medicoes")}><ArrowLeft className="mr-1 h-4 w-4" />Voltar</Button>}
       />
 
@@ -598,7 +598,7 @@ export default function ImportarMedicao() {
         <Label>Arquivo Excel (.xlsx) *</Label>
         <Input type="file" accept=".xlsx,.xls" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
         <p className="mt-2 text-xs text-muted-foreground">
-          O sistema localiza automaticamente a linha de cabeçalho (procurando por Mês Referência, Nº DJ, Contratado, Série, Tag e Valor/Hora) e ignora linhas vazias, de TOTAL ou sem dados essenciais.
+          O sistema identifica automaticamente o modelo: aba <strong>"BASE DE DADOS"</strong> = Modelo 1, aba <strong>"Template Medição"</strong> = Modelo 2. Caso nenhuma exista, tenta localizar o cabeçalho automaticamente.
         </p>
       </CardContent></Card>
 
@@ -609,11 +609,11 @@ export default function ImportarMedicao() {
         </Alert>
       )}
 
-      {headerInfo && headerInfo.rowIndex >= 0 && !headerError && (
+      {modelo && headerInfo && headerInfo.rowIndex >= 0 && !headerError && (
         <Alert className="mb-4">
           <CheckCircle2 className="h-4 w-4" />
           <AlertDescription className="text-xs">
-            Cabeçalho localizado na linha {headerInfo.rowIndex + 1}. {Object.keys(headerInfo.colMap).length} colunas mapeadas.
+            <strong>Modelo {modelo}</strong> detectado{sheetUsed ? ` (aba "${sheetUsed}")` : ""}. Cabeçalho na linha {headerInfo.rowIndex + 1}. {Object.keys(headerInfo.colMap).length} colunas mapeadas.
           </AlertDescription>
         </Alert>
       )}
@@ -623,17 +623,24 @@ export default function ImportarMedicao() {
           <Card className="mb-4"><CardContent className="p-4">
             <h3 className="mb-3 text-sm font-semibold">Resumo da pré-visualização</h3>
             <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4">
+              <Stat label="Modelo identificado" value={modelo ?? "—"} />
               <Stat label="Linhas lidas" value={String(linhas.length + ignoradas.length)} />
               <Stat label="Linhas válidas" value={String(validas.length)} />
               <Stat label="Linhas ignoradas" value={String(ignoradas.length)} />
               <Stat label="Com erro" value={String(linhas.length - validas.length)} />
               <Stat label="Cliente(s)" value={clientes.length === 1 ? clientes[0] : String(clientes.length)} />
-              <Stat label="Contrato(s)" value={contratos.length === 1 ? contratos[0] : String(contratos.length)} />
+              <Stat label="CNPJ" value={cnpjs.length === 1 ? cnpjs[0] : (cnpjs.length ? `${cnpjs.length}` : "—")} />
+              <Stat label="Contrato / Nº DJ" value={contratos.length === 1 ? contratos[0] : String(contratos.length)} />
+              <Stat label="Tipo de serviço" value={tiposServico.length === 1 ? tiposServico[0] : (tiposServico.length ? `${tiposServico.length}` : "—")} />
+              <Stat label="Centro de custo" value={centrosCusto.length === 1 ? centrosCusto[0] : (centrosCusto.length ? `${centrosCusto.length}` : "—")} />
               <Stat label="Competência(s)" value={competencias.map((c) => c.slice(0, 7)).join(", ") || "—"} />
+              <Stat label="Período início" value={periodoIniMin || "—"} />
+              <Stat label="Período fim" value={periodoFimMax || "—"} />
               <Stat label="Equipamentos válidos" value={String(validas.length)} />
-              <Stat label="Horas informadas" value={totalHorasInf.toFixed(2)} />
-              <Stat label="Horas mecânicas" value={totalHorasMec.toFixed(2)} />
-              <Stat label="Descontos" value={fmtBRL(totalDesc)} />
+              <Stat label="Total HT informado" value={totalHorasInf.toFixed(2)} />
+              <Stat label="Total horas mecânicas" value={totalHorasMec.toFixed(2)} />
+              <Stat label="Total complementares" value={fmtBRL(totalComplementares)} />
+              <Stat label="Total descontos" value={fmtBRL(totalDesc)} />
               <Stat label="Valor total previsto" value={fmtBRL(totalValor)} highlight />
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
