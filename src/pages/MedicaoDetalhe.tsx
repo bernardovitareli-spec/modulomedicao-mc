@@ -159,6 +159,9 @@ export default function MedicaoDetalhe() {
         contratoId={med.contrato_id}
         periodoInicio={med.periodo_inicio}
         periodoFim={med.periodo_fim}
+        competencia={med.competencia}
+        cliente={med.contratos?.clientes?.razao_social}
+        contratoNumero={med.contratos?.numero_dj}
         onChanged={load}
       />
 
