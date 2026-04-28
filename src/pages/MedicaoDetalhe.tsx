@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Send, CheckCircle2, XCircle, FileDown } from "lucide-react";
+import { ArrowLeft, Send, CheckCircle2, XCircle, FileDown, Trash2 } from "lucide-react";
 import { fmtBRL, fmtDate, fmtNum, fmtCompetencia } from "@/lib/format";
 import { StatusBadge } from "@/components/contrato/ContratoMedicoesTab";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -40,6 +40,18 @@ export default function MedicaoDetalhe() {
   const enviarRevisao = async () => {
     await supabase.from("medicoes").update({ status: "revisao_tecnica" } as any).eq("id", id!);
     toast.success("Enviado para revisão técnica"); load();
+  };
+
+  const excluirMedicaoTeste = async () => {
+    if (!id || !confirm("Excluir esta medição e seus itens para importar novamente?")) return;
+    const { error: errItens } = await supabase.from("medicao_itens").delete().eq("medicao_id", id);
+    if (errItens) return toast.error(errItens.message);
+    await supabase.from("aprovacoes").delete().eq("medicao_id", id);
+    await supabase.from("faturas").delete().eq("medicao_id", id);
+    const { error } = await supabase.from("medicoes").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("Medição excluída. Importe a planilha novamente com o mapeamento corrigido.");
+    navigate("/medicoes/importar");
   };
 
   const registrar = async () => {
@@ -85,6 +97,7 @@ export default function MedicaoDetalhe() {
         actions={<div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={med.status} />
           <Button size="sm" variant="outline" onClick={exportarPDF}><FileDown className="mr-1 h-4 w-4" />PDF</Button>
+          {med.status === "rascunho" && podeAprovar && <Button size="sm" variant="destructive" onClick={excluirMedicaoTeste}><Trash2 className="mr-1 h-4 w-4" />Excluir e reimportar</Button>}
           {med.status === "rascunho" && podeAprovar && <Button size="sm" onClick={enviarRevisao}><Send className="mr-1 h-4 w-4" />Enviar para revisão</Button>}
           {med.status === "revisao_tecnica" && podeAprovar && (<>
             <Button size="sm" variant="default" onClick={() => setDlg({ open: true, etapa: aprovs.some((a) => a.etapa === "revisao_tecnica" && a.resultado === "aprovado") ? "aprovacao_gerencial" : "revisao_tecnica", resultado: "aprovado" })}><CheckCircle2 className="mr-1 h-4 w-4" />Aprovar</Button>
