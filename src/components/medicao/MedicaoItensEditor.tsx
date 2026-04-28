@@ -128,6 +128,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
       valor_complementares: Number(it.valor_complementares ?? 0),
       valor_descontos: Number(it.valor_descontos ?? 0),
       observacoes: it.observacoes ?? "",
+      motivo: "",
     });
     setOpen(true);
   };
