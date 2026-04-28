@@ -597,12 +597,18 @@ export default function ImportarMedicao() {
       const periodoPorMedicao = new Map<string, { inicio: string; fim: string }>();
 
       for (const l of validas) {
+        const ov = overrides[l.numero_dj] ?? {};
+        const cnpjEfetivo = (ov.cnpj || l.cnpj || "").trim();
+        const tipoServicoEfetivo = (ov.tipo_servico || l.tipo_servico || "Locação").trim();
+        const periodoIniEfetivo = ov.periodo_inicio || l.periodo_inicio || null;
+        const periodoFimEfetivo = ov.periodo_fim || l.periodo_fim || null;
+
         const cliKey = l.contratado.toUpperCase();
         let clienteId = clientesCache.get(cliKey);
         if (!clienteId) {
           const { data, error } = await supabase.from("clientes").insert({
             razao_social: l.contratado,
-            cnpj: l.cnpj || `IMPORT-${Date.now()}-${createdCli}`,
+            cnpj: cnpjEfetivo || `IMPORT-${Date.now()}-${createdCli}`,
             status: "ativo",
           } as any).select("id").single();
           if (error) throw error;
@@ -611,11 +617,11 @@ export default function ImportarMedicao() {
 
         let contrato = contratosCache.get(l.numero_dj);
         if (!contrato) {
-          const inicio = l.inicio_op ?? l.periodo_inicio ?? (l.mes_ref ?? new Date().toISOString().slice(0, 10));
+          const inicio = l.inicio_op ?? periodoIniEfetivo ?? (l.mes_ref ?? new Date().toISOString().slice(0, 10));
           const termino = l.termino_contrato ?? new Date(new Date(inicio).getFullYear() + 1, 11, 31).toISOString().slice(0, 10);
           const { data, error } = await supabase.from("contratos").insert({
             numero_dj: l.numero_dj, cliente_id: clienteId,
-            tipo_servico: l.tipo_servico || "Locação",
+            tipo_servico: tipoServicoEfetivo,
             centro_custo: l.centro_custo || null,
             inicio_operacao: inicio, termino_contrato: termino,
             valor_hora_padrao: l.valor_hora, garantia_minima_horas: l.garantia,
@@ -624,9 +630,9 @@ export default function ImportarMedicao() {
           if (error) throw error;
           contrato = { id: data.id, valor_hora: Number(data.valor_hora_padrao ?? 0), garantia: Number(data.garantia_minima_horas ?? 0) };
           contratosCache.set(l.numero_dj, contrato); createdCtr++;
-        } else if (l.tipo_servico || l.centro_custo) {
+        } else if (tipoServicoEfetivo || l.centro_custo) {
           await supabase.from("contratos").update({
-            tipo_servico: l.tipo_servico || undefined,
+            tipo_servico: tipoServicoEfetivo || undefined,
             centro_custo: l.centro_custo || null,
           } as any).eq("id", contrato.id);
         }
