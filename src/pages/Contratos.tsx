@@ -72,17 +72,24 @@ export default function Contratos() {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader><TableRow>
-              <TableHead>Nº DJ</TableHead><TableHead>Cliente</TableHead><TableHead>Tipo Serviço</TableHead>
+              <TableHead>Nº DJ</TableHead><TableHead>Cliente / Contratante</TableHead>
+              <TableHead>Fornecedor / Locadora</TableHead>
+              <TableHead>Tipo Serviço</TableHead><TableHead>Centro custo</TableHead>
               <TableHead>Vigência</TableHead><TableHead className="text-right">Valor Global</TableHead>
               <TableHead>Status</TableHead><TableHead className="w-12"></TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-sm text-muted-foreground">Nenhum contrato.</TableCell></TableRow>}
+              {filtered.length === 0 && <TableRow><TableCell colSpan={9} className="text-center py-8 text-sm text-muted-foreground">Nenhum contrato.</TableCell></TableRow>}
               {filtered.map((c) => (
                 <TableRow key={c.id} className="cursor-pointer" onClick={() => navigate(`/contratos/${c.id}`)}>
                   <TableCell className="font-mono font-semibold">{c.numero_dj}</TableCell>
                   <TableCell>{c.clientes?.razao_social ?? "—"}</TableCell>
+                  <TableCell className="text-sm">
+                    {c.fornecedor_nome ?? "—"}
+                    {c.fornecedor_codigo && <span className="ml-1 text-xs text-muted-foreground">({c.fornecedor_codigo})</span>}
+                  </TableCell>
                   <TableCell className="text-sm">{c.tipo_servico}</TableCell>
+                  <TableCell className="text-sm">{c.centro_custo ?? "—"}</TableCell>
                   <TableCell className="text-sm num">{fmtDate(c.inicio_operacao)} → {fmtDate(c.termino_contrato)}</TableCell>
                   <TableCell className="text-right num">{fmtBRL(c.valor_global)}</TableCell>
                   <TableCell><Badge variant={c.status === "ativo" ? "default" : c.status === "encerrado" ? "secondary" : "outline"}>{c.status}</Badge></TableCell>
