@@ -37,6 +37,7 @@ interface ItemForm {
   valor_complementares: number;
   valor_descontos: number;
   observacoes: string;
+  motivo: string;
 }
 
 const empty = (): ItemForm => ({
