@@ -25,7 +25,7 @@ export default function LimparImportacao() {
 
   if (!canPurgeImportacao) return <Navigate to="/" replace />;
 
-  const purge = async (motivo: string) => {
+  const purge = async (motivo: string): Promise<void> => {
     if (!target) return;
     setLoading(true);
     const { data, error } = await supabase.rpc("purge_importacao_teste", {
