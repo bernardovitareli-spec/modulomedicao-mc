@@ -1,0 +1,159 @@
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { PageHeader } from "@/components/PageHeader";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ArrowLeft, Send, CheckCircle2, XCircle, FileDown } from "lucide-react";
+import { fmtBRL, fmtDate, fmtNum } from "@/lib/format";
+import { StatusBadge } from "@/components/contrato/ContratoMedicoesTab";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+export default function MedicaoDetalhe() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { user, hasAnyRole } = useAuth();
+  const [med, setMed] = useState<any>(null);
+  const [itens, setItens] = useState<any[]>([]);
+  const [aprovs, setAprovs] = useState<any[]>([]);
+  const [dlg, setDlg] = useState<{ open: boolean; etapa: string; resultado: string }>({ open: false, etapa: "", resultado: "" });
+  const [coment, setComent] = useState("");
+
+  const load = async () => {
+    if (!id) return;
+    const [m, i, a] = await Promise.all([
+      supabase.from("medicoes").select("*, contratos(numero_dj, clientes(razao_social, cnpj))").eq("id", id).single(),
+      supabase.from("medicao_itens").select("*, equipamentos(tag, tipo, modelo)").eq("medicao_id", id).order("created_at"),
+      supabase.from("aprovacoes").select("*").eq("medicao_id", id).order("created_at"),
+    ]);
+    setMed(m.data); setItens(i.data ?? []); setAprovs(a.data ?? []);
+  };
+  useEffect(() => { load(); }, [id]);
+
+  const enviarRevisao = async () => {
+    await supabase.from("medicoes").update({ status: "revisao_tecnica" } as any).eq("id", id!);
+    toast.success("Enviado para revisão técnica"); load();
+  };
+
+  const registrar = async () => {
+    await supabase.from("aprovacoes").insert({
+      medicao_id: id!, etapa: dlg.etapa as any, resultado: dlg.resultado as any,
+      comentario: coment, user_id: user!.id,
+    } as any);
+    let novoStatus = med.status;
+    if (dlg.resultado === "aprovado" && dlg.etapa === "revisao_tecnica") novoStatus = "revisao_tecnica"; // segue para gerencial
+    if (dlg.resultado === "aprovado" && dlg.etapa === "aprovacao_gerencial") novoStatus = "aprovada";
+    if (dlg.resultado === "rejeitado") novoStatus = "rejeitada";
+    if (dlg.resultado === "ajuste_solicitado") novoStatus = "rascunho";
+    await supabase.from("medicoes").update({ status: novoStatus } as any).eq("id", id!);
+    setDlg({ open: false, etapa: "", resultado: "" }); setComent("");
+    toast.success("Aprovação registrada"); load();
+  };
+
+  const exportarPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(14); doc.text("Boletim de Medição", 14, 18);
+    doc.setFontSize(10);
+    doc.text(`Cliente: ${med.contratos.clientes.razao_social}`, 14, 26);
+    doc.text(`Contrato: ${med.contratos.numero_dj}`, 14, 32);
+    doc.text(`Competência: ${fmtDate(med.competencia).slice(3)}`, 14, 38);
+    doc.text(`Período: ${fmtDate(med.periodo_inicio)} a ${fmtDate(med.periodo_fim)}`, 14, 44);
+    autoTable(doc, {
+      startY: 50,
+      head: [["Tag", "Equipamento", "H. Inf.", "H. Líq.", "H. Pagar", "Valor/h", "Valor Final"]],
+      body: itens.map((i) => [i.equipamentos?.tag, `${i.equipamentos?.tipo} ${i.equipamentos?.modelo}`, fmtNum(i.horas_informadas), fmtNum(i.horas_liquidas), fmtNum(i.horas_a_pagar), fmtBRL(i.valor_hora), fmtBRL(i.valor_final)]),
+      foot: [["", "", "", "", fmtNum(med.total_horas_pagar), "TOTAL", fmtBRL(med.valor_final)]],
+      styles: { fontSize: 8 },
+    });
+    doc.save(`boletim-${med.contratos.numero_dj}-${med.competencia.slice(0, 7)}.pdf`);
+  };
+
+  if (!med) return <div className="text-sm text-muted-foreground">Carregando...</div>;
+  const podeAprovar = hasAnyRole(["admin", "gestor_contrato", "operacional"]);
+
+  return (
+    <div>
+      <Button variant="ghost" size="sm" className="mb-2 -ml-2" onClick={() => navigate(-1)}><ArrowLeft className="mr-1 h-4 w-4" />Voltar</Button>
+      <PageHeader title={`Medição ${fmtDate(med.competencia).slice(3)}`} description={`${med.contratos.numero_dj} — ${med.contratos.clientes.razao_social}`}
+        actions={<div className="flex flex-wrap items-center gap-2">
+          <StatusBadge status={med.status} />
+          <Button size="sm" variant="outline" onClick={exportarPDF}><FileDown className="mr-1 h-4 w-4" />PDF</Button>
+          {med.status === "rascunho" && podeAprovar && <Button size="sm" onClick={enviarRevisao}><Send className="mr-1 h-4 w-4" />Enviar para revisão</Button>}
+          {med.status === "revisao_tecnica" && podeAprovar && (<>
+            <Button size="sm" variant="default" onClick={() => setDlg({ open: true, etapa: aprovs.some((a) => a.etapa === "revisao_tecnica" && a.resultado === "aprovado") ? "aprovacao_gerencial" : "revisao_tecnica", resultado: "aprovado" })}><CheckCircle2 className="mr-1 h-4 w-4" />Aprovar</Button>
+            <Button size="sm" variant="destructive" onClick={() => setDlg({ open: true, etapa: "revisao_tecnica", resultado: "rejeitado" })}><XCircle className="mr-1 h-4 w-4" />Rejeitar</Button>
+          </>)}
+        </div>} />
+
+      <div className="mb-4 grid gap-3 md:grid-cols-5">
+        <Kpi l="Horas informadas" v={fmtNum(med.total_horas_informadas)} />
+        <Kpi l="Horas líquidas" v={fmtNum(med.total_horas_liquidas)} />
+        <Kpi l="Horas a pagar" v={fmtNum(med.total_horas_pagar)} />
+        <Kpi l="Valor bruto" v={fmtBRL(med.valor_bruto)} />
+        <Kpi l="Valor final" v={fmtBRL(med.valor_final)} accent />
+      </div>
+
+      <Card><CardContent className="p-4">
+        <h3 className="mb-3 text-sm font-semibold">Itens por equipamento</h3>
+        <div className="overflow-x-auto"><Table>
+          <TableHeader><TableRow>
+            <TableHead>Tag</TableHead><TableHead>Equipamento</TableHead>
+            <TableHead className="text-right">H. Inf.</TableHead><TableHead className="text-right">H. Mec.</TableHead>
+            <TableHead className="text-right">H. Chuva</TableHead><TableHead className="text-right">H. Líq.</TableHead>
+            <TableHead className="text-right">H. Pagar</TableHead><TableHead className="text-right">Valor/h</TableHead>
+            <TableHead className="text-right">Final</TableHead><TableHead></TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {itens.map((i) => (
+              <TableRow key={i.id}>
+                <TableCell className="font-mono">{i.equipamentos?.tag}</TableCell>
+                <TableCell className="text-sm">{i.equipamentos?.tipo} {i.equipamentos?.modelo}</TableCell>
+                <TableCell className="text-right num">{fmtNum(i.horas_informadas)}</TableCell>
+                <TableCell className="text-right num">{fmtNum(i.horas_mecanicas)}</TableCell>
+                <TableCell className="text-right num">{fmtNum(i.horas_chuvoso)}</TableCell>
+                <TableCell className="text-right num">{fmtNum(i.horas_liquidas)}</TableCell>
+                <TableCell className="text-right num font-semibold">{fmtNum(i.horas_a_pagar)}</TableCell>
+                <TableCell className="text-right num">{fmtBRL(i.valor_hora)}</TableCell>
+                <TableCell className="text-right num font-semibold text-primary">{fmtBRL(i.valor_final)}</TableCell>
+                <TableCell><Button size="sm" variant="ghost" onClick={() => navigate(`/memoria-calculo/${i.id}`)}>Memória</Button></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table></div>
+      </CardContent></Card>
+
+      {aprovs.length > 0 && <Card className="mt-4"><CardContent className="p-4">
+        <h3 className="mb-3 text-sm font-semibold">Histórico de aprovações</h3>
+        <div className="space-y-2">
+          {aprovs.map((a) => (
+            <div key={a.id} className="flex items-start gap-3 rounded border p-3 text-sm">
+              <div className="flex-1">
+                <p className="font-medium">{a.etapa === "revisao_tecnica" ? "Revisão técnica" : "Aprovação gerencial"} — <span className={a.resultado === "aprovado" ? "text-success" : "text-destructive"}>{a.resultado}</span></p>
+                {a.comentario && <p className="text-muted-foreground">{a.comentario}</p>}
+                <p className="text-xs text-muted-foreground mt-1 num">{fmtDate(a.created_at)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent></Card>}
+
+      <Dialog open={dlg.open} onOpenChange={(o) => setDlg({ ...dlg, open: o })}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{dlg.etapa === "revisao_tecnica" ? "Revisão técnica" : "Aprovação gerencial"} — {dlg.resultado}</DialogTitle></DialogHeader>
+          <Textarea placeholder="Comentário (opcional)" value={coment} onChange={(e) => setComent(e.target.value)} />
+          <DialogFooter><Button variant="outline" onClick={() => setDlg({ ...dlg, open: false })}>Cancelar</Button><Button onClick={registrar}>Confirmar</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function Kpi({ l, v, accent }: { l: string; v: string; accent?: boolean }) {
+  return <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">{l}</p><p className={`mt-1 text-lg font-bold num ${accent ? "text-primary" : ""}`}>{v}</p></CardContent></Card>;
+}
