@@ -1,0 +1,1 @@
+UPDATE public.contratos SET fornecedor_nome = 'MC TERRAPLANAGEM E CONSTRUCOES LTDA', fornecedor_codigo = COALESCE(fornecedor_codigo, '15811'), updated_at = now() WHERE numero_dj = 'MANGANÊS' AND (fornecedor_nome IS NULL OR fornecedor_nome = '');
