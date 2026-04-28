@@ -30,7 +30,7 @@ export default function Contratos() {
 
   const load = async () => {
     const { data } = await supabase.from("contratos").select("*, clientes(razao_social)").order("created_at", { ascending: false });
-    setList(data ?? []);
+    setList((data ?? []) as any[]);
   };
   useEffect(() => {
     load();
