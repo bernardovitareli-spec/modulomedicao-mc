@@ -235,7 +235,12 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
       <CardContent className="p-4">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold">Itens por equipamento</h3>
-          <Button size="sm" onClick={openNovo}><Plus className="mr-1 h-4 w-4" />Adicionar item</Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={recalcularMedicao} disabled={saving}>
+              <RefreshCw className="mr-1 h-4 w-4" />Recalcular medição
+            </Button>
+            <Button size="sm" onClick={openNovo}><Plus className="mr-1 h-4 w-4" />Adicionar item</Button>
+          </div>
         </div>
 
         <div className="relative overflow-x-auto border rounded-md">
