@@ -56,6 +56,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<ItemForm>(empty());
   const [saving, setSaving] = useState(false);
+  const [detalheItem, setDetalheItem] = useState<any | null>(null);
 
   const load = async () => {
     const [ce, c, it] = await Promise.all([
