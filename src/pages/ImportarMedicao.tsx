@@ -180,6 +180,24 @@ function detectHeader(matrix: any[][], required: string[], maxRows = 30): Header
   return best;
 }
 
+function detectHeaderM2(matrix: any[][], maxRows = 5): HeaderInfo {
+  const maxScan = Math.min(matrix.length, maxRows);
+  let best: HeaderInfo = { rowIndex: -1, colMap: { ...M2_FIXED_COL_MAP }, missingRequired: REQUIRED_M2.slice() };
+  for (let i = 0; i < maxScan; i++) {
+    const row = matrix[i] ?? [];
+    const missing = REQUIRED_M2.filter((field) => {
+      const col = M2_FIXED_COL_MAP[field];
+      const cell = normalize(row[col]);
+      return !(M2_EXPECTED_HEADERS[field] ?? []).some((h) => cell === h || cell.startsWith(h + " "));
+    });
+    if (missing.length < best.missingRequired.length) {
+      best = { rowIndex: i, colMap: { ...M2_FIXED_COL_MAP }, missingRequired: missing };
+      if (missing.length === 0) return best;
+    }
+  }
+  return best;
+}
+
 // ---------- Modelo ----------
 type ModeloLayout = "M1" | "M2";
 
