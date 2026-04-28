@@ -108,7 +108,21 @@ export default function MedicaoDetalhe() {
       <PageHeader title={`Medição ${fmtCompetencia(med.competencia)}`} description={`${med.contratos.numero_dj} — ${med.contratos.clientes.razao_social}`}
         actions={<div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={med.status} />
-          <Button size="sm" variant="outline" onClick={exportarPDF}><FileDown className="mr-1 h-4 w-4" />PDF</Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" disabled={med.status === "cancelada"}>
+                <FileDown className="mr-1 h-4 w-4" />PDF
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => exportarPDF(true)}>
+                <Eye className="mr-2 h-4 w-4" />Visualizar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportarPDF(false)}>
+                <Download className="mr-2 h-4 w-4" />Baixar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <MedicaoRegrasActions medicaoId={med.id} status={med.status} onApplied={load} />
           {perms.canCancelMedicao(med.status) && (
             <Button size="sm" variant="outline" onClick={() => setCancelOpen(true)}>
