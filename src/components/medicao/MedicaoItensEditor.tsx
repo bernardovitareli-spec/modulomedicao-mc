@@ -290,7 +290,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                     <TableCell className="sticky left-0 z-10 bg-background group-hover:bg-muted/50 border-r font-mono text-xs whitespace-nowrap">{i.equipamentos?.serie ?? "-"}</TableCell>
                     <TableCell className="sticky left-[110px] z-10 bg-background group-hover:bg-muted/50 border-r font-mono text-xs whitespace-nowrap">{i.equipamentos?.tag}</TableCell>
                     <TableCell className="sticky left-[200px] z-10 bg-background group-hover:bg-muted/50 border-r text-xs whitespace-nowrap">{i.equipamentos?.tipo}</TableCell>
-                    <TableCell className="sticky left-[370px] z-10 bg-background group-hover:bg-muted/50 border-r text-xs whitespace-nowrap">{i.equipamentos?.modelo}</TableCell>
+                    <TableCell className="sticky left-[370px] z-10 bg-background group-hover:bg-muted/50 border-r-2 border-r-border shadow-[2px_0_4px_-2px_rgba(0,0,0,0.15)] text-xs whitespace-nowrap">{i.equipamentos?.modelo}</TableCell>
                     <TableCell className="text-right num">{fmtNum(i.horimetro_inicial)}</TableCell>
                     <TableCell className="text-right num">{fmtNum(i.horimetro_final)}</TableCell>
                     <TableCell className="text-right num">{fmtNum(htCalc)}</TableCell>
