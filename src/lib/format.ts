@@ -17,8 +17,9 @@ export const fmtDate = (d: string | Date | null | undefined) => {
   return date.toLocaleDateString("pt-BR");
 };
 
-export const fmtCNPJ = (cnpj: string) => {
-  const c = cnpj.replace(/\D/g, "").padStart(14, "0").slice(0, 14);
+export const fmtCNPJ = (cnpj: string | null | undefined) => {
+  if (!cnpj) return "-";
+  const c = String(cnpj).replace(/\D/g, "").padStart(14, "0").slice(0, 14);
   return c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
 };
 
