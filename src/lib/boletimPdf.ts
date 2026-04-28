@@ -27,14 +27,77 @@ const FIELD_LABEL: Record<string, string> = {
   observacoes: "Observações",
   valor_final: "Valor final",
   garantia_proporcional: "Garantia proporcional",
+  data_inicio_operacao_item: "Início operação",
+  data_fim_operacao_item: "Fim operação",
 };
 
+// Campos relevantes para o PDF do cliente (afetam cálculo, valor, horas, regras ou período)
+const CAMPOS_RELEVANTES_CLIENTE = new Set([
+  "horas_informadas",
+  "horas_mecanicas",
+  "horas_chuvoso",
+  "horas_excecao_chuvoso",
+  "valor_complementares",
+  "valor_descontos",
+  "valor_final",
+  "horas_a_pagar",
+  "horas_liquidas",
+  "garantia_proporcional",
+  "data_inicio_operacao_item",
+  "data_fim_operacao_item",
+]);
+
+const REGRA_TIPO_LABEL: Record<string, string> = {
+  valor_hora: "Valor/hora contratado",
+  garantia_minima: "Garantia mínima mensal",
+  garantia_proporcional: "Garantia proporcional por período parcial",
+  desconto_horas_mecanicas: "Desconto de horas mecânicas",
+  periodo_chuvoso: "Regra de período chuvoso",
+  excecao_chuvoso: "Exceção do período chuvoso",
+  desconto_manual: "Desconto manual",
+  complementar: "Valor complementar",
+  regra_personalizada: "Regra personalizada",
+};
+
+const REGRA_ORIGEM_LABEL: Record<string, string> = {
+  contrato: "Geral do contrato",
+  tipo_equipamento: "Por tipo de equipamento",
+  equipamento: "Específica do equipamento",
+  automatica: "Regra automática do sistema",
+};
+
+function labelTipoRegra(t?: string) {
+  if (!t) return "-";
+  return REGRA_TIPO_LABEL[t] ?? t.replace(/_/g, " ");
+}
+function labelOrigemRegra(o?: string) {
+  if (!o) return "-";
+  return REGRA_ORIGEM_LABEL[o] ?? o;
+}
+
+// Tenta detectar se um valor "anterior" e "novo" são numericamente equivalentes
+function valoresEquivalentes(a: any, b: any): boolean {
+  if (a == null && b == null) return true;
+  const sa = String(a ?? "").trim();
+  const sb = String(b ?? "").trim();
+  if (sa === sb) return true;
+  const na = Number(sa.replace(",", "."));
+  const nb = Number(sb.replace(",", "."));
+  if (!isNaN(na) && !isNaN(nb)) {
+    return Math.abs(na - nb) < 0.005;
+  }
+  return false;
+}
+
 interface GenerarOpts {
-  preview?: boolean; // se true, abre em nova aba; senão, faz download
+  preview?: boolean;
+  /** "interno" exibe histórico completo; "cliente" filtra alterações irrelevantes. */
+  modo?: "interno" | "cliente";
 }
 
 export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {}) {
-  // Carrega dados completos
+  const modo = opts.modo ?? "interno";
+
   const [{ data: med }, { data: itens }, { data: alteracoes }, { data: aprovs }] = await Promise.all([
     supabase
       .from("medicoes")
@@ -61,6 +124,17 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   if (!med) throw new Error("Medição não encontrada");
   if (med.status === "cancelada") {
     throw new Error("Não é permitido gerar PDF de medição cancelada.");
+  }
+
+  // Carrega importação separada (se houver)
+  let importacao: any = null;
+  if ((med as any).importacao_id) {
+    const { data: imp } = await supabase
+      .from("importacoes")
+      .select("arquivo_nome, created_at")
+      .eq("id", (med as any).importacao_id)
+      .maybeSingle();
+    importacao = imp;
   }
 
   const isRascunho = med.status === "rascunho";
@@ -96,7 +170,7 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   doc.text("MedControl", marginX, y);
   doc.setFontSize(11);
   doc.setTextColor(100, 116, 139);
-  doc.text("Boletim de Medição", marginX, y + 5.5);
+  doc.text(`Boletim de Medição${modo === "cliente" ? " — Versão Cliente" : ""}`, marginX, y + 5.5);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
@@ -108,16 +182,16 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   doc.setTextColor(0, 0, 0);
   y += 10;
 
-  // Linha
   doc.setDrawColor(200, 200, 200);
   doc.line(marginX, y, pageW - marginX, y);
   y += 4;
 
   // === Identificação ===
   const cliente = (med as any).contratos?.clientes?.razao_social ?? "-";
-  const fornecedor = (med as any).contratos?.fornecedor_nome
-    ? `${(med as any).contratos.fornecedor_nome}${(med as any).contratos.fornecedor_codigo ? ` (${(med as any).contratos.fornecedor_codigo})` : ""}`
-    : "-";
+  const fornecedorNome = (med as any).contratos?.fornecedor_nome;
+  const fornecedor = fornecedorNome
+    ? `${fornecedorNome}${(med as any).contratos?.fornecedor_codigo ? ` (${(med as any).contratos.fornecedor_codigo})` : ""}`
+    : "Não informado";
 
   const ident: [string, string][] = [
     ["Cliente / Contratante", cliente],
@@ -146,7 +220,7 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   });
   y += Math.ceil(ident.length / 2) * 5 + 4;
 
-  // === 2. Resumo financeiro ===
+  // === Resumo financeiro ===
   sectionTitle("RESUMO FINANCEIRO");
   autoTable(doc, {
     startY: y,
@@ -167,8 +241,19 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   });
   y = (doc as any).lastAutoTable.finalY + 5;
 
-  // === 3. Itens da Medição ===
-  sectionTitle("ITENS DA MEDIÇÃO");
+  // === Itens (página em paisagem) ===
+  doc.addPage("a4", "landscape");
+  const lpW = doc.internal.pageSize.getWidth();
+  const lpH = doc.internal.pageSize.getHeight();
+  // título da seção em paisagem
+  doc.setFillColor(30, 41, 59);
+  doc.rect(10, 10, lpW - 20, 6.5, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("ITENS DA MEDIÇÃO", 12, 14.6);
+  doc.setTextColor(0, 0, 0);
+
   const itensList = itens ?? [];
   const body = itensList.map((i: any) => {
     const htCalc = Number(i.horimetro_final ?? 0) - Number(i.horimetro_inicial ?? 0);
@@ -186,7 +271,7 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
       fmtNum(i.horas_mecanicas),
       fmtNum(i.horas_liquidas),
       fmtNum(i.garantia_mensal_horas ?? i.garantia_minima),
-      i.dias_considerados ?? "-",
+      String(i.dias_considerados ?? "-"),
       fmtNum(i.garantia_proporcional_horas),
       i.aplicar_garantia_proporcional ? "Sim" : "Não",
       fmtNum(i.horas_a_pagar),
@@ -197,11 +282,22 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     ];
   });
   autoTable(doc, {
-    startY: y,
-    margin: { left: 6, right: 6 },
+    startY: 20,
+    margin: { left: 8, right: 8 },
     theme: "grid",
-    styles: { fontSize: 6, cellPadding: 1, overflow: "linebreak" },
-    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 6 },
+    styles: { fontSize: 6.5, cellPadding: 1.2, overflow: "linebreak" },
+    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 6.5 },
+    columnStyles: {
+      0: { cellWidth: 18 }, 1: { cellWidth: 14 }, 2: { cellWidth: 18 }, 3: { cellWidth: 20 },
+      4: { cellWidth: 14, halign: "right" }, 5: { cellWidth: 14, halign: "right" },
+      6: { cellWidth: 12, halign: "right" }, 7: { cellWidth: 12, halign: "right" },
+      8: { cellWidth: 12, halign: "right" }, 9: { cellWidth: 12, halign: "right" },
+      10: { cellWidth: 12, halign: "right" }, 11: { cellWidth: 14, halign: "right" },
+      12: { cellWidth: 10, halign: "right" }, 13: { cellWidth: 14, halign: "right" },
+      14: { cellWidth: 11, halign: "center" }, 15: { cellWidth: 14, halign: "right" },
+      16: { cellWidth: 18, halign: "right" }, 17: { cellWidth: 18, halign: "right" },
+      18: { cellWidth: 18, halign: "right" }, 19: { cellWidth: 22, halign: "right", fontStyle: "bold" },
+    },
     head: [[
       "Série", "Tag", "Tipo", "Modelo", "Horím. Ini.", "Horím. Fim", "HT calc.",
       "HT inf.", "Diverg.", "H. mec.", "H. líq.", "Gar. mensal", "Dias",
@@ -210,14 +306,13 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     body,
     rowPageBreak: "avoid",
     showHead: "everyPage",
-    didDrawPage: () => {
-      // marca d'água por página será aplicada no final
-    },
   });
-  y = (doc as any).lastAutoTable.finalY + 5;
 
-  // === 4. Memória de Cálculo ===
-  ensureSpace(20);
+  // Volta para retrato nas demais seções
+  doc.addPage("a4", "portrait");
+  y = 14;
+
+  // === Memória de Cálculo ===
   sectionTitle("MEMÓRIA DE CÁLCULO POR EQUIPAMENTO");
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
@@ -237,7 +332,6 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     const garMensal = Number(i.garantia_mensal_horas ?? i.garantia_minima ?? 0);
     const garProp = Number(i.garantia_proporcional_horas ?? 0);
     const aplicaProp = !!i.aplicar_garantia_proporcional;
-    const garEfetiva = aplicaProp ? garProp : garMensal;
     const ht = Number(i.horas_informadas ?? 0);
     const hLiq = Number(i.horas_liquidas ?? 0);
     const hPagar = Number(i.horas_a_pagar ?? 0);
@@ -249,20 +343,20 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
 
     const linhas: string[] = [];
     linhas.push(`Período efetivo: ${fmtDate(i.data_inicio_operacao_item ?? i.periodo_inicio ?? med.periodo_inicio)} a ${fmtDate(i.data_fim_operacao_item ?? i.periodo_fim ?? med.periodo_fim)}`);
-    linhas.push(`Base de dias do contrato: ${baseDias} dia(s)  •  Dias considerados: ${dias}`);
+    linhas.push(`Base de dias do contrato: ${baseDias} dia(s)  -  Dias considerados: ${dias}`);
     if (aplicaProp) {
-      linhas.push(`Garantia proporcional = Garantia mensal / Base dias × Dias considerados`);
-      linhas.push(`Garantia proporcional = ${fmtNum(garMensal)} / ${baseDias} × ${dias} = ${fmtNum(garProp)} h`);
+      linhas.push(`Garantia proporcional = Garantia mensal / Base dias x Dias considerados`);
+      linhas.push(`Garantia proporcional = ${fmtNum(garMensal)} / ${baseDias} x ${dias} = ${fmtNum(garProp)} h`);
       linhas.push(`Horas a pagar = MAX(HT informado; Garantia proporcional)`);
       linhas.push(`Horas a pagar = MAX(${fmtNum(ht)}; ${fmtNum(garProp)}) = ${fmtNum(hPagar)} h`);
     } else {
-      linhas.push(`Horas líquidas = HT informado − Horas mecânicas = ${fmtNum(ht)} − ${fmtNum(i.horas_mecanicas)} = ${fmtNum(hLiq)} h`);
-      linhas.push(`Horas a pagar = MAX(Horas líquidas; Garantia mensal)`);
+      linhas.push(`Horas liquidas = HT informado - Horas mecanicas = ${fmtNum(ht)} - ${fmtNum(i.horas_mecanicas)} = ${fmtNum(hLiq)} h`);
+      linhas.push(`Horas a pagar = MAX(Horas liquidas; Garantia mensal)`);
       linhas.push(`Horas a pagar = MAX(${fmtNum(hLiq)}; ${fmtNum(garMensal)}) = ${fmtNum(hPagar)} h`);
     }
-    linhas.push(`Valor bruto = ${fmtNum(hPagar)} × ${fmtBRL(vh)} = ${fmtBRL(vBruto)}`);
-    linhas.push(`Valor final = Valor bruto + Complementares − Descontos`);
-    linhas.push(`Valor final = ${fmtBRL(vBruto)} + ${fmtBRL(vCompl)} − ${fmtBRL(vDesc)} = ${fmtBRL(vFinal)}`);
+    linhas.push(`Valor bruto = ${fmtNum(hPagar)} x ${fmtBRL(vh)} = ${fmtBRL(vBruto)}`);
+    linhas.push(`Valor final = Valor bruto + Complementares - Descontos`);
+    linhas.push(`Valor final = ${fmtBRL(vBruto)} + ${fmtBRL(vCompl)} - ${fmtBRL(vDesc)} = ${fmtBRL(vFinal)}`);
 
     linhas.forEach((l) => {
       ensureSpace(4);
@@ -272,20 +366,30 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     y += 2;
   });
 
-  // === 5. Regras Contratuais Aplicadas ===
+  // === Regras Contratuais Aplicadas ===
   ensureSpace(15);
   sectionTitle("REGRAS CONTRATUAIS APLICADAS");
   const regrasRows: any[] = [];
   itensList.forEach((i: any) => {
     const regras = Array.isArray(i.regras_aplicadas) ? i.regras_aplicadas : [];
+    const equipLabel = `${i.equipamentos?.tag ?? "-"}${i.equipamentos?.serie ? ` / ${i.equipamentos.serie}` : ""}`;
     regras.forEach((r: any) => {
+      const isProp = r.tipo === "garantia_proporcional";
+      const detalhe = isProp
+        ? `Dias: ${r.dias_considerados ?? "-"}/${r.base_dias ?? "-"}  -  Gar. mensal: ${fmtNum(r.garantia_mensal)} h  -  Gar. prop.: ${fmtNum(r.garantia_proporcional)} h`
+        : (r.tipo_equipamento ?? r.nome ?? "-");
+      const valorCol = r.valor != null
+        ? fmtBRL(r.valor)
+        : (r.horas != null ? `${fmtNum(r.horas)} h`
+        : (r.garantia_proporcional != null ? `${fmtNum(r.garantia_proporcional)} h` : "-"));
       regrasRows.push([
-        r.tipo ?? "-",
-        r.origem ?? "-",
-        `${i.equipamentos?.tag ?? "-"}${i.equipamentos?.serie ? ` / ${i.equipamentos.serie}` : ""}`,
-        r.valor != null ? fmtBRL(r.valor) : (r.horas != null ? `${fmtNum(r.horas)} h` : "-"),
-        r.garantia_proporcional != null ? `${fmtNum(r.garantia_proporcional)} h` : "-",
-        r.tipo_equipamento ?? r.nome ?? "-",
+        labelTipoRegra(r.tipo),
+        labelOrigemRegra(r.origem),
+        equipLabel,
+        valorCol,
+        `${fmtNum(i.horas_a_pagar)} h`,
+        fmtBRL(i.valor_final),
+        detalhe,
       ]);
     });
   });
@@ -303,26 +407,45 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
       startY: y,
       margin: { left: marginX, right: marginX },
       theme: "grid",
-      styles: { fontSize: 7, cellPadding: 1.5 },
+      styles: { fontSize: 7, cellPadding: 1.5, overflow: "linebreak" },
       headStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59] },
-      head: [["Tipo", "Escopo", "Equipamento", "Valor / Horas", "Gar. Proporc.", "Detalhe"]],
+      columnStyles: {
+        0: { cellWidth: 38 },
+        1: { cellWidth: 26 },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 22, halign: "right" },
+        4: { cellWidth: 18, halign: "right" },
+        5: { cellWidth: 22, halign: "right" },
+        6: { cellWidth: "auto" },
+      },
+      head: [["Tipo", "Escopo", "Equipamento", "Valor / Horas", "H. pagar", "Valor final", "Detalhe"]],
       body: regrasRows,
+      rowPageBreak: "avoid",
+      showHead: "everyPage",
     });
     y = (doc as any).lastAutoTable.finalY + 5;
   }
 
-  // === 6. Observações ===
+  // === Observações ===
   ensureSpace(15);
   sectionTitle("OBSERVAÇÕES");
   doc.setFontSize(8);
+  // Arquivo de origem em destaque, separado das observações
+  if (importacao?.arquivo_nome) {
+    doc.setFont("helvetica", "bold");
+    doc.text(`Arquivo de origem: `, marginX, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(String(importacao.arquivo_nome), marginX + 28, y);
+    y += 4.5;
+  }
   const obs: string[] = [];
-  if (med.observacoes) obs.push(`Geral: ${med.observacoes}`);
-  if ((med as any).contratos?.observacoes) obs.push(`Contrato: ${(med as any).contratos.observacoes}`);
+  if (med.observacoes) obs.push(`Observação geral: ${med.observacoes}`);
+  if ((med as any).contratos?.observacoes) obs.push(`Observação do contrato: ${(med as any).contratos.observacoes}`);
   itensList.forEach((i: any) => {
     if (i.observacoes) obs.push(`${i.equipamentos?.tag ?? "-"}: ${i.observacoes}`);
     if (i.motivo_proporcionalidade) obs.push(`${i.equipamentos?.tag ?? "-"} (proporcionalidade): ${i.motivo_proporcionalidade}`);
   });
-  if (obs.length === 0) {
+  if (obs.length === 0 && !importacao?.arquivo_nome) {
     doc.setFont("helvetica", "italic");
     doc.setTextColor(100, 116, 139);
     doc.text("Sem observações registradas.", marginX, y);
@@ -331,22 +454,39 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     y += 5;
   } else {
     obs.forEach((o) => {
-      const wrapped = doc.splitTextToSize(`• ${o}`, pageW - marginX * 2 - 2);
+      const wrapped = doc.splitTextToSize(`- ${o}`, pageW - marginX * 2 - 2);
       ensureSpace(wrapped.length * 3.6 + 2);
       doc.text(wrapped, marginX, y);
       y += wrapped.length * 3.6 + 1;
     });
   }
 
-  // === 7. Histórico de Alterações ===
+  // === Histórico de Alterações ===
   ensureSpace(15);
-  sectionTitle("HISTÓRICO DE ALTERAÇÕES");
-  const histList = alteracoes ?? [];
+  sectionTitle(modo === "cliente" ? "HISTÓRICO DE ALTERAÇÕES (relevantes)" : "HISTÓRICO DE ALTERAÇÕES");
+  let histList = (alteracoes ?? []) as any[];
+
+  if (modo === "cliente") {
+    histList = histList.filter((l) => {
+      // Oculta motivo "Teste"
+      if (l.motivo && /^teste$/i.test(String(l.motivo).trim())) return false;
+      // Oculta alterações sem mudança real
+      if (l.campo && valoresEquivalentes(l.valor_anterior, l.valor_novo)) return false;
+      // Apenas campos relevantes ou ações de cálculo
+      if (l.campo) {
+        return CAMPOS_RELEVANTES_CLIENTE.has(l.campo);
+      }
+      // Sem campo: mantém apenas se for ação de recálculo/regras/proporcionalidade
+      const acao = String(l.acao ?? "").toUpperCase();
+      return acao.includes("RECALCULO") || acao.includes("REGRAS") || acao.includes("PROPORCION");
+    });
+  }
+
   if (histList.length === 0) {
     doc.setFontSize(8);
     doc.setFont("helvetica", "italic");
     doc.setTextColor(100, 116, 139);
-    doc.text("Nenhuma alteração registrada.", marginX, y);
+    doc.text(modo === "cliente" ? "Nenhuma alteração relevante registrada." : "Nenhuma alteração registrada.", marginX, y);
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
     y += 5;
@@ -361,9 +501,9 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
         0: { cellWidth: 22 },
         1: { cellWidth: 28 },
         2: { cellWidth: 18 },
-        3: { cellWidth: 22 },
-        4: { cellWidth: 24 },
-        5: { cellWidth: 24 },
+        3: { cellWidth: 24 },
+        4: { cellWidth: 22 },
+        5: { cellWidth: 22 },
         6: { cellWidth: "auto" },
       },
       head: [["Data/Hora", "Usuário", "Equip.", "Campo", "Anterior", "Novo", "Motivo"]],
@@ -389,59 +529,66 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     }
   }
 
-  // === 8. Assinaturas ===
+  // === Assinaturas ===
   ensureSpace(45);
   sectionTitle("ASSINATURAS");
   y += 12;
   const sigW = (pageW - marginX * 2 - 10) / 3;
   const sigY = y;
-  const sigLabels = ["Responsável pela medição", "Responsável pela conferência", "Cliente / Aprovador"];
+  const responsavelLocadora = fornecedorNome
+    ? `Responsável ${fornecedorNome.split(/\s+/).slice(0, 2).join(" ")} / Locadora`
+    : "Responsável Locadora / Fornecedor";
+  const sigLabels = [responsavelLocadora, "Responsável pela conferência", "Cliente / Aprovador"];
   doc.setDrawColor(80, 80, 80);
   sigLabels.forEach((lbl, i) => {
     const xx = marginX + i * (sigW + 5);
     doc.line(xx, sigY, xx + sigW, sigY);
     doc.setFontSize(7.5);
-    doc.text(lbl, xx + sigW / 2, sigY + 4, { align: "center" });
+    const wrapped = doc.splitTextToSize(lbl, sigW);
+    doc.text(wrapped, xx + sigW / 2, sigY + 4, { align: "center" });
     doc.setFontSize(7);
     doc.setTextColor(100, 116, 139);
-    doc.text("Nome / Assinatura", xx + sigW / 2, sigY + 8, { align: "center" });
+    doc.text("Nome / Assinatura", xx + sigW / 2, sigY + 4 + wrapped.length * 3, { align: "center" });
     doc.setTextColor(0, 0, 0);
   });
-  y = sigY + 14;
+  y = sigY + 18;
   doc.setFontSize(8);
   doc.text(`Data da aprovação: ____ / ____ / ________`, marginX, y);
   y += 5;
 
-  // === Marca d'água RASCUNHO + Rodapé em todas as páginas ===
+  // === Marca d'água + Rodapé ===
   const total = doc.getNumberOfPages();
   for (let p = 1; p <= total; p++) {
     doc.setPage(p);
+    const curW = doc.internal.pageSize.getWidth();
+    const curH = doc.internal.pageSize.getHeight();
 
     if (isRascunho) {
       doc.saveGraphicsState();
       // @ts-ignore
-      doc.setGState(new (doc as any).GState({ opacity: 0.12 }));
+      doc.setGState(new (doc as any).GState({ opacity: 0.06 }));
       doc.setFont("helvetica", "bold");
       doc.setFontSize(110);
       doc.setTextColor(220, 38, 38);
-      doc.text("RASCUNHO", pageW / 2, pageH / 2, { align: "center", angle: 30 });
+      doc.text("RASCUNHO", curW / 2, curH / 2, { align: "center", angle: 30 });
       doc.restoreGraphicsState();
       doc.setTextColor(0, 0, 0);
     }
 
     // Rodapé
     doc.setDrawColor(200, 200, 200);
-    doc.line(marginX, pageH - 11, pageW - marginX, pageH - 11);
+    doc.line(10, curH - 11, curW - 10, curH - 11);
     doc.setFontSize(7);
     doc.setTextColor(100, 116, 139);
     doc.setFont("helvetica", "normal");
-    doc.text("Documento gerado automaticamente pelo MedControl", marginX, pageH - 7);
-    doc.text(geradoEm, pageW / 2, pageH - 7, { align: "center" });
-    doc.text(`Página ${p} de ${total}`, pageW - marginX, pageH - 7, { align: "right" });
+    doc.text(`Documento gerado automaticamente pelo MedControl${modo === "cliente" ? " - Versão Cliente" : ""}`, 10, curH - 7);
+    doc.text(geradoEm, curW / 2, curH - 7, { align: "center" });
+    doc.text(`Página ${p} de ${total}`, curW - 10, curH - 7, { align: "right" });
     doc.setTextColor(0, 0, 0);
   }
 
-  const fileName = `boletim-${(med as any).contratos?.numero_dj ?? "medicao"}-${String(med.competencia).slice(0, 7)}${isRascunho ? "-RASCUNHO" : ""}.pdf`;
+  const sufixo = modo === "cliente" ? "-CLIENTE" : "";
+  const fileName = `boletim-${(med as any).contratos?.numero_dj ?? "medicao"}-${String(med.competencia).slice(0, 7)}${isRascunho ? "-RASCUNHO" : ""}${sufixo}.pdf`;
 
   if (opts.preview) {
     const blob = doc.output("blob");
