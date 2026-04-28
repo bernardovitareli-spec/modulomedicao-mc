@@ -111,7 +111,17 @@ export default function MedicaoDetalhe() {
         actions={<div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={med.status} />
           <Button size="sm" variant="outline" onClick={exportarPDF}><FileDown className="mr-1 h-4 w-4" />PDF</Button>
-          {med.status === "rascunho" && podeAprovar && <Button size="sm" variant="destructive" onClick={excluirMedicaoTeste}><Trash2 className="mr-1 h-4 w-4" />Excluir e reimportar</Button>}
+          {perms.canCancelMedicao(med.status) && (
+            <Button size="sm" variant="outline" onClick={() => setCancelOpen(true)}>
+              <Ban className="mr-1 h-4 w-4" />Cancelar medição
+            </Button>
+          )}
+          {perms.canDeleteMedicao(med.status) && (
+            <Button size="sm" variant="destructive" onClick={() => setDelOpen(true)}>
+              <Trash2 className="mr-1 h-4 w-4" />
+              {perms.isAdmin ? "Excluir medição teste" : "Excluir medição"}
+            </Button>
+          )}
           {med.status === "rascunho" && podeAprovar && <Button size="sm" onClick={enviarRevisao}><Send className="mr-1 h-4 w-4" />Enviar para revisão</Button>}
           {med.status === "revisao_tecnica" && podeAprovar && (<>
             <Button size="sm" variant="default" onClick={() => setDlg({ open: true, etapa: aprovs.some((a) => a.etapa === "revisao_tecnica" && a.resultado === "aprovado") ? "aprovacao_gerencial" : "revisao_tecnica", resultado: "aprovado" })}><CheckCircle2 className="mr-1 h-4 w-4" />Aprovar</Button>
