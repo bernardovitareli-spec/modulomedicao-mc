@@ -90,14 +90,15 @@ export default function MedicaoRegrasActions({ medicaoId, status, onApplied }: P
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-6xl">
-          <DialogHeader>
+        <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] p-0 gap-0 flex flex-col overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
               Prévia da aplicação de regras contratuais
             </DialogTitle>
           </DialogHeader>
 
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
           {!podeAplicar && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
