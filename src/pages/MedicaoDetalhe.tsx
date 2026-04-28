@@ -48,16 +48,24 @@ export default function MedicaoDetalhe() {
     toast.success("Enviado para revisão técnica"); load();
   };
 
-  const excluirMedicaoTeste = async () => {
-    if (!id || !confirm("Excluir esta medição e seus itens para importar novamente?")) return;
-    const { error: errItens } = await supabase.from("medicao_itens").delete().eq("medicao_id", id);
-    if (errItens) return toast.error(errItens.message);
-    await supabase.from("aprovacoes").delete().eq("medicao_id", id);
-    await supabase.from("faturas").delete().eq("medicao_id", id);
-    const { error } = await supabase.from("medicoes").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Medição excluída. Importe a planilha novamente com o mapeamento corrigido.");
-    navigate("/medicoes/importar");
+  const onDelete = async (motivo: string): Promise<void> => {
+    if (!id) return;
+    setBusy(true);
+    const { error } = await supabase.rpc("delete_medicao_safe", { _medicao_id: id, _motivo: motivo });
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Medição excluída.");
+    navigate("/medicoes");
+  };
+
+  const onCancel = async (motivo: string): Promise<void> => {
+    if (!id) return;
+    setBusy(true);
+    const { error } = await supabase.rpc("cancel_medicao", { _medicao_id: id, _motivo: motivo });
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Medição cancelada.");
+    load();
   };
 
   const registrar = async () => {
