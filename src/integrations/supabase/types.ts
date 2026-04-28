@@ -320,6 +320,7 @@ export type Database = {
       }
       contratos: {
         Row: {
+          base_dias_garantia: number
           centro_custo: string | null
           cliente_id: string
           created_at: string
@@ -340,6 +341,7 @@ export type Database = {
           valor_hora_padrao: number | null
         }
         Insert: {
+          base_dias_garantia?: number
           centro_custo?: string | null
           cliente_id: string
           created_at?: string
@@ -360,6 +362,7 @@ export type Database = {
           valor_hora_padrao?: number | null
         }
         Update: {
+          base_dias_garantia?: number
           centro_custo?: string | null
           cliente_id?: string
           created_at?: string
@@ -588,10 +591,16 @@ export type Database = {
       }
       medicao_itens: {
         Row: {
+          aplicar_garantia_proporcional: boolean
           contrato_equipamento_id: string | null
           created_at: string
+          data_fim_operacao_item: string | null
+          data_inicio_operacao_item: string | null
+          dias_considerados: number | null
           equipamento_id: string
+          garantia_mensal_horas: number | null
           garantia_minima: number
+          garantia_proporcional_horas: number | null
           horas_a_pagar: number
           horas_chuvoso: number
           horas_descontaveis: number
@@ -605,6 +614,7 @@ export type Database = {
           id: string
           medicao_id: string
           memoria_calculo: Json | null
+          motivo_proporcionalidade: string | null
           observacoes: string | null
           periodo_fim: string
           periodo_inicio: string
@@ -619,10 +629,16 @@ export type Database = {
           valor_hora: number
         }
         Insert: {
+          aplicar_garantia_proporcional?: boolean
           contrato_equipamento_id?: string | null
           created_at?: string
+          data_fim_operacao_item?: string | null
+          data_inicio_operacao_item?: string | null
+          dias_considerados?: number | null
           equipamento_id: string
+          garantia_mensal_horas?: number | null
           garantia_minima?: number
+          garantia_proporcional_horas?: number | null
           horas_a_pagar?: number
           horas_chuvoso?: number
           horas_descontaveis?: number
@@ -636,6 +652,7 @@ export type Database = {
           id?: string
           medicao_id: string
           memoria_calculo?: Json | null
+          motivo_proporcionalidade?: string | null
           observacoes?: string | null
           periodo_fim: string
           periodo_inicio: string
@@ -650,10 +667,16 @@ export type Database = {
           valor_hora?: number
         }
         Update: {
+          aplicar_garantia_proporcional?: boolean
           contrato_equipamento_id?: string | null
           created_at?: string
+          data_fim_operacao_item?: string | null
+          data_inicio_operacao_item?: string | null
+          dias_considerados?: number | null
           equipamento_id?: string
+          garantia_mensal_horas?: number | null
           garantia_minima?: number
+          garantia_proporcional_horas?: number | null
           horas_a_pagar?: number
           horas_chuvoso?: number
           horas_descontaveis?: number
@@ -667,6 +690,7 @@ export type Database = {
           id?: string
           medicao_id?: string
           memoria_calculo?: Json | null
+          motivo_proporcionalidade?: string | null
           observacoes?: string | null
           periodo_fim?: string
           periodo_inicio?: string
@@ -815,6 +839,17 @@ export type Database = {
     }
     Functions: {
       _calc_item_com_regras: { Args: { _item_id: string }; Returns: Json }
+      _calc_proporcionalidade_item: {
+        Args: {
+          _base_dias: number
+          _data_fim_op: string
+          _data_inicio_op: string
+          _garantia_mensal: number
+          _periodo_fim: string
+          _periodo_inicio: string
+        }
+        Returns: Json
+      }
       _log_item_change: {
         Args: {
           _antes: string
@@ -901,22 +936,42 @@ export type Database = {
         Returns: Json
       }
       simular_regras_medicao: { Args: { _medicao_id: string }; Returns: Json }
-      update_medicao_item: {
-        Args: {
-          _horas_chuvoso: number
-          _horas_excecao_chuvoso: number
-          _horas_informadas: number
-          _horas_mecanicas: number
-          _horimetro_final: number
-          _horimetro_inicial: number
-          _item_id: string
-          _motivo: string
-          _observacoes: string
-          _valor_complementares: number
-          _valor_descontos: number
-        }
-        Returns: Json
-      }
+      update_medicao_item:
+        | {
+            Args: {
+              _horas_chuvoso: number
+              _horas_excecao_chuvoso: number
+              _horas_informadas: number
+              _horas_mecanicas: number
+              _horimetro_final: number
+              _horimetro_inicial: number
+              _item_id: string
+              _motivo: string
+              _observacoes: string
+              _valor_complementares: number
+              _valor_descontos: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _data_fim_operacao_item?: string
+              _data_inicio_operacao_item?: string
+              _horas_chuvoso: number
+              _horas_excecao_chuvoso: number
+              _horas_informadas: number
+              _horas_mecanicas: number
+              _horimetro_final: number
+              _horimetro_inicial: number
+              _item_id: string
+              _motivo: string
+              _motivo_proporcionalidade?: string
+              _observacoes: string
+              _valor_complementares: number
+              _valor_descontos: number
+            }
+            Returns: Json
+          }
     }
     Enums: {
       app_role:
