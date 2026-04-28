@@ -298,10 +298,10 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                     <TableCell className="text-right num">{fmtNum(i.horas_excecao_chuvoso)}</TableCell>
                     <TableCell className="text-xs max-w-[160px] truncate" title={i.observacoes ?? ""}>{i.observacoes ?? "-"}</TableCell>
                     <TableCell className="text-right whitespace-nowrap">
-                      <Button size="sm" variant="outline" onClick={() => setDetalheItem(i)}><Eye className="mr-1 h-3 w-3" />Ver detalhes</Button>
-                      <Button size="sm" variant="ghost" onClick={() => openEditar(i)} className="ml-1"><Pencil className="h-3 w-3" /></Button>
-                      <Button size="icon" variant="ghost" onClick={() => excluir(i.id)}><Trash2 className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="outline" onClick={() => openEditar(i)}><Eye className="mr-1 h-3 w-3" />Ver detalhes / Editar</Button>
+                      <Button size="icon" variant="ghost" onClick={() => excluir(i.id)} className="ml-1"><Trash2 className="h-4 w-4" /></Button>
                     </TableCell>
+
                   </TableRow>
                 );
               })}
