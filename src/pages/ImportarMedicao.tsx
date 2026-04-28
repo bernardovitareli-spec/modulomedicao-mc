@@ -10,7 +10,16 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, ArrowLeft } from "lucide-react";
+
+const TIPOS_SERVICO_M1 = [
+  "Locação de equipamentos",
+  "Transporte",
+  "Terraplenagem",
+  "Plano de chuva",
+  "Outro",
+];
 import { toast } from "sonner";
 import { fmtBRL, fmtCompetencia, fmtDate } from "@/lib/format";
 import { calcularItem } from "@/lib/calculo";
@@ -56,6 +65,7 @@ const COLUMN_ALIASES: Record<string, string[]> = {
   periodo_chuvoso: ["periodo chuvoso s n", "periodo chuvoso", "chuvoso s n", "chuvoso"],
   excecao_chuvoso: ["excecao chuvoso s n", "excecao chuvoso", "exc chuvoso", "excecao chuva"],
   observacoes: ["observacoes", "obs"],
+  medicao_planilha: ["medicao final", "medicao", "valor medicao", "valor final medicao", "total medicao", "total medição"],
 };
 
 // Modelo 1 (BASE DE DADOS) requer mes_ref e desc_manutencao
@@ -212,6 +222,7 @@ interface LinhaLida {
   mes_ref: string | null;
   numero_dj: string;
   contratado: string;
+  codigo_cliente: string;
   cnpj: string;
   tipo_servico: string;
   tipo_equip: string;
@@ -241,6 +252,8 @@ interface LinhaLida {
   horas_liquidas: number;
   horas_a_pagar: number;
   valor_final: number;
+  valor_planilha: number;
+  diferenca_calc: number;
   erros: string[];
   alertas: string[];
 }
@@ -261,10 +274,21 @@ export default function ImportarMedicao() {
   const [modelo, setModelo] = useState<ModeloLayout | null>(null);
   const [sheetUsed, setSheetUsed] = useState<string>("");
   const [importing, setImporting] = useState(false);
+  // Overrides por contrato (Nº DJ) — usados especialmente no Modelo M1 onde
+  // CNPJ, tipo_servico, codigo_cliente, periodo_inicio e periodo_fim podem
+  // não vir na planilha e precisam ser informados antes de confirmar.
+  const [overrides, setOverrides] = useState<Record<string, {
+    cnpj?: string;
+    codigo_cliente?: string;
+    tipo_servico?: string;
+    periodo_inicio?: string;
+    periodo_fim?: string;
+  }>>({});
+  const [confirmDivergencia, setConfirmDivergencia] = useState(false);
 
   const onFile = async (file: File) => {
     setFilename(file.name);
-    setLinhas([]); setIgnoradas([]); setHeaderError(""); setHeaderInfo(null); setModelo(null); setSheetUsed("");
+    setLinhas([]); setIgnoradas([]); setHeaderError(""); setHeaderInfo(null); setModelo(null); setSheetUsed(""); setOverrides({}); setConfirmDivergencia(false);
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { cellDates: true });
@@ -341,7 +365,15 @@ export default function ImportarMedicao() {
         }
 
         const numero_dj = str(get(row, "numero_dj"));
-        const contratado = str(get(row, "contratado"));
+        const contratadoRaw = str(get(row, "contratado"));
+        // Extrair código do cliente quando vier no formato "Nome | Código"
+        let contratado = contratadoRaw;
+        let codigo_cliente = "";
+        const mPipe = contratadoRaw.match(/^(.*?)[\s]*\|[\s]*([^|]+?)\s*$/);
+        if (mPipe) {
+          contratado = mPipe[1].trim();
+          codigo_cliente = mPipe[2].trim();
+        }
         const cnpj = str(get(row, "cnpj"));
         const serie = str(get(row, "serie"));
         const tag = str(get(row, "tag"));
@@ -398,6 +430,8 @@ export default function ImportarMedicao() {
         const horas_liquidas = Math.max(0, ht_informado - horas_mec);
         const horas_a_pagar = Math.max(horas_liquidas, garantia);
         const valor_final = horas_a_pagar * valor_hora + complementares - desc_manutencao;
+        const valor_planilha = num(get(row, "medicao_planilha"));
+        const diferenca_calc = valor_planilha ? (valor_planilha - valor_final) : 0;
 
         const erros: string[] = [];
         const alertas: string[] = [];
@@ -407,6 +441,9 @@ export default function ImportarMedicao() {
         if (hor_final < hor_inicial) erros.push("Horímetro final < inicial");
         if (!garantia) alertas.push("Garantia contratual ausente");
         if (Math.abs(divergencia_ht) > 0.01) alertas.push(`Divergência HT: ${divergencia_ht.toFixed(2)}h`);
+        if (valor_planilha && Math.abs(diferenca_calc) > 0.10) {
+          alertas.push("Divergência entre valor da planilha e valor recalculado.");
+        }
 
         const tipo_equip_raw = str(get(row, "tipo_equip"));
         const tipo_equip = tipo_equip_raw
@@ -415,7 +452,7 @@ export default function ImportarMedicao() {
 
         lidas.push({
           rowExcel, raw: row,
-          mes_ref, numero_dj, contratado, cnpj,
+          mes_ref, numero_dj, contratado, codigo_cliente, cnpj,
           tipo_servico: str(get(row, "tipo_servico")),
           tipo_equip,
           modelo: str(get(row, "modelo")),
@@ -429,6 +466,7 @@ export default function ImportarMedicao() {
           observacoes: str(get(row, "observacoes")),
           tipo_pagamento: str(get(row, "tipo_pagamento")),
           horas_liquidas, horas_a_pagar, valor_final,
+          valor_planilha, diferenca_calc,
           erros, alertas,
         });
       }
@@ -442,6 +480,38 @@ export default function ImportarMedicao() {
           lidas[seen.get(k)!].erros.push("Duplicado (DJ+competência+Série+Tag)");
         } else seen.set(k, i);
       });
+
+      // Prefill de overrides M1: tenta localizar cliente existente por razão social
+      // ou código e copiar CNPJ; usa também valores que já vieram na planilha.
+      if (modeloDetectado === "M1") {
+        const ovs: typeof overrides = {};
+        const djs = Array.from(new Set(lidas.map((l) => l.numero_dj).filter(Boolean)));
+        const nomes = Array.from(new Set(lidas.map((l) => l.contratado.toUpperCase()).filter(Boolean)));
+        let clientesDb: any[] = [];
+        if (nomes.length) {
+          const { data } = await supabase
+            .from("clientes")
+            .select("razao_social, cnpj, nome_fantasia");
+          clientesDb = data ?? [];
+        }
+        for (const dj of djs) {
+          const linhaRef = lidas.find((l) => l.numero_dj === dj);
+          if (!linhaRef) continue;
+          const nomeUp = linhaRef.contratado.toUpperCase();
+          const match = clientesDb.find((c: any) =>
+            String(c.razao_social ?? "").toUpperCase() === nomeUp ||
+            String(c.nome_fantasia ?? "").toUpperCase() === nomeUp
+          );
+          ovs[dj] = {
+            cnpj: linhaRef.cnpj || match?.cnpj || "",
+            codigo_cliente: linhaRef.codigo_cliente || "",
+            tipo_servico: linhaRef.tipo_servico || "",
+            periodo_inicio: linhaRef.periodo_inicio || "",
+            periodo_fim: linhaRef.periodo_fim || "",
+          };
+        }
+        setOverrides(ovs);
+      }
 
       setLinhas(lidas);
       setIgnoradas(ign);
@@ -465,6 +535,9 @@ export default function ImportarMedicao() {
   const periodoIniMin = periodosIni.length ? periodosIni.sort()[0] : "";
   const periodoFimMax = periodosFim.length ? periodosFim.sort().reverse()[0] : "";
   const totalValor = validas.reduce((s, l) => s + l.valor_final, 0);
+  const totalValorPlanilha = validas.reduce((s, l) => s + (l.valor_planilha || 0), 0);
+  const totalDifCalc = totalValorPlanilha - totalValor;
+  const linhasComDivergencia = validas.filter((l) => l.valor_planilha && Math.abs(l.diferenca_calc) > 0.10).length;
   const totalHorasInf = validas.reduce((s, l) => s + l.ht_informado, 0);
   const totalHorasDisp = validas.reduce((s, l) => s + l.horas_disp, 0);
   const totalHorasMec = validas.reduce((s, l) => s + l.horas_mec, 0);
@@ -478,7 +551,28 @@ export default function ImportarMedicao() {
     itensComTipoEquip.every((l) => normalize(l.tipo_equip) === normalize(l.tipo_servico));
   const erroMapeamentoTipoEquip = modelo === "M2" && tipoEquipIgualServico;
 
-  const podeImportar = !headerError && validas.length > 0 && !erroMapeamentoTipoEquip;
+  // Validação dos overrides obrigatórios M1
+  const m1Pendencias: string[] = [];
+  if (modelo === "M1") {
+    const djs = Array.from(new Set(validas.map((l) => l.numero_dj)));
+    for (const dj of djs) {
+      const o = overrides[dj] ?? {};
+      if (!o.tipo_servico) m1Pendencias.push(`Contrato ${dj}: tipo de serviço obrigatório`);
+      if (!o.periodo_inicio) m1Pendencias.push(`Contrato ${dj}: período início obrigatório`);
+      if (!o.periodo_fim) m1Pendencias.push(`Contrato ${dj}: período fim obrigatório`);
+      if (o.periodo_inicio && o.periodo_fim && o.periodo_fim < o.periodo_inicio) {
+        m1Pendencias.push(`Contrato ${dj}: período fim não pode ser anterior ao início`);
+      }
+    }
+  }
+
+  const precisaConfirmarDivergencia = modelo === "M1" && linhasComDivergencia > 0;
+  const podeImportar =
+    !headerError &&
+    validas.length > 0 &&
+    !erroMapeamentoTipoEquip &&
+    m1Pendencias.length === 0 &&
+    (!precisaConfirmarDivergencia || confirmDivergencia);
 
   const confirmar = async () => {
     if (!podeImportar) { toast.error("Não é possível importar"); return; }
@@ -503,12 +597,18 @@ export default function ImportarMedicao() {
       const periodoPorMedicao = new Map<string, { inicio: string; fim: string }>();
 
       for (const l of validas) {
+        const ov = overrides[l.numero_dj] ?? {};
+        const cnpjEfetivo = (ov.cnpj || l.cnpj || "").trim();
+        const tipoServicoEfetivo = (ov.tipo_servico || l.tipo_servico || "Locação").trim();
+        const periodoIniEfetivo = ov.periodo_inicio || l.periodo_inicio || null;
+        const periodoFimEfetivo = ov.periodo_fim || l.periodo_fim || null;
+
         const cliKey = l.contratado.toUpperCase();
         let clienteId = clientesCache.get(cliKey);
         if (!clienteId) {
           const { data, error } = await supabase.from("clientes").insert({
             razao_social: l.contratado,
-            cnpj: l.cnpj || `IMPORT-${Date.now()}-${createdCli}`,
+            cnpj: cnpjEfetivo || `IMPORT-${Date.now()}-${createdCli}`,
             status: "ativo",
           } as any).select("id").single();
           if (error) throw error;
@@ -517,11 +617,11 @@ export default function ImportarMedicao() {
 
         let contrato = contratosCache.get(l.numero_dj);
         if (!contrato) {
-          const inicio = l.inicio_op ?? l.periodo_inicio ?? (l.mes_ref ?? new Date().toISOString().slice(0, 10));
+          const inicio = l.inicio_op ?? periodoIniEfetivo ?? (l.mes_ref ?? new Date().toISOString().slice(0, 10));
           const termino = l.termino_contrato ?? new Date(new Date(inicio).getFullYear() + 1, 11, 31).toISOString().slice(0, 10);
           const { data, error } = await supabase.from("contratos").insert({
             numero_dj: l.numero_dj, cliente_id: clienteId,
-            tipo_servico: l.tipo_servico || "Locação",
+            tipo_servico: tipoServicoEfetivo,
             centro_custo: l.centro_custo || null,
             inicio_operacao: inicio, termino_contrato: termino,
             valor_hora_padrao: l.valor_hora, garantia_minima_horas: l.garantia,
@@ -530,9 +630,9 @@ export default function ImportarMedicao() {
           if (error) throw error;
           contrato = { id: data.id, valor_hora: Number(data.valor_hora_padrao ?? 0), garantia: Number(data.garantia_minima_horas ?? 0) };
           contratosCache.set(l.numero_dj, contrato); createdCtr++;
-        } else if (l.tipo_servico || l.centro_custo) {
+        } else if (tipoServicoEfetivo || l.centro_custo) {
           await supabase.from("contratos").update({
-            tipo_servico: l.tipo_servico || undefined,
+            tipo_servico: tipoServicoEfetivo || undefined,
             centro_custo: l.centro_custo || null,
           } as any).eq("id", contrato.id);
         }
@@ -577,9 +677,10 @@ export default function ImportarMedicao() {
           const mesmasMedicao = validas.filter((x) => x.numero_dj === l.numero_dj && x.mes_ref === l.mes_ref);
           const inicios = mesmasMedicao.map((x) => x.periodo_inicio).filter(Boolean).sort() as string[];
           const fins = mesmasMedicao.map((x) => x.periodo_fim).filter(Boolean).sort() as string[];
+          // Override M1 prevalece (período real informado pelo usuário)
           periodoPorMedicao.set(medKey, {
-            inicio: inicios[0] ?? l.mes_ref!,
-            fim: fins[fins.length - 1] ?? lastDayOfMonth(l.mes_ref!),
+            inicio: periodoIniEfetivo ?? inicios[0] ?? l.mes_ref!,
+            fim: periodoFimEfetivo ?? fins[fins.length - 1] ?? lastDayOfMonth(l.mes_ref!),
           });
         }
         const periodoMed = periodoPorMedicao.get(medKey)!;
@@ -735,20 +836,107 @@ export default function ImportarMedicao() {
               <Stat label="Total complementares" value={fmtBRL(totalComplementares)} />
               <Stat label="Total descontos" value={fmtBRL(totalDesc)} />
               <Stat label="Valor total previsto" value={fmtBRL(totalValor)} highlight />
+              {modelo === "M1" && totalValorPlanilha > 0 && (
+                <>
+                  <Stat label="Total medição (planilha)" value={fmtBRL(totalValorPlanilha)} />
+                  <Stat label="Total recalculado" value={fmtBRL(totalValor)} />
+                  <Stat label="Diferença total" value={fmtBRL(totalDifCalc)} highlight={Math.abs(totalDifCalc) > 0.10} />
+                </>
+              )}
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Badge variant="default"><CheckCircle2 className="mr-1 h-3 w-3" />{validas.length} válidas</Badge>
               {linhas.length - validas.length > 0 && <Badge variant="destructive"><AlertCircle className="mr-1 h-3 w-3" />{linhas.length - validas.length} com erro</Badge>}
               {ignoradas.length > 0 && <Badge variant="secondary">{ignoradas.length} ignoradas</Badge>}
+              {linhasComDivergencia > 0 && <Badge variant="destructive">{linhasComDivergencia} com divergência de cálculo</Badge>}
               <div className="ml-auto flex gap-2">
-                <Button variant="outline" onClick={() => { setLinhas([]); setIgnoradas([]); setFilename(""); setHeaderInfo(null); setHeaderError(""); }}>Cancelar</Button>
+                <Button variant="outline" onClick={() => { setLinhas([]); setIgnoradas([]); setFilename(""); setHeaderInfo(null); setHeaderError(""); setOverrides({}); setConfirmDivergencia(false); }}>Cancelar</Button>
                 <Button onClick={confirmar} disabled={importing || !podeImportar}>
                   {importing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Upload className="mr-1 h-4 w-4" />}
                   Confirmar importação ({validas.length})
                 </Button>
               </div>
             </div>
+            {m1Pendencias.length > 0 && (
+              <Alert variant="destructive" className="mt-3">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  <strong>Preencha os campos obrigatórios antes de confirmar:</strong>
+                  <ul className="mt-1 ml-4 list-disc">
+                    {m1Pendencias.map((p, i) => <li key={i}>{p}</li>)}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
+            {precisaConfirmarDivergencia && (
+              <Alert variant="destructive" className="mt-3">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  <div className="mb-2">
+                    Existem <strong>{linhasComDivergencia}</strong> linha(s) com divergência maior que R$ 0,10 entre o valor da planilha e o valor recalculado pelo sistema. A importação não está bloqueada, mas requer confirmação.
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={confirmDivergencia} onChange={(e) => setConfirmDivergencia(e.target.checked)} />
+                    <span>Estou ciente das divergências e desejo prosseguir.</span>
+                  </label>
+                </AlertDescription>
+              </Alert>
+            )}
           </CardContent></Card>
+
+          {modelo === "M1" && validas.length > 0 && (
+            <Card className="mb-4"><CardContent className="p-4">
+              <h3 className="mb-2 text-sm font-semibold">
+                Campos obrigatórios por contrato (Modelo M1)
+              </h3>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Estes campos podem não existir na planilha "BASE DE DADOS". Preencha antes de confirmar.
+                A competência continua sendo {competencias.map((c) => fmtCompetencia(c)).join(", ")}, mas o período real da medição será salvo separadamente.
+              </p>
+              <div className="space-y-4">
+                {Array.from(new Set(validas.map((l) => l.numero_dj))).map((dj) => {
+                  const ov = overrides[dj] ?? {};
+                  const setOv = (patch: Partial<typeof ov>) =>
+                    setOverrides((prev) => ({ ...prev, [dj]: { ...(prev[dj] ?? {}), ...patch } }));
+                  const linhaRef = validas.find((l) => l.numero_dj === dj)!;
+                  return (
+                    <div key={dj} className="rounded-md border p-3">
+                      <div className="mb-2 text-xs font-medium">
+                        Contrato <span className="font-mono">{dj}</span> · {linhaRef.contratado}
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+                        <div>
+                          <Label className="text-xs">CNPJ do cliente</Label>
+                          <Input value={ov.cnpj ?? ""} onChange={(e) => setOv({ cnpj: e.target.value })} placeholder="opcional" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Código do cliente</Label>
+                          <Input value={ov.codigo_cliente ?? ""} onChange={(e) => setOv({ codigo_cliente: e.target.value })} placeholder="ex: 15811" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Tipo de serviço *</Label>
+                          <Select value={ov.tipo_servico ?? ""} onValueChange={(v) => setOv({ tipo_servico: v })}>
+                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              {TIPOS_SERVICO_M1.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Período início *</Label>
+                          <Input type="date" value={ov.periodo_inicio ?? ""} onChange={(e) => setOv({ periodo_inicio: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Período fim *</Label>
+                          <Input type="date" value={ov.periodo_fim ?? ""} onChange={(e) => setOv({ periodo_fim: e.target.value })} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent></Card>
+          )}
 
           {validas.length > 0 && modelo === "M1" && (
             <Card className="mb-4"><CardContent className="p-4">
@@ -761,6 +949,7 @@ export default function ImportarMedicao() {
                     <TableHead className="whitespace-nowrap">Mês Referência</TableHead>
                     <TableHead className="whitespace-nowrap">Nº DJ</TableHead>
                     <TableHead className="whitespace-nowrap">Contratado</TableHead>
+                    <TableHead className="whitespace-nowrap">Código cliente</TableHead>
                     <TableHead className="whitespace-nowrap">Tipo Equipamento</TableHead>
                     <TableHead className="whitespace-nowrap">Modelo</TableHead>
                     <TableHead className="whitespace-nowrap">Série</TableHead>
@@ -774,24 +963,24 @@ export default function ImportarMedicao() {
                     <TableHead className="text-right whitespace-nowrap">Garantia Real</TableHead>
                     <TableHead className="text-right whitespace-nowrap">Horas Disposição</TableHead>
                     <TableHead className="text-right whitespace-nowrap">Horas Mecânicas</TableHead>
-                    <TableHead className="whitespace-nowrap">Tipo Pagamento</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Horas a Pagar Bruto</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Horas a Pagar Líquido</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Horas a Pagar</TableHead>
                     <TableHead className="text-right whitespace-nowrap">Valor/Hora</TableHead>
                     <TableHead className="text-right whitespace-nowrap">Descontos</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Medição Final</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Exceção Chuvoso</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Medição Final (planilha)</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Recalculado</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Diferença</TableHead>
                     <TableHead className="whitespace-nowrap">Observações</TableHead>
                   </TableRow></TableHeader>
                   <TableBody>
                     {validas.slice(0, 5).map((l) => {
                       const garantiaReal = Math.max(l.garantia, l.horas_liquidas);
-                      const horasPagarBruto = l.ht_informado;
+                      const divergente = l.valor_planilha && Math.abs(l.diferenca_calc) > 0.10;
                       return (
-                        <TableRow key={`sample-${l.rowExcel}`}>
+                        <TableRow key={`sample-${l.rowExcel}`} className={divergente ? "bg-destructive/5" : undefined}>
                           <TableCell className="whitespace-nowrap">{fmtCompetencia(l.mes_ref)}</TableCell>
                           <TableCell className="font-mono whitespace-nowrap">{l.numero_dj || "—"}</TableCell>
                           <TableCell className="max-w-[200px] truncate" title={l.contratado}>{l.contratado || "—"}</TableCell>
+                          <TableCell className="font-mono whitespace-nowrap">{l.codigo_cliente || "—"}</TableCell>
                           <TableCell className="font-medium whitespace-nowrap">{l.tipo_equip || "—"}</TableCell>
                           <TableCell className="whitespace-nowrap">{l.modelo || "—"}</TableCell>
                           <TableCell className="font-mono whitespace-nowrap">{l.serie || "—"}</TableCell>
@@ -805,13 +994,14 @@ export default function ImportarMedicao() {
                           <TableCell className="num text-right">{garantiaReal.toFixed(2)}</TableCell>
                           <TableCell className="num text-right">{l.horas_disp.toFixed(2)}</TableCell>
                           <TableCell className="num text-right">{l.horas_mec.toFixed(2)}</TableCell>
-                          <TableCell className="whitespace-nowrap">{l.tipo_pagamento || "—"}</TableCell>
-                          <TableCell className="num text-right">{horasPagarBruto.toFixed(2)}</TableCell>
                           <TableCell className="num text-right font-semibold">{l.horas_a_pagar.toFixed(2)}</TableCell>
                           <TableCell className="num text-right">{fmtBRL(l.valor_hora)}</TableCell>
                           <TableCell className="num text-right">{fmtBRL(l.desc_manutencao)}</TableCell>
+                          <TableCell className="num text-right">{l.valor_planilha ? fmtBRL(l.valor_planilha) : "—"}</TableCell>
                           <TableCell className="num text-right font-semibold text-primary">{fmtBRL(l.valor_final)}</TableCell>
-                          <TableCell className="num text-right">{l.excecao_chuvoso.toFixed(2)}</TableCell>
+                          <TableCell className={`num text-right ${divergente ? "text-destructive font-semibold" : ""}`} title={divergente ? "Divergência entre valor da planilha e valor recalculado." : ""}>
+                            {l.valor_planilha ? fmtBRL(l.diferenca_calc) : "—"}
+                          </TableCell>
                           <TableCell className="max-w-[220px] truncate" title={l.observacoes}>{l.observacoes || "—"}</TableCell>
                         </TableRow>
                       );
@@ -819,6 +1009,11 @@ export default function ImportarMedicao() {
                   </TableBody>
                 </Table>
               </div>
+              {linhasComDivergencia > 0 && (
+                <p className="mt-2 text-xs text-destructive">
+                  ⚠ {linhasComDivergencia} linha(s) com divergência maior que R$ 0,10 entre o valor da planilha e o valor recalculado.
+                </p>
+              )}
               <p className="mt-2 text-xs text-muted-foreground">
                 Nada foi salvo ainda. Revise os dados e clique em <strong>Confirmar importação</strong> para gravar, ou em <strong>Cancelar</strong> para descartar.
               </p>
