@@ -365,7 +365,10 @@ export default function ImportarMedicao() {
         if (!serie) faltando.push("Série");
         if (!tag) faltando.push("Tag");
         if (!valor_hora) faltando.push("Valor/Hora");
+        if (modeloDetectado === "M2" && !periodo_inicio) faltando.push("Período Início");
         if (modeloDetectado === "M2" && !periodo_fim) faltando.push("Período Fim");
+        if (modeloDetectado === "M2" && !str(get(row, "tipo_equip"))) faltando.push("Tipo Equip.");
+        if (modeloDetectado === "M2" && !str(get(row, "modelo"))) faltando.push("Modelo");
         if (faltando.length) {
           ign.push({
             rowExcel,
@@ -398,6 +401,8 @@ export default function ImportarMedicao() {
         const erros: string[] = [];
         const alertas: string[] = [];
         if (!mes_ref) erros.push("Competência inválida");
+        if (modeloDetectado === "M2" && !periodo_inicio) erros.push("Período início inválido");
+        if (modeloDetectado === "M2" && !periodo_fim) erros.push("Período fim inválido");
         if (hor_final < hor_inicial) erros.push("Horímetro final < inicial");
         if (!garantia) alertas.push("Garantia contratual ausente");
         if (Math.abs(divergencia_ht) > 0.01) alertas.push(`Divergência HT: ${divergencia_ht.toFixed(2)}h`);
