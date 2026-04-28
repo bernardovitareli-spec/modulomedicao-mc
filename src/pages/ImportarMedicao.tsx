@@ -60,8 +60,27 @@ const COLUMN_ALIASES: Record<string, string[]> = {
 
 // Modelo 1 (BASE DE DADOS) requer mes_ref e desc_manutencao
 const REQUIRED_M1 = ["mes_ref", "numero_dj", "contratado", "serie", "tag", "valor_hora"];
-// Modelo 2 (Template Medição) usa periodo_fim no lugar de mes_ref
-const REQUIRED_M2 = ["numero_dj", "contratado", "serie", "tag", "valor_hora", "periodo_fim"];
+// Modelo 2 (Template Medição) possui layout fixo A:W; não pode depender de aliases soltos.
+const REQUIRED_M2 = ["contratado", "cnpj", "numero_dj", "tipo_servico", "centro_custo", "periodo_inicio", "periodo_fim", "tipo_equip", "modelo", "serie", "tag", "hor_inicial", "hor_final", "ht_informado", "garantia", "periodo_chuvoso", "excecao_chuvoso", "horas_mec", "valor_hora", "complementares", "observacoes", "inicio_op", "termino_contrato"];
+
+const M2_FIXED_COL_MAP: Record<string, number> = {
+  contratado: 0, cnpj: 1, numero_dj: 2, tipo_servico: 3, centro_custo: 4,
+  periodo_inicio: 5, periodo_fim: 6, tipo_equip: 7, modelo: 8, serie: 9, tag: 10,
+  hor_inicial: 11, hor_final: 12, ht_informado: 13, garantia: 14,
+  periodo_chuvoso: 15, excecao_chuvoso: 16, horas_mec: 17, valor_hora: 18,
+  complementares: 19, observacoes: 20, inicio_op: 21, termino_contrato: 22,
+};
+
+const M2_EXPECTED_HEADERS: Record<string, string[]> = {
+  contratado: ["contratante"], cnpj: ["cnpj"], numero_dj: ["n dj", "no dj", "numero dj"],
+  tipo_servico: ["tipo servico"], centro_custo: ["centro custo"], periodo_inicio: ["periodo inicio"],
+  periodo_fim: ["periodo fim"], tipo_equip: ["tipo equip"], modelo: ["modelo"], serie: ["serie"], tag: ["tag"],
+  hor_inicial: ["h inicial"], hor_final: ["h final"], ht_informado: ["ht informado"],
+  garantia: ["garantia contratual"], periodo_chuvoso: ["periodo chuvoso s n", "periodo chuvoso"],
+  excecao_chuvoso: ["excecao chuvoso s n", "excecao chuvoso"], horas_mec: ["h mecanicas"],
+  valor_hora: ["valor hora"], complementares: ["complementares"], observacoes: ["observacoes"],
+  inicio_op: ["inicio operacao"], termino_contrato: ["termino contrato"],
+};
 
 // ---------- Parsers ----------
 const num = (v: any): number => {
