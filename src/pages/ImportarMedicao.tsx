@@ -521,7 +521,8 @@ export default function ImportarMedicao() {
   // Helpers para aplicar overrides M1 (preenchidos manualmente pelo usuário)
   const ovOf = (dj: string) => overrides[dj] ?? {};
   const cnpjEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).cnpj || l.cnpj) : l.cnpj);
-  const codClienteEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).codigo_cliente || l.codigo_cliente) : l.codigo_cliente);
+  // No M1 o "código" extraído da planilha é o CÓDIGO DO FORNECEDOR (não cliente)
+  const codFornecedorEf = (l: LinhaLida) => (modelo === "M1" ? l.codigo_cliente : "");
   const tipoServicoEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).tipo_servico || l.tipo_servico) : l.tipo_servico);
   const periodoIniEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).periodo_inicio || l.periodo_inicio || "") : (l.periodo_inicio || ""));
   const periodoFimEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).periodo_fim || l.periodo_fim || "") : (l.periodo_fim || ""));
