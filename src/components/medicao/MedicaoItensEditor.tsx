@@ -357,6 +357,9 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                     <TableCell className="text-right num">{fmtNum(i.horas_informadas)}</TableCell>
                     <TableCell className={`text-right num ${Math.abs(diverg) > 0.01 ? "text-destructive" : ""}`}>{fmtNum(diverg)}</TableCell>
                     <TableCell className="text-right num">{fmtNum(i.garantia_minima)}</TableCell>
+                    <TableCell className="text-right num">{i.aplicar_garantia_proporcional ? fmtNum(i.garantia_proporcional_horas) : "-"}</TableCell>
+                    <TableCell className="text-right num">{i.dias_considerados ?? "-"}</TableCell>
+                    <TableCell className="text-center text-xs">{i.aplicar_garantia_proporcional ? <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-amber-700 dark:text-amber-400">Sim</span> : <span className="text-muted-foreground">Não</span>}</TableCell>
                     <TableCell className="text-right num">{fmtNum(i.horas_mecanicas)}</TableCell>
                     <TableCell className="text-right num">{fmtNum(i.horas_liquidas)}</TableCell>
                     <TableCell className="text-right num font-semibold">{fmtNum(i.horas_a_pagar)}</TableCell>
