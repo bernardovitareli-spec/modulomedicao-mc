@@ -828,8 +828,9 @@ export type Database = {
       _regra_vigente: {
         Args: {
           _contrato_id: string
-          _data: string
           _equipamento_id: string
+          _periodo_fim: string
+          _periodo_inicio: string
           _tipo: Database["public"]["Enums"]["regra_tipo"]
         }
         Returns: Json
