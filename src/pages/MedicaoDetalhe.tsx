@@ -38,7 +38,7 @@ export default function MedicaoDetalhe() {
   const load = async () => {
     if (!id) return;
     const [m, i, a] = await Promise.all([
-      supabase.from("medicoes").select("*, contratos(numero_dj, tipo_servico, centro_custo, clientes(razao_social, cnpj))").eq("id", id).single(),
+      supabase.from("medicoes").select("*, contratos(numero_dj, tipo_servico, centro_custo, fornecedor_nome, fornecedor_codigo, fornecedor_cnpj, clientes(razao_social, cnpj))").eq("id", id).single(),
       supabase.from("medicao_itens").select("*, equipamentos(tag, tipo, modelo)").eq("medicao_id", id).order("created_at"),
       supabase.from("aprovacoes").select("*").eq("medicao_id", id).order("created_at"),
     ]);
