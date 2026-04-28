@@ -324,6 +324,9 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                 <TableHead className="text-right whitespace-nowrap">HT Inf.</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Diverg. HT</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Garantia</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Garant. Prop.</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Dias Cons.</TableHead>
+                <TableHead className="text-center whitespace-nowrap">Proporc.</TableHead>
                 <TableHead className="text-right whitespace-nowrap">H. Mec.</TableHead>
                 <TableHead className="text-right whitespace-nowrap">H. Líq.</TableHead>
                 <TableHead className="text-right whitespace-nowrap font-semibold">Horas a pagar</TableHead>
