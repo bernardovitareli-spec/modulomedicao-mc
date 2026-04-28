@@ -92,6 +92,23 @@ export default function MedicaoDetalhe() {
           </>)}
         </div>} />
 
+      <Card className="mb-4">
+        <CardContent className="p-4 grid gap-3 md:grid-cols-3 lg:grid-cols-5 text-sm">
+          <Info l="Cliente" v={med.contratos?.clientes?.razao_social ?? "-"} />
+          <Info l="CNPJ" v={med.contratos?.clientes?.cnpj ?? "-"} />
+          <Info l="Contrato / Nº DJ" v={med.contratos?.numero_dj ?? "-"} />
+          <Info l="Tipo de serviço" v={med.contratos?.tipo_servico ?? "-"} />
+          <Info l="Centro de custo" v={med.contratos?.centro_custo ?? "-"} />
+          <Info l="Competência" v={fmtCompetencia(med.competencia)} />
+          <Info l="Período início" v={fmtDate(med.periodo_inicio)} />
+          <Info l="Período fim" v={fmtDate(med.periodo_fim)} />
+          <div>
+            <p className="text-xs text-muted-foreground">Status</p>
+            <div className="mt-1"><StatusBadge status={med.status} /></div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="mb-4 grid gap-3 md:grid-cols-5">
         <Kpi l="Horas informadas" v={fmtNum(med.total_horas_informadas)} />
         <Kpi l="Horas líquidas" v={fmtNum(med.total_horas_liquidas)} />
