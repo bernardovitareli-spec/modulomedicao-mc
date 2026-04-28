@@ -21,6 +21,7 @@ interface Props {
   competencia?: string;
   cliente?: string;
   contratoNumero?: string;
+  status?: string;
   onChanged?: () => void;
 }
 
@@ -83,13 +84,14 @@ function calcProporcionalidade(
   return { ini, fim, dias, proporcional, garantiaProp, erro };
 }
 
-export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, periodoFim, competencia, cliente, contratoNumero, onChanged }: Props) {
+export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, periodoFim, competencia, cliente, contratoNumero, status, onChanged }: Props) {
   const [contratoEqs, setContratoEqs] = useState<any[]>([]);
   const [contrato, setContrato] = useState<any>(null);
   const [itens, setItens] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<ItemForm>(empty());
   const [saving, setSaving] = useState(false);
+  const podeRecalcular = ["rascunho", "importada", "rejeitada"].includes(status ?? "");
   
 
   const load = async () => {
@@ -269,6 +271,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
   };
 
   const recalcularMedicao = async () => {
+    if (!podeRecalcular) return toast.error("Este status permite apenas simulação de regras, sem alterar a medição.");
     const motivo = window.prompt("Motivo do recálculo (mínimo 5 caracteres):", "Recálculo manual com base nas regras atuais");
     if (motivo === null) return;
     if (motivo.trim().length < 5) return toast.error("Motivo é obrigatório");
@@ -300,7 +303,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold">Itens por equipamento</h3>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={recalcularMedicao} disabled={saving}>
+            <Button size="sm" variant="outline" onClick={recalcularMedicao} disabled={saving || !podeRecalcular} title={podeRecalcular ? undefined : "Este status permite apenas simulação"}>
               <RefreshCw className="mr-1 h-4 w-4" />Recalcular medição
             </Button>
             <Button size="sm" onClick={openNovo}><Plus className="mr-1 h-4 w-4" />Adicionar item</Button>
