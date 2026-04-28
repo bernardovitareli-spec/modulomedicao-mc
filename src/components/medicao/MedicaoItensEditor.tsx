@@ -341,7 +341,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
               </TableRow>
             </TableHeader>
             <TableBody>
-              {itens.length === 0 && <TableRow><TableCell colSpan={21} className="text-center py-6 text-sm text-muted-foreground">Nenhum item. Clique em "Adicionar item".</TableCell></TableRow>}
+              {itens.length === 0 && <TableRow><TableCell colSpan={24} className="text-center py-6 text-sm text-muted-foreground">Nenhum item. Clique em "Adicionar item".</TableCell></TableRow>}
               {itens.map((i) => {
                 const htCalc = Math.max(0, Number(i.horimetro_final ?? 0) - Number(i.horimetro_inicial ?? 0));
                 const diverg = Number(i.horas_informadas ?? 0) - htCalc;
