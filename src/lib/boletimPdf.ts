@@ -250,7 +250,6 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   // === Itens (página em paisagem) ===
   doc.addPage("a4", "landscape");
   const lpW = doc.internal.pageSize.getWidth();
-  const lpH = doc.internal.pageSize.getHeight();
   // título da seção em paisagem
   doc.setFillColor(30, 41, 59);
   doc.rect(10, 10, lpW - 20, 6.5, "F");
@@ -263,7 +262,6 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   const itensList = itens ?? [];
   const body = itensList.map((i: any) => {
     const htCalc = Number(i.horimetro_final ?? 0) - Number(i.horimetro_inicial ?? 0);
-    const div = htCalc - Number(i.horas_informadas ?? 0);
     return [
       i.equipamentos?.serie ?? "-",
       i.equipamentos?.tag ?? "-",
@@ -273,8 +271,6 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
       fmtNum(i.horimetro_final),
       fmtNum(htCalc),
       fmtNum(i.horas_informadas),
-      fmtNum(div),
-      fmtNum(i.horas_mecanicas),
       fmtNum(i.horas_liquidas),
       fmtNum(i.garantia_mensal_horas ?? i.garantia_minima),
       String(i.dias_considerados ?? "-"),
@@ -287,32 +283,45 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
       fmtBRL(i.valor_final),
     ];
   });
+  // Total usable width landscape A4 with 8mm margins ~ 281mm
   autoTable(doc, {
     startY: 20,
     margin: { left: 8, right: 8 },
     theme: "grid",
-    styles: { fontSize: 6.5, cellPadding: 1.2, overflow: "linebreak" },
-    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 6.5 },
+    tableWidth: lpW - 16,
+    styles: { fontSize: 6.5, cellPadding: 1.2, overflow: "linebreak", valign: "middle" },
+    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 6.5, halign: "center" },
     columnStyles: {
-      0: { cellWidth: 18 }, 1: { cellWidth: 14 }, 2: { cellWidth: 18 }, 3: { cellWidth: 20 },
-      4: { cellWidth: 14, halign: "right" }, 5: { cellWidth: 14, halign: "right" },
-      6: { cellWidth: 12, halign: "right" }, 7: { cellWidth: 12, halign: "right" },
-      8: { cellWidth: 12, halign: "right" }, 9: { cellWidth: 12, halign: "right" },
-      10: { cellWidth: 12, halign: "right" }, 11: { cellWidth: 14, halign: "right" },
-      12: { cellWidth: 10, halign: "right" }, 13: { cellWidth: 14, halign: "right" },
-      14: { cellWidth: 11, halign: "center" }, 15: { cellWidth: 14, halign: "right" },
-      16: { cellWidth: 18, halign: "right" }, 17: { cellWidth: 18, halign: "right" },
-      18: { cellWidth: 18, halign: "right" }, 19: { cellWidth: 22, halign: "right", fontStyle: "bold" },
+      0: { cellWidth: 16 },                                  // Série
+      1: { cellWidth: 13 },                                  // Tag
+      2: { cellWidth: 17 },                                  // Tipo
+      3: { cellWidth: 19 },                                  // Modelo
+      4: { cellWidth: 14, halign: "right" },                 // Hor. Ini
+      5: { cellWidth: 14, halign: "right" },                 // Hor. Fim
+      6: { cellWidth: 12, halign: "right" },                 // HT calc
+      7: { cellWidth: 12, halign: "right" },                 // HT inf
+      8: { cellWidth: 12, halign: "right" },                 // H. líq
+      9: { cellWidth: 14, halign: "right" },                 // Gar. mensal
+      10: { cellWidth: 9, halign: "center" },                // Dias
+      11: { cellWidth: 14, halign: "right" },                // Gar. prop
+      12: { cellWidth: 11, halign: "center" },               // Prop?
+      13: { cellWidth: 14, halign: "right" },                // H. pagar
+      14: { cellWidth: 18, halign: "right" },                // Valor/h
+      15: { cellWidth: 16, halign: "right" },                // Compl
+      16: { cellWidth: 16, halign: "right" },                // Desc
+      17: { cellWidth: 24, halign: "right", fontStyle: "bold" }, // Valor final
     },
     head: [[
-      "Série", "Tag", "Tipo", "Modelo", "Horím. Ini.", "Horím. Fim", "HT calc.",
-      "HT inf.", "Diverg.", "H. mec.", "H. líq.", "Gar. mensal", "Dias",
-      "Gar. prop.", "Prop.?", "H. pagar", "Valor/h", "Compl.", "Desc.", "Valor final",
+      "Série", "Tag", "Tipo", "Modelo",
+      "Horím.\nInicial", "Horím.\nFinal", "HT\ncalc.", "HT\ninf.",
+      "Horas\nlíq.", "Gar.\nmensal", "Dias", "Gar.\nprop.",
+      "Prop.?", "Horas\na pagar", "Valor/hora", "Compl.", "Desc.", "Valor final",
     ]],
     body,
     rowPageBreak: "avoid",
     showHead: "everyPage",
   });
+
 
   // Volta para retrato nas demais seções
   doc.addPage("a4", "portrait");
