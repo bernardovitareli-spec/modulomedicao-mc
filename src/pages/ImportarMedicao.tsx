@@ -631,6 +631,17 @@ export default function ImportarMedicao() {
         </Alert>
       )}
 
+      {tipoEquipIgualServico && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-xs">
+            <strong>Possível erro de mapeamento:</strong> Tipo Equipamento está igual ao Tipo Serviço em todas as linhas.
+            Verifique se as colunas <em>"Tipo Serviço"</em> e <em>"Tipo Equip."</em> estão sendo lidas separadamente na planilha.
+            Se já houver uma medição importada com esse problema, exclua-a e importe novamente após a correção.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {(linhas.length > 0 || ignoradas.length > 0) && (
         <>
           <Card className="mb-4"><CardContent className="p-4">
