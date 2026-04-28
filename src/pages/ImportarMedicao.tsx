@@ -237,6 +237,7 @@ interface LinhaLida {
   periodo_chuvoso: boolean;
   excecao_chuvoso: number;
   observacoes: string;
+  tipo_pagamento: string;
   horas_liquidas: number;
   horas_a_pagar: number;
   valor_final: number;
