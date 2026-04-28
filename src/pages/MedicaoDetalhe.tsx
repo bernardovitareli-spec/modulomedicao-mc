@@ -86,14 +86,14 @@ export default function MedicaoDetalhe() {
     toast.success("Aprovação registrada"); load();
   };
 
-  const exportarPDF = async (preview = false) => {
+  const exportarPDF = async (preview = false, modo: "interno" | "cliente" = "interno") => {
     if (!id) return;
     if (med?.status === "cancelada") {
       toast.error("Não é permitido gerar PDF de medição cancelada.");
       return;
     }
     try {
-      await gerarBoletimPDF(id, { preview });
+      await gerarBoletimPDF(id, { preview, modo });
     } catch (e: any) {
       toast.error(e.message ?? "Falha ao gerar PDF");
     }
@@ -114,12 +114,20 @@ export default function MedicaoDetalhe() {
                 <FileDown className="mr-1 h-4 w-4" />PDF
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => exportarPDF(true)}>
-                <Eye className="mr-2 h-4 w-4" />Visualizar
+            <DropdownMenuContent align="end" className="w-64">
+              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">PDF Interno</div>
+              <DropdownMenuItem onClick={() => exportarPDF(true, "interno")}>
+                <Eye className="mr-2 h-4 w-4" />Visualizar (interno)
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportarPDF(false)}>
-                <Download className="mr-2 h-4 w-4" />Baixar
+              <DropdownMenuItem onClick={() => exportarPDF(false, "interno")}>
+                <Download className="mr-2 h-4 w-4" />Baixar (interno)
+              </DropdownMenuItem>
+              <div className="mt-1 px-2 py-1 text-xs font-semibold text-muted-foreground">PDF para Cliente</div>
+              <DropdownMenuItem onClick={() => exportarPDF(true, "cliente")}>
+                <Eye className="mr-2 h-4 w-4" />Visualizar (cliente)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportarPDF(false, "cliente")}>
+                <Download className="mr-2 h-4 w-4" />Baixar (cliente)
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
