@@ -618,7 +618,7 @@ export default function ImportarMedicao() {
         if (!clienteId) {
           const { data, error } = await supabase.from("clientes").insert({
             razao_social: l.contratado,
-            cnpj: cnpjEfetivo || `IMPORT-${Date.now()}-${createdCli}`,
+            cnpj: cnpjEfetivo || null,
             codigo_cliente: codigoClienteEfetivo || null,
             status: "ativo",
           } as any).select("id").single();
@@ -628,7 +628,7 @@ export default function ImportarMedicao() {
           // Atualiza dados informados manualmente em cliente já existente
           const patch: any = {};
           if (codigoClienteEfetivo) patch.codigo_cliente = codigoClienteEfetivo;
-          if (cnpjEfetivo && !cnpjEfetivo.startsWith("IMPORT-")) patch.cnpj = cnpjEfetivo;
+          if (cnpjEfetivo) patch.cnpj = cnpjEfetivo;
           if (Object.keys(patch).length) {
             await supabase.from("clientes").update(patch).eq("id", clienteId);
           }
