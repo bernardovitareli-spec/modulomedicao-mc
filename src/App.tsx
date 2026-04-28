@@ -24,6 +24,9 @@ import Faturamento from "./pages/Faturamento";
 import Relatorios from "./pages/Relatorios";
 import Historico from "./pages/Historico";
 import NotFound from "./pages/NotFound";
+import Auditoria from "./pages/Auditoria";
+import LimparImportacao from "./pages/LimparImportacao";
+import Usuarios from "./pages/Usuarios";
 
 const queryClient = new QueryClient();
 
