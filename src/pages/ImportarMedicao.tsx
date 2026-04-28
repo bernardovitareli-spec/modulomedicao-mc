@@ -938,17 +938,26 @@ export default function ImportarMedicao() {
                   const linhaRef = validas.find((l) => l.numero_dj === dj)!;
                   return (
                     <div key={dj} className="rounded-md border p-3">
-                      <div className="mb-2 text-xs font-medium">
-                        Contrato <span className="font-mono">{dj}</span> · {linhaRef.contratado}
+                      <div className="mb-2 text-xs">
+                        <span className="font-medium">Contrato <span className="font-mono">{dj}</span></span>
+                        <span className="ml-2 text-muted-foreground">
+                          Fornecedor/Locadora: <span className="font-medium text-foreground">{linhaRef.contratado}</span>
+                          {linhaRef.codigo_cliente && <> · cód. <span className="font-mono">{linhaRef.codigo_cliente}</span></>}
+                        </span>
                       </div>
                       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
-                        <div>
-                          <Label className="text-xs">CNPJ do cliente</Label>
-                          <Input value={ov.cnpj ?? ""} onChange={(e) => setOv({ cnpj: e.target.value })} placeholder="opcional" />
+                        <div className="lg:col-span-2">
+                          <Label className="text-xs">Cliente / Contratante *</Label>
+                          <Select value={ov.cliente_id ?? ""} onValueChange={(v) => setOv({ cliente_id: v })}>
+                            <SelectTrigger><SelectValue placeholder="Selecione o cliente" /></SelectTrigger>
+                            <SelectContent>
+                              {clientesAtivos.map((c) => <SelectItem key={c.id} value={c.id}>{c.razao_social}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div>
-                          <Label className="text-xs">Código do cliente</Label>
-                          <Input value={ov.codigo_cliente ?? ""} onChange={(e) => setOv({ codigo_cliente: e.target.value })} placeholder="ex: 15811" />
+                          <Label className="text-xs">CNPJ do fornecedor</Label>
+                          <Input value={ov.cnpj ?? ""} onChange={(e) => setOv({ cnpj: e.target.value })} placeholder="opcional" />
                         </div>
                         <div>
                           <Label className="text-xs">Tipo de serviço *</Label>
