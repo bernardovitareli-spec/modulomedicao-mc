@@ -497,6 +497,7 @@ export default function ImportarMedicao() {
       eqp?.forEach((e: any) => equipsCache.set(`${e.serie ?? ""}|${e.tag ?? ""}`, e.id));
 
       let createdCli = 0, createdCtr = 0, createdEqp = 0, createdMed = 0, createdItens = 0;
+      const periodoPorMedicao = new Map<string, { inicio: string; fim: string }>();
 
       for (const l of validas) {
         const cliKey = l.contratado.toUpperCase();
@@ -526,6 +527,11 @@ export default function ImportarMedicao() {
           if (error) throw error;
           contrato = { id: data.id, valor_hora: Number(data.valor_hora_padrao ?? 0), garantia: Number(data.garantia_minima_horas ?? 0) };
           contratosCache.set(l.numero_dj, contrato); createdCtr++;
+        } else if (l.tipo_servico || l.centro_custo) {
+          await supabase.from("contratos").update({
+            tipo_servico: l.tipo_servico || undefined,
+            centro_custo: l.centro_custo || null,
+          } as any).eq("id", contrato.id);
         }
 
         const eqpKey = `${l.serie}|${l.tag}`;
@@ -536,6 +542,13 @@ export default function ImportarMedicao() {
           } as any).select("id").single();
           if (error) throw error;
           equipId = data.id; equipsCache.set(eqpKey, equipId); createdEqp++;
+        } else {
+          await supabase.from("equipamentos").update({
+            tag: l.tag,
+            serie: l.serie,
+            modelo: l.modelo || "—",
+            tipo: l.tipo_equip || "—",
+          } as any).eq("id", equipId);
         }
 
         const ceKey = `${contrato.id}|${equipId}`;
@@ -557,8 +570,18 @@ export default function ImportarMedicao() {
         }
 
         const medKey = `${contrato.id}|${l.mes_ref}`;
-        const periodoIniMed = l.periodo_inicio ?? l.mes_ref!;
-        const periodoFimMed = l.periodo_fim ?? lastDayOfMonth(l.mes_ref!);
+        if (!periodoPorMedicao.has(medKey)) {
+          const mesmasMedicao = validas.filter((x) => x.numero_dj === l.numero_dj && x.mes_ref === l.mes_ref);
+          const inicios = mesmasMedicao.map((x) => x.periodo_inicio).filter(Boolean).sort() as string[];
+          const fins = mesmasMedicao.map((x) => x.periodo_fim).filter(Boolean).sort() as string[];
+          periodoPorMedicao.set(medKey, {
+            inicio: inicios[0] ?? l.mes_ref!,
+            fim: fins[fins.length - 1] ?? lastDayOfMonth(l.mes_ref!),
+          });
+        }
+        const periodoMed = periodoPorMedicao.get(medKey)!;
+        const periodoIniMed = periodoMed.inicio;
+        const periodoFimMed = periodoMed.fim;
         let medicaoId = medicoesCache.get(medKey);
         if (!medicaoId) {
           const { data: existing } = await supabase.from("medicoes")
@@ -596,7 +619,7 @@ export default function ImportarMedicao() {
 
         const { error: errIt } = await supabase.from("medicao_itens").insert({
           medicao_id: medicaoId, equipamento_id: equipId, contrato_equipamento_id: ceId,
-          periodo_inicio: periodoIniMed, periodo_fim: periodoFimMed,
+          periodo_inicio: l.periodo_inicio ?? periodoIniMed, periodo_fim: l.periodo_fim ?? periodoFimMed,
           horimetro_inicial: l.hor_inicial, horimetro_final: l.hor_final,
           horas_informadas: l.ht_informado,
           horas_mecanicas: l.horas_mec,
