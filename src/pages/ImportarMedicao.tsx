@@ -547,7 +547,7 @@ export default function ImportarMedicao() {
 
         const { error: errIt } = await supabase.from("medicao_itens").insert({
           medicao_id: medicaoId, equipamento_id: equipId, contrato_equipamento_id: ceId,
-          periodo_inicio: l.mes_ref!, periodo_fim: lastDayOfMonth(l.mes_ref!),
+          periodo_inicio: periodoIniMed, periodo_fim: periodoFimMed,
           horimetro_inicial: l.hor_inicial, horimetro_final: l.hor_final,
           horas_informadas: l.ht_informado,
           horas_mecanicas: l.horas_mec,
