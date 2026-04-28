@@ -40,7 +40,18 @@ export default function Auth() {
     });
     setLoading(false);
     if (error) toast.error(error.message);
-    else toast.success("Conta criada! Faça login.");
+    else { toast.success("Conta criada! Você já pode entrar."); }
+  };
+
+  const onForgot = async () => {
+    if (!email) return toast.error("Informe seu e-mail acima para receber o link de recuperação");
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    if (error) toast.error(error.message);
+    else toast.success("Enviamos um link de recuperação para seu e-mail");
   };
 
   const onGoogle = async () => {
@@ -78,6 +89,9 @@ export default function Auth() {
                   <div className="space-y-1.5"><Label>Email</Label><Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
                   <div className="space-y-1.5"><Label>Senha</Label><Input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} /></div>
                   <Button type="submit" className="w-full" disabled={loading}>{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Entrar</Button>
+                  <button type="button" onClick={onForgot} className="block w-full text-center text-sm text-primary hover:underline" disabled={loading}>
+                    Esqueci minha senha
+                  </button>
                 </form>
               </TabsContent>
               <TabsContent value="signup" className="space-y-4 pt-4">
