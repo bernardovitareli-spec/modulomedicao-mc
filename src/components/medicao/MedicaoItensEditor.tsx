@@ -53,7 +53,7 @@ const empty = (): ItemForm => ({
   observacoes: "",
 });
 
-export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, periodoFim, onChanged }: Props) {
+export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, periodoFim, competencia, cliente, contratoNumero, onChanged }: Props) {
   const [contratoEqs, setContratoEqs] = useState<any[]>([]);
   const [contrato, setContrato] = useState<any>(null);
   const [itens, setItens] = useState<any[]>([]);
