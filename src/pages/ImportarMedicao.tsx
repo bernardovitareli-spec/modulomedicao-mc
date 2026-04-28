@@ -10,7 +10,16 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, ArrowLeft } from "lucide-react";
+
+const TIPOS_SERVICO_M1 = [
+  "Locação de equipamentos",
+  "Transporte",
+  "Terraplenagem",
+  "Plano de chuva",
+  "Outro",
+];
 import { toast } from "sonner";
 import { fmtBRL, fmtCompetencia, fmtDate } from "@/lib/format";
 import { calcularItem } from "@/lib/calculo";
