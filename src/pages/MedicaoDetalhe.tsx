@@ -178,6 +178,7 @@ export default function MedicaoDetalhe() {
             competencia={med.competencia}
             cliente={med.contratos?.clientes?.razao_social}
             contratoNumero={med.contratos?.numero_dj}
+            status={med.status}
             onChanged={load}
           />
         </TabsContent>
