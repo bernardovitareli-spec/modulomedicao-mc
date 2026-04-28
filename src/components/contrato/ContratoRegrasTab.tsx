@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,20 +15,35 @@ import { toast } from "sonner";
 import { fmtDate } from "@/lib/format";
 import { TIPOS_REGRA, labelTipo } from "@/lib/regras";
 
-interface Equip { id: string; serie: string | null; tag: string; modelo: string }
+interface Equip { id: string; serie: string | null; tag: string; tipo: string; modelo: string }
+
+type Escopo = "geral" | "tipo" | "equipamento";
+
+const normTipo = (t: string) =>
+  (t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 
 export default function ContratoRegrasTab({ contratoId }: { contratoId: string }) {
   const [list, setList] = useState<any[]>([]);
   const [equips, setEquips] = useState<Equip[]>([]);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const emptyForm = { tipo: "valor_hora", equipamento_id: "_geral", vigencia_inicio: "", vigencia_fim: "", parametros: {} as Record<string, any>, observacoes: "", ativa: true };
+  const emptyForm = {
+    tipo: "valor_hora",
+    escopo: "geral" as Escopo,
+    equipamento_id: "",
+    tipo_equipamento: "",
+    vigencia_inicio: "",
+    vigencia_fim: "",
+    parametros: {} as Record<string, any>,
+    observacoes: "",
+    ativa: true,
+  };
   const [form, setForm] = useState<typeof emptyForm>(emptyForm);
 
   const load = async () => {
     const { data } = await supabase
       .from("contrato_regras")
-      .select("*, equipamentos:equipamento_id(serie, tag, modelo)")
+      .select("*, equipamentos:equipamento_id(serie, tag, tipo, modelo)")
       .eq("contrato_id", contratoId)
       .order("vigencia_inicio", { ascending: false });
     setList(data ?? []);
@@ -37,7 +52,7 @@ export default function ContratoRegrasTab({ contratoId }: { contratoId: string }
   const loadEquips = async () => {
     const { data: ce } = await supabase
       .from("contrato_equipamentos")
-      .select("equipamento_id, equipamentos:equipamento_id(id, serie, tag, modelo)")
+      .select("equipamento_id, equipamentos:equipamento_id(id, serie, tag, tipo, modelo)")
       .eq("contrato_id", contratoId);
     const list = (ce ?? []).map((r: any) => r.equipamentos).filter(Boolean) as Equip[];
     setEquips(list);
@@ -47,12 +62,26 @@ export default function ContratoRegrasTab({ contratoId }: { contratoId: string }
 
   const tipoConfig = TIPOS_REGRA.find((t) => t.value === form.tipo)!;
 
+  // Tipos de equipamento únicos do contrato (preservando primeiro nome encontrado)
+  const tiposEquipamento = useMemo(() => {
+    const map = new Map<string, string>();
+    equips.forEach((e) => {
+      if (!e.tipo) return;
+      const k = normTipo(e.tipo);
+      if (!map.has(k)) map.set(k, e.tipo);
+    });
+    return Array.from(map.values()).sort();
+  }, [equips]);
+
   const openNova = () => { setEditId(null); setForm(emptyForm); setOpen(true); };
   const openEditar = (r: any) => {
+    const escopo: Escopo = r.equipamento_id ? "equipamento" : r.tipo_equipamento ? "tipo" : "geral";
     setEditId(r.id);
     setForm({
       tipo: r.tipo,
-      equipamento_id: r.equipamento_id ?? "_geral",
+      escopo,
+      equipamento_id: r.equipamento_id ?? "",
+      tipo_equipamento: r.tipo_equipamento ?? "",
       vigencia_inicio: r.vigencia_inicio ?? "",
       vigencia_fim: r.vigencia_fim ?? "",
       parametros: r.parametros ?? {},
@@ -64,33 +93,46 @@ export default function ContratoRegrasTab({ contratoId }: { contratoId: string }
 
   const save = async () => {
     if (!form.tipo || !form.vigencia_inicio) {
-      toast.error("Tipo e vigência início são obrigatórios");
-      return;
+      toast.error("Tipo e vigência início são obrigatórios"); return;
     }
     if (form.vigencia_fim && form.vigencia_fim < form.vigencia_inicio) {
-      toast.error("Vigência fim deve ser posterior ao início");
-      return;
+      toast.error("Vigência fim deve ser posterior ao início"); return;
     }
+    if (form.escopo === "tipo" && !form.tipo_equipamento) {
+      toast.error("Selecione o tipo de equipamento"); return;
+    }
+    if (form.escopo === "equipamento" && !form.equipamento_id) {
+      toast.error("Selecione o equipamento"); return;
+    }
+
     const payload: any = {
       contrato_id: contratoId,
       tipo: form.tipo,
-      equipamento_id: form.equipamento_id === "_geral" ? null : form.equipamento_id,
+      equipamento_id: form.escopo === "equipamento" ? form.equipamento_id : null,
+      tipo_equipamento: form.escopo === "tipo" ? form.tipo_equipamento : null,
       vigencia_inicio: form.vigencia_inicio,
       vigencia_fim: form.vigencia_fim || null,
       parametros: form.parametros,
       observacoes: form.observacoes || null,
       ativa: form.ativa,
     };
+
     let error: any = null;
     if (editId) {
       ({ error } = await supabase.from("contrato_regras").update(payload).eq("id", editId));
     } else {
       ({ error } = await supabase.from("contrato_regras").insert(payload));
     }
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      if (String(error.message).includes("uniq_contrato_regra_escopo")) {
+        toast.error("Já existe uma regra ativa com o mesmo tipo, escopo e vigência.");
+      } else {
+        toast.error(error.message);
+      }
+      return;
+    }
     toast.success(editId ? "Regra atualizada" : "Regra criada");
-    setOpen(false);
-    load();
+    setOpen(false); load();
   };
 
   const toggleAtiva = async (r: any) => {
@@ -104,13 +146,19 @@ export default function ContratoRegrasTab({ contratoId }: { contratoId: string }
     load();
   };
 
+  const escopoLabel = (r: any) => {
+    if (r.equipamento_id) return "Equipamento específico";
+    if (r.tipo_equipamento) return "Tipo de equipamento";
+    return "Geral";
+  };
+
   return (
     <Card><CardContent className="p-4">
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold">Regras do contrato</h3>
           <p className="text-xs text-muted-foreground">
-            Regra específica de equipamento tem prioridade sobre regra geral. Apenas regras vigentes e ativas são aplicadas.
+            Prioridade: equipamento específico → tipo de equipamento → geral → dados da planilha.
           </p>
         </div>
         <Button size="sm" onClick={openNova}><Plus className="mr-1 h-4 w-4" />Nova regra</Button>
@@ -120,6 +168,8 @@ export default function ContratoRegrasTab({ contratoId }: { contratoId: string }
         <Table>
           <TableHeader><TableRow>
             <TableHead>Tipo</TableHead>
+            <TableHead>Escopo</TableHead>
+            <TableHead>Tipo de equipamento</TableHead>
             <TableHead>Equipamento</TableHead>
             <TableHead>Vigência</TableHead>
             <TableHead>Parâmetros</TableHead>
@@ -128,7 +178,7 @@ export default function ContratoRegrasTab({ contratoId }: { contratoId: string }
           </TableRow></TableHeader>
           <TableBody>
             {list.length === 0 && (
-              <TableRow><TableCell colSpan={6} className="text-center py-6 text-sm text-muted-foreground">Nenhuma regra cadastrada.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center py-6 text-sm text-muted-foreground">Nenhuma regra cadastrada.</TableCell></TableRow>
             )}
             {list.map((r) => {
               const hoje = new Date().toISOString().slice(0, 10);
@@ -136,13 +186,15 @@ export default function ContratoRegrasTab({ contratoId }: { contratoId: string }
               return (
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{labelTipo(r.tipo)}</TableCell>
+                  <TableCell><Badge variant="outline">{escopoLabel(r)}</Badge></TableCell>
+                  <TableCell className="text-xs">{r.tipo_equipamento ?? "—"}</TableCell>
                   <TableCell className="text-xs">
                     {r.equipamento_id
                       ? <span className="font-mono">{r.equipamentos?.serie ?? ""} / {r.equipamentos?.tag ?? ""}</span>
-                      : <Badge variant="outline">Geral</Badge>}
+                      : "—"}
                   </TableCell>
                   <TableCell className="text-sm num whitespace-nowrap">
-                    {fmtDate(r.vigencia_inicio)} → {r.vigencia_fim ? fmtDate(r.vigencia_fim) : "vigente"}
+                    {fmtDate(r.vigencia_inicio)} → {r.vigencia_fim ? fmtDate(r.vigencia_fim) : "—"}
                   </TableCell>
                   <TableCell className="font-mono text-xs max-w-[280px] truncate" title={JSON.stringify(r.parametros)}>
                     {Object.entries(r.parametros ?? {}).map(([k, v]) => `${k}: ${v}`).join(" · ") || "—"}
@@ -150,7 +202,7 @@ export default function ContratoRegrasTab({ contratoId }: { contratoId: string }
                   <TableCell>
                     {!r.ativa
                       ? <Badge variant="secondary">inativa</Badge>
-                      : vigente ? <Badge>vigente</Badge> : <Badge variant="outline">fora da vigência</Badge>}
+                      : vigente ? <Badge>Vigente hoje</Badge> : <Badge variant="outline">Fora da vigência hoje</Badge>}
                   </TableCell>
                   <TableCell className="text-right whitespace-nowrap">
                     <Button size="icon" variant="ghost" onClick={() => toggleAtiva(r)} title={r.ativa ? "Desativar" : "Ativar"}>
@@ -178,18 +230,51 @@ export default function ContratoRegrasTab({ contratoId }: { contratoId: string }
               </Select>
               <p className="mt-1 text-xs text-muted-foreground">{tipoConfig.descricao}</p>
             </div>
+
             <div className="md:col-span-2">
-              <Label>Equipamento (opcional — em branco = regra geral)</Label>
-              <Select value={form.equipamento_id} onValueChange={(v) => setForm({ ...form, equipamento_id: v })}>
+              <Label>Escopo da regra *</Label>
+              <Select value={form.escopo} onValueChange={(v: Escopo) => setForm({ ...form, escopo: v, equipamento_id: "", tipo_equipamento: "" })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="_geral">Geral (todos os equipamentos)</SelectItem>
-                  {equips.map((e) => <SelectItem key={e.id} value={e.id}>{e.serie ?? "-"} / {e.tag} · {e.modelo}</SelectItem>)}
+                  <SelectItem value="geral">Geral — todos os equipamentos</SelectItem>
+                  <SelectItem value="tipo">Por tipo de equipamento</SelectItem>
+                  <SelectItem value="equipamento">Por equipamento específico</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {form.escopo === "tipo" && (
+              <div className="md:col-span-2">
+                <Label>Tipo de equipamento *</Label>
+                <Select value={form.tipo_equipamento} onValueChange={(v) => setForm({ ...form, tipo_equipamento: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {tiposEquipamento.length === 0 && <div className="px-2 py-1 text-xs text-muted-foreground">Nenhum tipo encontrado no contrato</div>}
+                    {tiposEquipamento.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {form.escopo === "equipamento" && (
+              <div className="md:col-span-2">
+                <Label>Equipamento *</Label>
+                <Select value={form.equipamento_id} onValueChange={(v) => setForm({ ...form, equipamento_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {equips.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>
+                        {e.serie ?? "-"} | {e.tag} | {e.tipo} | {e.modelo}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div><Label>Vigência início *</Label><Input type="date" value={form.vigencia_inicio} onChange={(e) => setForm({ ...form, vigencia_inicio: e.target.value })} /></div>
             <div><Label>Vigência fim</Label><Input type="date" value={form.vigencia_fim} onChange={(e) => setForm({ ...form, vigencia_fim: e.target.value })} /></div>
+
             {tipoConfig.campos.map((c) => (
               <div key={c.key} className={c.type === "textarea" ? "md:col-span-2" : ""}>
                 <Label>{c.label}</Label>
@@ -219,6 +304,7 @@ export default function ContratoRegrasTab({ contratoId }: { contratoId: string }
                 )}
               </div>
             ))}
+
             <div className="flex items-center gap-2 md:col-span-2">
               <Switch checked={form.ativa} onCheckedChange={(v) => setForm({ ...form, ativa: v })} />
               <Label>Regra ativa</Label>
