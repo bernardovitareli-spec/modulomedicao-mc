@@ -482,22 +482,22 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   ensureSpace(15);
   sectionTitle("OBSERVAÇÕES");
   doc.setFontSize(8);
-  // Arquivo de origem em destaque, separado das observações
-  if (importacao?.arquivo_nome) {
+  // Arquivo de origem: apenas no PDF interno (uso da equipe técnica)
+  if (modo === "interno" && importacao?.arquivo_nome) {
     doc.setFont("helvetica", "bold");
-    doc.text(`Arquivo de origem: `, marginX, y);
+    doc.text(`Arquivo de origem interno: `, marginX, y);
     doc.setFont("helvetica", "normal");
-    doc.text(String(importacao.arquivo_nome), marginX + 28, y);
+    doc.text(String(importacao.arquivo_nome), marginX + 42, y);
     y += 4.5;
   }
   const obs: string[] = [];
-  if (med.observacoes) obs.push(`Observação geral: ${med.observacoes}`);
+  if (med.observacoes) obs.push(`${med.observacoes}`);
   if ((med as any).contratos?.observacoes) obs.push(`Observação do contrato: ${(med as any).contratos.observacoes}`);
   itensList.forEach((i: any) => {
     if (i.observacoes) obs.push(`${i.equipamentos?.tag ?? "-"}: ${i.observacoes}`);
     if (i.motivo_proporcionalidade) obs.push(`${i.equipamentos?.tag ?? "-"} (proporcionalidade): ${i.motivo_proporcionalidade}`);
   });
-  if (obs.length === 0 && !importacao?.arquivo_nome) {
+  if (obs.length === 0 && !(modo === "interno" && importacao?.arquivo_nome)) {
     doc.setFont("helvetica", "italic");
     doc.setTextColor(100, 116, 139);
     doc.text("Sem observações registradas.", marginX, y);
@@ -515,7 +515,7 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
 
   // === Histórico de Alterações ===
   ensureSpace(15);
-  sectionTitle(modo === "cliente" ? "HISTÓRICO DE ALTERAÇÕES (relevantes)" : "HISTÓRICO DE ALTERAÇÕES");
+  sectionTitle(modo === "cliente" ? "AJUSTES CONSIDERADOS NA MEDIÇÃO" : "HISTÓRICO DE ALTERAÇÕES");
   let histList = (alteracoes ?? []) as any[];
 
   if (modo === "cliente") {
@@ -538,36 +538,53 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     doc.setFontSize(8);
     doc.setFont("helvetica", "italic");
     doc.setTextColor(100, 116, 139);
-    doc.text(modo === "cliente" ? "Nenhuma alteração relevante registrada." : "Nenhuma alteração registrada.", marginX, y);
+    doc.text(modo === "cliente" ? "Nenhum ajuste relevante registrado." : "Nenhuma alteração registrada.", marginX, y);
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
     y += 5;
   } else {
+    const headHist = modo === "cliente"
+      ? [["Data", "Equip.", "Campo", "Anterior", "Novo", "Motivo"]]
+      : [["Data/Hora", "Usuário", "Equip.", "Campo", "Anterior", "Novo", "Motivo"]];
+
+    const colsHistCliente = {
+      0: { cellWidth: 22 },
+      1: { cellWidth: 22 },
+      2: { cellWidth: 32 },
+      3: { cellWidth: 28, halign: "right" as const },
+      4: { cellWidth: 28, halign: "right" as const },
+      5: { cellWidth: "auto" as const },
+    };
+    const colsHistInterno = {
+      0: { cellWidth: 22 },
+      1: { cellWidth: 28 },
+      2: { cellWidth: 18 },
+      3: { cellWidth: 24 },
+      4: { cellWidth: 22, halign: "right" as const },
+      5: { cellWidth: 22, halign: "right" as const },
+      6: { cellWidth: "auto" as const },
+    };
+
     autoTable(doc, {
       startY: y,
       margin: { left: marginX, right: marginX },
       theme: "grid",
       styles: { fontSize: 6.5, cellPadding: 1, overflow: "linebreak" },
       headStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59] },
-      columnStyles: {
-        0: { cellWidth: 22 },
-        1: { cellWidth: 28 },
-        2: { cellWidth: 18 },
-        3: { cellWidth: 24 },
-        4: { cellWidth: 22 },
-        5: { cellWidth: 22 },
-        6: { cellWidth: "auto" },
-      },
-      head: [["Data/Hora", "Usuário", "Equip.", "Campo", "Anterior", "Novo", "Motivo"]],
-      body: histList.slice(0, 200).map((l: any) => [
-        new Date(l.created_at).toLocaleString("pt-BR"),
-        l.user_email ?? "-",
-        l.equipamento_tag ?? "-",
-        l.campo ? (FIELD_LABEL[l.campo] ?? l.campo) : (l.acao ?? "-"),
-        l.valor_anterior ?? "-",
-        l.valor_novo ?? "-",
-        l.motivo ?? "-",
-      ]),
+      columnStyles: modo === "cliente" ? colsHistCliente : colsHistInterno,
+      head: headHist,
+      body: histList.slice(0, 200).map((l: any) => {
+        const data = modo === "cliente"
+          ? new Date(l.created_at).toLocaleDateString("pt-BR")
+          : new Date(l.created_at).toLocaleString("pt-BR");
+        const campoLabel = l.campo ? (FIELD_LABEL[l.campo] ?? l.campo) : (l.acao ?? "-");
+        const anterior = formatValorHistorico(l.campo, l.valor_anterior);
+        const novo = formatValorHistorico(l.campo, l.valor_novo);
+        if (modo === "cliente") {
+          return [data, l.equipamento_tag ?? "-", campoLabel, anterior, novo, l.motivo ?? "-"];
+        }
+        return [data, l.user_email ?? "-", l.equipamento_tag ?? "-", campoLabel, anterior, novo, l.motivo ?? "-"];
+      }),
       rowPageBreak: "avoid",
       showHead: "everyPage",
     });
@@ -575,7 +592,7 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     if (histList.length > 200) {
       doc.setFontSize(7);
       doc.setTextColor(100, 116, 139);
-      doc.text(`Exibindo as 200 alterações mais recentes de ${histList.length}.`, marginX, y);
+      doc.text(`Exibindo os 200 ajustes mais recentes de ${histList.length}.`, marginX, y);
       doc.setTextColor(0, 0, 0);
       y += 4;
     }
