@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { fmtBRL } from "@/lib/format";
+import { fmtBRL, fmtCompetencia } from "@/lib/format";
 import { FileText, ClipboardList, CheckCircle2, Receipt, AlertTriangle, TrendingUp } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
@@ -64,7 +64,7 @@ export default function Dashboard() {
         faturadoMes: aprovadasMes.data?.reduce((s: number, x: any) => s + Number(x.valor_final), 0) ?? 0,
         pendentesAprovacao: pendentes.count ?? 0,
         contratosVencendo: vencendo.count ?? 0,
-        serieFaturamento: Object.entries(serie).map(([mes, valor]) => ({ mes: mes.slice(5) + "/" + mes.slice(2, 4), valor })),
+        serieFaturamento: Object.entries(serie).map(([mes, valor]) => ({ mes, valor })),
         topContratos: top,
       });
     })();
@@ -90,9 +90,12 @@ export default function Dashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stats?.serieFaturamento ?? []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={11} tickFormatter={(v: string) => {
+                  const f = fmtCompetencia(v);
+                  return f === "-" ? v : f.slice(0, 3) + "/" + f.slice(-2);
+                }} />
                 <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(v: number) => fmtBRL(v)} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+                <Tooltip formatter={(v: number) => fmtBRL(v)} labelFormatter={(l: string) => fmtCompetencia(l)} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
                 <Bar dataKey="valor" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
