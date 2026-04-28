@@ -419,6 +419,8 @@ export default function ImportarMedicao() {
         const horas_liquidas = Math.max(0, ht_informado - horas_mec);
         const horas_a_pagar = Math.max(horas_liquidas, garantia);
         const valor_final = horas_a_pagar * valor_hora + complementares - desc_manutencao;
+        const valor_planilha = num(get(row, "medicao_planilha"));
+        const diferenca_calc = valor_planilha ? (valor_planilha - valor_final) : 0;
 
         const erros: string[] = [];
         const alertas: string[] = [];
@@ -428,6 +430,9 @@ export default function ImportarMedicao() {
         if (hor_final < hor_inicial) erros.push("Horímetro final < inicial");
         if (!garantia) alertas.push("Garantia contratual ausente");
         if (Math.abs(divergencia_ht) > 0.01) alertas.push(`Divergência HT: ${divergencia_ht.toFixed(2)}h`);
+        if (valor_planilha && Math.abs(diferenca_calc) > 0.10) {
+          alertas.push("Divergência entre valor da planilha e valor recalculado.");
+        }
 
         const tipo_equip_raw = str(get(row, "tipo_equip"));
         const tipo_equip = tipo_equip_raw
@@ -436,7 +441,7 @@ export default function ImportarMedicao() {
 
         lidas.push({
           rowExcel, raw: row,
-          mes_ref, numero_dj, contratado, cnpj,
+          mes_ref, numero_dj, contratado, codigo_cliente, cnpj,
           tipo_servico: str(get(row, "tipo_servico")),
           tipo_equip,
           modelo: str(get(row, "modelo")),
@@ -450,6 +455,7 @@ export default function ImportarMedicao() {
           observacoes: str(get(row, "observacoes")),
           tipo_pagamento: str(get(row, "tipo_pagamento")),
           horas_liquidas, horas_a_pagar, valor_final,
+          valor_planilha, diferenca_calc,
           erros, alertas,
         });
       }
