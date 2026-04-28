@@ -29,7 +29,7 @@ export default function Equipamentos() {
 
   const save = async () => {
     if (!form.tag || !form.tipo || !form.modelo) { toast.error("Tag, tipo e modelo obrigatórios"); return; }
-    const payload = { ...form, ano: form.ano ? Number(form.ano) : null };
+    const payload: any = { ...form, ano: form.ano ? Number(form.ano) : null };
     const r = editing
       ? await supabase.from("equipamentos").update(payload).eq("id", editing.id)
       : await supabase.from("equipamentos").insert(payload);

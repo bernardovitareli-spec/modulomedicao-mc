@@ -43,7 +43,7 @@ export default function Clientes() {
   const save = async () => {
     if (!form.razao_social || !form.cnpj) { toast.error("Razão social e CNPJ obrigatórios"); return; }
     const cnpjLimpo = form.cnpj.replace(/\D/g, "");
-    const payload = { ...form, cnpj: cnpjLimpo };
+    const payload: any = { ...form, cnpj: cnpjLimpo };
     const r = editing
       ? await supabase.from("clientes").update(payload).eq("id", editing.id)
       : await supabase.from("clientes").insert(payload);
