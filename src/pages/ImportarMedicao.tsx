@@ -134,9 +134,9 @@ interface HeaderInfo {
   missingRequired: string[];
 }
 
-function detectHeader(matrix: any[][]): HeaderInfo {
-  const maxScan = Math.min(matrix.length, 30);
-  let best: HeaderInfo = { rowIndex: -1, colMap: {}, missingRequired: REQUIRED_FOR_HEADER.slice() };
+function detectHeader(matrix: any[][], required: string[], maxRows = 30): HeaderInfo {
+  const maxScan = Math.min(matrix.length, maxRows);
+  let best: HeaderInfo = { rowIndex: -1, colMap: {}, missingRequired: required.slice() };
   for (let i = 0; i < maxScan; i++) {
     const row = matrix[i] ?? [];
     const normCells = row.map((c) => normalize(c));
@@ -150,7 +150,7 @@ function detectHeader(matrix: any[][]): HeaderInfo {
         }
       }
     }
-    const missing = REQUIRED_FOR_HEADER.filter((k) => !(k in colMap));
+    const missing = required.filter((k) => !(k in colMap));
     if (missing.length < best.missingRequired.length) {
       best = { rowIndex: i, colMap, missingRequired: missing };
       if (missing.length === 0) return best;
