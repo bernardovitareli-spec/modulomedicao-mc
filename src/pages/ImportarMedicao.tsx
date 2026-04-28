@@ -949,6 +949,7 @@ export default function ImportarMedicao() {
                     <TableHead className="whitespace-nowrap">Mês Referência</TableHead>
                     <TableHead className="whitespace-nowrap">Nº DJ</TableHead>
                     <TableHead className="whitespace-nowrap">Contratado</TableHead>
+                    <TableHead className="whitespace-nowrap">Código cliente</TableHead>
                     <TableHead className="whitespace-nowrap">Tipo Equipamento</TableHead>
                     <TableHead className="whitespace-nowrap">Modelo</TableHead>
                     <TableHead className="whitespace-nowrap">Série</TableHead>
@@ -962,24 +963,24 @@ export default function ImportarMedicao() {
                     <TableHead className="text-right whitespace-nowrap">Garantia Real</TableHead>
                     <TableHead className="text-right whitespace-nowrap">Horas Disposição</TableHead>
                     <TableHead className="text-right whitespace-nowrap">Horas Mecânicas</TableHead>
-                    <TableHead className="whitespace-nowrap">Tipo Pagamento</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Horas a Pagar Bruto</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Horas a Pagar Líquido</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Horas a Pagar</TableHead>
                     <TableHead className="text-right whitespace-nowrap">Valor/Hora</TableHead>
                     <TableHead className="text-right whitespace-nowrap">Descontos</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Medição Final</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Exceção Chuvoso</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Medição Final (planilha)</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Recalculado</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Diferença</TableHead>
                     <TableHead className="whitespace-nowrap">Observações</TableHead>
                   </TableRow></TableHeader>
                   <TableBody>
                     {validas.slice(0, 5).map((l) => {
                       const garantiaReal = Math.max(l.garantia, l.horas_liquidas);
-                      const horasPagarBruto = l.ht_informado;
+                      const divergente = l.valor_planilha && Math.abs(l.diferenca_calc) > 0.10;
                       return (
-                        <TableRow key={`sample-${l.rowExcel}`}>
+                        <TableRow key={`sample-${l.rowExcel}`} className={divergente ? "bg-destructive/5" : undefined}>
                           <TableCell className="whitespace-nowrap">{fmtCompetencia(l.mes_ref)}</TableCell>
                           <TableCell className="font-mono whitespace-nowrap">{l.numero_dj || "—"}</TableCell>
                           <TableCell className="max-w-[200px] truncate" title={l.contratado}>{l.contratado || "—"}</TableCell>
+                          <TableCell className="font-mono whitespace-nowrap">{l.codigo_cliente || "—"}</TableCell>
                           <TableCell className="font-medium whitespace-nowrap">{l.tipo_equip || "—"}</TableCell>
                           <TableCell className="whitespace-nowrap">{l.modelo || "—"}</TableCell>
                           <TableCell className="font-mono whitespace-nowrap">{l.serie || "—"}</TableCell>
@@ -993,13 +994,14 @@ export default function ImportarMedicao() {
                           <TableCell className="num text-right">{garantiaReal.toFixed(2)}</TableCell>
                           <TableCell className="num text-right">{l.horas_disp.toFixed(2)}</TableCell>
                           <TableCell className="num text-right">{l.horas_mec.toFixed(2)}</TableCell>
-                          <TableCell className="whitespace-nowrap">{l.tipo_pagamento || "—"}</TableCell>
-                          <TableCell className="num text-right">{horasPagarBruto.toFixed(2)}</TableCell>
                           <TableCell className="num text-right font-semibold">{l.horas_a_pagar.toFixed(2)}</TableCell>
                           <TableCell className="num text-right">{fmtBRL(l.valor_hora)}</TableCell>
                           <TableCell className="num text-right">{fmtBRL(l.desc_manutencao)}</TableCell>
+                          <TableCell className="num text-right">{l.valor_planilha ? fmtBRL(l.valor_planilha) : "—"}</TableCell>
                           <TableCell className="num text-right font-semibold text-primary">{fmtBRL(l.valor_final)}</TableCell>
-                          <TableCell className="num text-right">{l.excecao_chuvoso.toFixed(2)}</TableCell>
+                          <TableCell className={`num text-right ${divergente ? "text-destructive font-semibold" : ""}`} title={divergente ? "Divergência entre valor da planilha e valor recalculado." : ""}>
+                            {l.valor_planilha ? fmtBRL(l.diferenca_calc) : "—"}
+                          </TableCell>
                           <TableCell className="max-w-[220px] truncate" title={l.observacoes}>{l.observacoes || "—"}</TableCell>
                         </TableRow>
                       );
@@ -1007,6 +1009,11 @@ export default function ImportarMedicao() {
                   </TableBody>
                 </Table>
               </div>
+              {linhasComDivergencia > 0 && (
+                <p className="mt-2 text-xs text-destructive">
+                  ⚠ {linhasComDivergencia} linha(s) com divergência maior que R$ 0,10 entre o valor da planilha e o valor recalculado.
+                </p>
+              )}
               <p className="mt-2 text-xs text-muted-foreground">
                 Nada foi salvo ainda. Revise os dados e clique em <strong>Confirmar importação</strong> para gravar, ou em <strong>Cancelar</strong> para descartar.
               </p>
