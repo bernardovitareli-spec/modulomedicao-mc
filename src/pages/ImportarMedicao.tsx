@@ -289,7 +289,7 @@ export default function ImportarMedicao() {
 
       let hdr: HeaderInfo;
       if (!modeloDetectado) {
-        const tryM2 = detectHeader(matrix, REQUIRED_M2, 5);
+        const tryM2 = detectHeaderM2(matrix, 5);
         if (tryM2.rowIndex >= 0 && tryM2.missingRequired.length === 0) {
           modeloDetectado = "M2"; required = REQUIRED_M2; hdr = detectHeaderM2(matrix, 5);
         } else {
