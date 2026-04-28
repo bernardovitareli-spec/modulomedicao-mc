@@ -38,7 +38,7 @@ export default function MedicaoDetalhe() {
   const load = async () => {
     if (!id) return;
     const [m, i, a] = await Promise.all([
-      supabase.from("medicoes").select("*, contratos(numero_dj, tipo_servico, centro_custo, clientes(razao_social, cnpj))").eq("id", id).single(),
+      supabase.from("medicoes").select("*, contratos(numero_dj, tipo_servico, centro_custo, fornecedor_nome, fornecedor_codigo, fornecedor_cnpj, clientes(razao_social, cnpj))").eq("id", id).single(),
       supabase.from("medicao_itens").select("*, equipamentos(tag, tipo, modelo)").eq("medicao_id", id).order("created_at"),
       supabase.from("aprovacoes").select("*").eq("medicao_id", id).order("created_at"),
     ]);
@@ -135,8 +135,12 @@ export default function MedicaoDetalhe() {
 
       <Card className="mb-4">
         <CardContent className="p-4 grid gap-3 md:grid-cols-3 lg:grid-cols-5 text-sm">
-          <Info l="Cliente" v={med.contratos?.clientes?.razao_social ?? "-"} />
-          <Info l="CNPJ" v={med.contratos?.clientes?.cnpj ?? "-"} />
+          <Info l="Cliente / Contratante" v={med.contratos?.clientes?.razao_social ?? "-"} />
+          <Info l="Fornecedor / Locadora" v={
+            med.contratos?.fornecedor_nome
+              ? `${med.contratos.fornecedor_nome}${med.contratos.fornecedor_codigo ? ` (${med.contratos.fornecedor_codigo})` : ""}`
+              : "-"
+          } />
           <Info l="Contrato / Nº DJ" v={med.contratos?.numero_dj ?? "-"} />
           <Info l="Tipo de serviço" v={med.contratos?.tipo_servico ?? "-"} />
           <Info l="Centro de custo" v={med.contratos?.centro_custo ?? "-"} />

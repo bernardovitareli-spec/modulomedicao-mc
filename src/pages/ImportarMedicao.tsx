@@ -275,15 +275,18 @@ export default function ImportarMedicao() {
   const [sheetUsed, setSheetUsed] = useState<string>("");
   const [importing, setImporting] = useState(false);
   // Overrides por contrato (Nº DJ) — usados especialmente no Modelo M1 onde
-  // CNPJ, tipo_servico, codigo_cliente, periodo_inicio e periodo_fim podem
+  // CNPJ, tipo_servico, periodo_inicio e periodo_fim podem
   // não vir na planilha e precisam ser informados antes de confirmar.
+  // No M1, o campo "Contratado" da planilha é o FORNECEDOR/LOCADORA — o
+  // CLIENTE/CONTRATANTE precisa ser selecionado pelo usuário.
   const [overrides, setOverrides] = useState<Record<string, {
     cnpj?: string;
-    codigo_cliente?: string;
     tipo_servico?: string;
     periodo_inicio?: string;
     periodo_fim?: string;
+    cliente_id?: string;       // M1: cliente/contratante real
   }>>({});
+  const [clientesAtivos, setClientesAtivos] = useState<{ id: string; razao_social: string }[]>([]);
   const [confirmDivergencia, setConfirmDivergencia] = useState(false);
 
   const onFile = async (file: File) => {
@@ -481,33 +484,25 @@ export default function ImportarMedicao() {
         } else seen.set(k, i);
       });
 
-      // Prefill de overrides M1: tenta localizar cliente existente por razão social
-      // ou código e copiar CNPJ; usa também valores que já vieram na planilha.
+      // Prefill de overrides M1: o "Contratado" da planilha = FORNECEDOR.
+      // Cliente/Contratante deve ser selecionado (default: Construtora Ápia).
       if (modeloDetectado === "M1") {
         const ovs: typeof overrides = {};
         const djs = Array.from(new Set(lidas.map((l) => l.numero_dj).filter(Boolean)));
-        const nomes = Array.from(new Set(lidas.map((l) => l.contratado.toUpperCase()).filter(Boolean)));
-        let clientesDb: any[] = [];
-        if (nomes.length) {
-          const { data } = await supabase
-            .from("clientes")
-            .select("razao_social, cnpj, nome_fantasia");
-          clientesDb = data ?? [];
-        }
+        const { data: cliAtivos } = await supabase
+          .from("clientes").select("id, razao_social").eq("status", "ativo").order("razao_social");
+        setClientesAtivos(cliAtivos ?? []);
+        const apia = (cliAtivos ?? []).find((c: any) =>
+          ["CONSTRUTORA ÁPIA", "CONSTRUTORA APIA"].includes(String(c.razao_social).toUpperCase()));
         for (const dj of djs) {
           const linhaRef = lidas.find((l) => l.numero_dj === dj);
           if (!linhaRef) continue;
-          const nomeUp = linhaRef.contratado.toUpperCase();
-          const match = clientesDb.find((c: any) =>
-            String(c.razao_social ?? "").toUpperCase() === nomeUp ||
-            String(c.nome_fantasia ?? "").toUpperCase() === nomeUp
-          );
           ovs[dj] = {
-            cnpj: linhaRef.cnpj || match?.cnpj || "",
-            codigo_cliente: linhaRef.codigo_cliente || "",
+            cnpj: linhaRef.cnpj || "",
             tipo_servico: linhaRef.tipo_servico || "",
             periodo_inicio: linhaRef.periodo_inicio || "",
             periodo_fim: linhaRef.periodo_fim || "",
+            cliente_id: apia?.id || "",
           };
         }
         setOverrides(ovs);
@@ -526,7 +521,8 @@ export default function ImportarMedicao() {
   // Helpers para aplicar overrides M1 (preenchidos manualmente pelo usuário)
   const ovOf = (dj: string) => overrides[dj] ?? {};
   const cnpjEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).cnpj || l.cnpj) : l.cnpj);
-  const codClienteEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).codigo_cliente || l.codigo_cliente) : l.codigo_cliente);
+  // No M1 o "código" extraído da planilha é o CÓDIGO DO FORNECEDOR (não cliente)
+  const codFornecedorEf = (l: LinhaLida) => (modelo === "M1" ? l.codigo_cliente : "");
   const tipoServicoEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).tipo_servico || l.tipo_servico) : l.tipo_servico);
   const periodoIniEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).periodo_inicio || l.periodo_inicio || "") : (l.periodo_inicio || ""));
   const periodoFimEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).periodo_fim || l.periodo_fim || "") : (l.periodo_fim || ""));
@@ -534,7 +530,7 @@ export default function ImportarMedicao() {
   // Resumo agregado
   const clientes = Array.from(new Set(validas.map((l) => l.contratado)));
   const cnpjs = Array.from(new Set(validas.map(cnpjEf).filter(Boolean)));
-  const codigosCliente = Array.from(new Set(validas.map(codClienteEf).filter(Boolean)));
+  const codigosFornecedor = Array.from(new Set(validas.map(codFornecedorEf).filter(Boolean)));
   const contratos = Array.from(new Set(validas.map((l) => l.numero_dj)));
   const tiposServico = Array.from(new Set(validas.map(tipoServicoEf).filter(Boolean)));
   const centrosCusto = Array.from(new Set(validas.map((l) => l.centro_custo).filter(Boolean)));
@@ -566,6 +562,7 @@ export default function ImportarMedicao() {
     const djs = Array.from(new Set(validas.map((l) => l.numero_dj)));
     for (const dj of djs) {
       const o = overrides[dj] ?? {};
+      if (!o.cliente_id) m1Pendencias.push(`Contrato ${dj}: selecione o Cliente/Contratante`);
       if (!o.tipo_servico) m1Pendencias.push(`Contrato ${dj}: tipo de serviço obrigatório`);
       if (!o.periodo_inicio) m1Pendencias.push(`Contrato ${dj}: período início obrigatório`);
       if (!o.periodo_fim) m1Pendencias.push(`Contrato ${dj}: período fim obrigatório`);
@@ -608,29 +605,35 @@ export default function ImportarMedicao() {
       for (const l of validas) {
         const ov = overrides[l.numero_dj] ?? {};
         const cnpjEfetivo = (ov.cnpj || l.cnpj || "").trim();
-        const codigoClienteEfetivo = (ov.codigo_cliente || l.codigo_cliente || "").trim();
         const tipoServicoEfetivo = (ov.tipo_servico || l.tipo_servico || "Locação").trim();
         const periodoIniEfetivo = ov.periodo_inicio || l.periodo_inicio || null;
         const periodoFimEfetivo = ov.periodo_fim || l.periodo_fim || null;
 
-        const cliKey = l.contratado.toUpperCase();
-        let clienteId = clientesCache.get(cliKey);
-        if (!clienteId) {
-          const { data, error } = await supabase.from("clientes").insert({
-            razao_social: l.contratado,
-            cnpj: cnpjEfetivo || null,
-            codigo_cliente: codigoClienteEfetivo || null,
-            status: "ativo",
-          } as any).select("id").single();
-          if (error) throw error;
-          clienteId = data.id; clientesCache.set(cliKey, clienteId); createdCli++;
-        } else if (cnpjEfetivo || codigoClienteEfetivo) {
-          // Atualiza dados informados manualmente em cliente já existente
-          const patch: any = {};
-          if (codigoClienteEfetivo) patch.codigo_cliente = codigoClienteEfetivo;
-          if (cnpjEfetivo) patch.cnpj = cnpjEfetivo;
-          if (Object.keys(patch).length) {
-            await supabase.from("clientes").update(patch).eq("id", clienteId);
+        // No M1, "Contratado" da planilha = FORNECEDOR/LOCADORA
+        // O CLIENTE/CONTRATANTE vem do override (ov.cliente_id)
+        const isM1 = modelo === "M1";
+        const fornecedorNome = isM1 ? l.contratado : "";
+        const fornecedorCodigo = isM1 ? l.codigo_cliente : "";
+        const fornecedorCnpj = isM1 ? cnpjEfetivo : "";
+
+        let clienteId: string | undefined;
+        if (isM1) {
+          // Cliente/Contratante selecionado pelo usuário (validado em m1Pendencias)
+          clienteId = ov.cliente_id;
+          if (!clienteId) throw new Error(`Selecione o Cliente/Contratante para o contrato ${l.numero_dj}`);
+        } else {
+          // M2: lógica original — "Contratante" da planilha = cliente
+          const cliKey = l.contratado.toUpperCase();
+          clienteId = clientesCache.get(cliKey);
+          if (!clienteId) {
+            const { data, error } = await supabase.from("clientes").insert({
+              razao_social: l.contratado,
+              cnpj: cnpjEfetivo || null,
+              codigo_cliente: l.codigo_cliente || null,
+              status: "ativo",
+            } as any).select("id").single();
+            if (error) throw error;
+            clienteId = data.id; clientesCache.set(cliKey, clienteId!); createdCli++;
           }
         }
 
@@ -645,15 +648,22 @@ export default function ImportarMedicao() {
             inicio_operacao: inicio, termino_contrato: termino,
             valor_hora_padrao: l.valor_hora, garantia_minima_horas: l.garantia,
             status: "ativo",
+            fornecedor_nome: fornecedorNome || null,
+            fornecedor_codigo: fornecedorCodigo || null,
+            fornecedor_cnpj: fornecedorCnpj || null,
           } as any).select("id, valor_hora_padrao, garantia_minima_horas").single();
           if (error) throw error;
           contrato = { id: data.id, valor_hora: Number(data.valor_hora_padrao ?? 0), garantia: Number(data.garantia_minima_horas ?? 0) };
           contratosCache.set(l.numero_dj, contrato); createdCtr++;
-        } else if (tipoServicoEfetivo || l.centro_custo) {
-          await supabase.from("contratos").update({
-            tipo_servico: tipoServicoEfetivo || undefined,
-            centro_custo: l.centro_custo || null,
-          } as any).eq("id", contrato.id);
+        } else {
+          const patch: any = { tipo_servico: tipoServicoEfetivo || undefined, centro_custo: l.centro_custo || null };
+          if (isM1) {
+            patch.cliente_id = clienteId;
+            if (fornecedorNome) patch.fornecedor_nome = fornecedorNome;
+            if (fornecedorCodigo) patch.fornecedor_codigo = fornecedorCodigo;
+            if (fornecedorCnpj) patch.fornecedor_cnpj = fornecedorCnpj;
+          }
+          await supabase.from("contratos").update(patch).eq("id", contrato.id);
         }
 
         const eqpKey = `${l.serie}|${l.tag}`;
@@ -840,9 +850,17 @@ export default function ImportarMedicao() {
               <Stat label="Linhas válidas" value={String(validas.length)} />
               <Stat label="Linhas ignoradas" value={String(ignoradas.length)} />
               <Stat label="Com erro" value={String(linhas.length - validas.length)} />
-              <Stat label="Cliente(s)" value={clientes.length === 1 ? clientes[0] : String(clientes.length)} />
-              <Stat label="CNPJ" value={cnpjs.length === 1 ? cnpjs[0] : (cnpjs.length ? `${cnpjs.length}` : "—")} />
-              <Stat label="Código cliente" value={codigosCliente.length === 1 ? codigosCliente[0] : (codigosCliente.length ? `${codigosCliente.length}` : "—")} />
+              {modelo === "M1" ? (
+                <>
+                  <Stat label="Fornecedor / Locadora" value={clientes.length === 1 ? clientes[0] : String(clientes.length)} />
+                  <Stat label="Código fornecedor" value={codigosFornecedor.length === 1 ? codigosFornecedor[0] : (codigosFornecedor.length ? `${codigosFornecedor.length}` : "—")} />
+                </>
+              ) : (
+                <>
+                  <Stat label="Cliente(s)" value={clientes.length === 1 ? clientes[0] : String(clientes.length)} />
+                  <Stat label="CNPJ" value={cnpjs.length === 1 ? cnpjs[0] : (cnpjs.length ? `${cnpjs.length}` : "—")} />
+                </>
+              )}
               <Stat label="Contrato / Nº DJ" value={contratos.length === 1 ? contratos[0] : String(contratos.length)} />
               <Stat label="Tipo de serviço" value={tiposServico.length === 1 ? tiposServico[0] : (tiposServico.length ? `${tiposServico.length}` : "—")} />
               <Stat label="Centro de custo" value={centrosCusto.length === 1 ? centrosCusto[0] : (centrosCusto.length ? `${centrosCusto.length}` : "—")} />
@@ -921,17 +939,26 @@ export default function ImportarMedicao() {
                   const linhaRef = validas.find((l) => l.numero_dj === dj)!;
                   return (
                     <div key={dj} className="rounded-md border p-3">
-                      <div className="mb-2 text-xs font-medium">
-                        Contrato <span className="font-mono">{dj}</span> · {linhaRef.contratado}
+                      <div className="mb-2 text-xs">
+                        <span className="font-medium">Contrato <span className="font-mono">{dj}</span></span>
+                        <span className="ml-2 text-muted-foreground">
+                          Fornecedor/Locadora: <span className="font-medium text-foreground">{linhaRef.contratado}</span>
+                          {linhaRef.codigo_cliente && <> · cód. <span className="font-mono">{linhaRef.codigo_cliente}</span></>}
+                        </span>
                       </div>
                       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
-                        <div>
-                          <Label className="text-xs">CNPJ do cliente</Label>
-                          <Input value={ov.cnpj ?? ""} onChange={(e) => setOv({ cnpj: e.target.value })} placeholder="opcional" />
+                        <div className="lg:col-span-2">
+                          <Label className="text-xs">Cliente / Contratante *</Label>
+                          <Select value={ov.cliente_id ?? ""} onValueChange={(v) => setOv({ cliente_id: v })}>
+                            <SelectTrigger><SelectValue placeholder="Selecione o cliente" /></SelectTrigger>
+                            <SelectContent>
+                              {clientesAtivos.map((c) => <SelectItem key={c.id} value={c.id}>{c.razao_social}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div>
-                          <Label className="text-xs">Código do cliente</Label>
-                          <Input value={ov.codigo_cliente ?? ""} onChange={(e) => setOv({ codigo_cliente: e.target.value })} placeholder="ex: 15811" />
+                          <Label className="text-xs">CNPJ do fornecedor</Label>
+                          <Input value={ov.cnpj ?? ""} onChange={(e) => setOv({ cnpj: e.target.value })} placeholder="opcional" />
                         </div>
                         <div>
                           <Label className="text-xs">Tipo de serviço *</Label>

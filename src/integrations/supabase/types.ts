@@ -324,6 +324,9 @@ export type Database = {
           cliente_id: string
           created_at: string
           created_by: string | null
+          fornecedor_cnpj: string | null
+          fornecedor_codigo: string | null
+          fornecedor_nome: string | null
           garantia_minima_horas: number | null
           id: string
           inicio_operacao: string
@@ -341,6 +344,9 @@ export type Database = {
           cliente_id: string
           created_at?: string
           created_by?: string | null
+          fornecedor_cnpj?: string | null
+          fornecedor_codigo?: string | null
+          fornecedor_nome?: string | null
           garantia_minima_horas?: number | null
           id?: string
           inicio_operacao: string
@@ -358,6 +364,9 @@ export type Database = {
           cliente_id?: string
           created_at?: string
           created_by?: string | null
+          fornecedor_cnpj?: string | null
+          fornecedor_codigo?: string | null
+          fornecedor_nome?: string | null
           garantia_minima_horas?: number | null
           id?: string
           inicio_operacao?: string
