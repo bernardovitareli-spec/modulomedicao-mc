@@ -90,14 +90,15 @@ export default function MedicaoRegrasActions({ medicaoId, status, onApplied }: P
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-6xl">
-          <DialogHeader>
+        <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] p-0 gap-0 flex flex-col overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
               Prévia da aplicação de regras contratuais
             </DialogTitle>
           </DialogHeader>
 
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
           {!podeAplicar && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
@@ -108,20 +109,20 @@ export default function MedicaoRegrasActions({ medicaoId, status, onApplied }: P
           )}
 
           {/* Estatísticas de regras */}
-          <div className="grid gap-2 md:grid-cols-4">
+          <div className="grid gap-2 grid-cols-2 lg:grid-cols-4">
             <MiniStat label="Regras encontradas" value={String(stats.total_regras ?? 0)} />
             <MiniStat label="Aplicáveis ao período" value={String(stats.regras_aplicaveis ?? 0)} />
             <MiniStat label="Equipamentos afetados" value={String(stats.equipamentos_afetados ?? 0)} highlight />
             <MiniStat label="Equipamentos não afetados" value={String(stats.equipamentos_nao_afetados ?? 0)} />
           </div>
-          <div className="grid gap-2 md:grid-cols-3">
+          <div className="grid gap-2 grid-cols-1 sm:grid-cols-3">
             <MiniStat label="Regras gerais" value={String(stats.regras_gerais ?? 0)} />
             <MiniStat label="Por tipo de equipamento" value={String(stats.regras_por_tipo ?? 0)} />
             <MiniStat label="Por equipamento específico" value={String(stats.regras_por_equipamento ?? 0)} />
           </div>
 
           {/* Totais */}
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
             <Stat label="Valor atual" value={fmtBRL(totalAtual)} />
             <Stat label="Valor recalculado" value={fmtBRL(totalNovo)} highlight />
             <Stat label="Diferença" value={fmtBRL(diff)} highlight={Math.abs(diff) > 0.01} />
@@ -157,52 +158,62 @@ export default function MedicaoRegrasActions({ medicaoId, status, onApplied }: P
             </Alert>
           )}
 
-          <div className="max-h-[420px] overflow-auto border rounded-md">
-            <Table>
-              <TableHeader><TableRow>
-                <TableHead className="min-w-[280px]">Equipamento</TableHead>
-                <TableHead className="text-right">Valor atual</TableHead>
-                <TableHead className="text-right">Valor recalculado</TableHead>
-                <TableHead className="text-right">Diferença</TableHead>
-                <TableHead>Regras aplicadas</TableHead>
-              </TableRow></TableHeader>
-              <TableBody>
-                {itens.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-6 text-sm text-muted-foreground">Sem itens.</TableCell></TableRow>}
-                {itens.map((it: any) => {
-                  const d = Number(it.diferenca ?? 0);
-                  const regras: any[] = it.regras_aplicadas ?? [];
-                  const escopoLabel = (r: any) =>
-                    r.origem === "equipamento" ? "Equipamento específico"
-                    : r.origem === "tipo_equipamento" ? `Tipo — ${r.tipo_equipamento ?? ""}`
-                    : "Geral do contrato";
-                  const badgeVariant = (origem: string) =>
-                    origem === "equipamento" ? "default" : origem === "tipo_equipamento" ? "outline" : "secondary";
-                  return (
-                    <TableRow key={it.item_id}>
-                      <TableCell className="text-xs">{eqLabel(it)}</TableCell>
-                      <TableCell className="text-right num">{fmtBRL(it.valor_atual)}</TableCell>
-                      <TableCell className="text-right num font-medium">{fmtBRL(it.valor_recalculado)}</TableCell>
-                      <TableCell className={`text-right num ${Math.abs(d) > 0.01 ? "text-primary font-semibold" : "text-muted-foreground"}`}>{fmtBRL(d)}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
-                          {regras.length === 0 && <span className="text-xs text-muted-foreground">— sem regra aplicada —</span>}
-                          {regras.map((r: any, j: number) => (
-                            <div key={j} className="flex flex-wrap items-center gap-1">
-                              <Badge variant={badgeVariant(r.origem) as any} className="text-[10px]">{labelTipo(r.tipo)}</Badge>
-                              <span className="text-[10px] text-muted-foreground">{escopoLabel(r)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+          <div className="border rounded-md overflow-hidden">
+            <div className="max-h-[350px] overflow-auto">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
+                  <TableRow>
+                    <TableHead className="min-w-[260px]">Equipamento</TableHead>
+                    <TableHead className="text-right min-w-[120px]">Valor atual</TableHead>
+                    <TableHead className="text-right min-w-[140px]">Valor recalculado</TableHead>
+                    <TableHead className="text-right min-w-[120px]">Diferença</TableHead>
+                    <TableHead className="min-w-[200px]">Regra aplicada</TableHead>
+                    <TableHead className="min-w-[180px]">Escopo da regra</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {itens.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-6 text-sm text-muted-foreground">Sem itens.</TableCell></TableRow>}
+                  {itens.map((it: any) => {
+                    const d = Number(it.diferenca ?? 0);
+                    const regras: any[] = it.regras_aplicadas ?? [];
+                    const escopoLabel = (r: any) =>
+                      r.origem === "equipamento" ? "Equipamento específico"
+                      : r.origem === "tipo_equipamento" ? `Tipo — ${r.tipo_equipamento ?? ""}`
+                      : "Geral do contrato";
+                    const badgeVariant = (origem: string) =>
+                      origem === "equipamento" ? "default" : origem === "tipo_equipamento" ? "outline" : "secondary";
+                    return (
+                      <TableRow key={it.item_id}>
+                        <TableCell className="text-xs">{eqLabel(it)}</TableCell>
+                        <TableCell className="text-right num">{fmtBRL(it.valor_atual)}</TableCell>
+                        <TableCell className="text-right num font-medium">{fmtBRL(it.valor_recalculado)}</TableCell>
+                        <TableCell className={`text-right num ${Math.abs(d) > 0.01 ? "text-primary font-semibold" : "text-muted-foreground"}`}>{fmtBRL(d)}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            {regras.length === 0 && <span className="text-xs text-muted-foreground">— sem regra aplicada —</span>}
+                            {regras.map((r: any, j: number) => (
+                              <Badge key={j} variant={badgeVariant(r.origem) as any} className="text-[10px] w-fit">{labelTipo(r.tipo)}</Badge>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            {regras.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
+                            {regras.map((r: any, j: number) => (
+                              <span key={j} className="text-[11px] text-muted-foreground">{escopoLabel(r)}</span>
+                            ))}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           </div>
 
           {podeAplicar && (
-            <>
+            <div className="space-y-2">
               <div>
                 <Label className="text-xs">Motivo da aplicação *</Label>
                 <Textarea value={motivo} onChange={(e) => setMotivo(e.target.value)}
@@ -214,16 +225,20 @@ export default function MedicaoRegrasActions({ medicaoId, status, onApplied }: P
                   <span>Confirmo que a regra específica deve ser aplicada a múltiplos equipamentos.</span>
                 </label>
               )}
-            </>
+            </div>
           )}
+          </div>
 
-          <DialogFooter>
+          <DialogFooter className="px-6 py-4 border-t shrink-0 bg-background flex-row justify-end gap-2 sm:gap-2">
             <Button variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
             {podeAplicar && (
-              <Button onClick={aplicar} disabled={aplicando || motivo.trim().length < 5 || (regraMultiEq && !confirmaMultiplos)}>
-                {aplicando ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1 h-4 w-4" />}
-                Aplicar regras contratuais
-              </Button>
+              <>
+                <Button variant="ghost" onClick={() => { setOpen(false); setMotivo(""); setConfirmaMultiplos(false); }}>Cancelar</Button>
+                <Button onClick={aplicar} disabled={aplicando || motivo.trim().length < 5 || (regraMultiEq && !confirmaMultiplos)}>
+                  {aplicando ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1 h-4 w-4" />}
+                  Aplicar regras contratuais
+                </Button>
+              </>
             )}
           </DialogFooter>
         </DialogContent>
