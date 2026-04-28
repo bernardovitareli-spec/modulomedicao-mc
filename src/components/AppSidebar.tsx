@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, FileText, Wrench, ClipboardList, LogOut, HardHat,
-  ShieldAlert, Eraser, UserCog,
+  ShieldAlert, Eraser, UserCog, ScrollText,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -22,7 +22,7 @@ const groups = [
       { title: "Clientes", url: "/clientes", icon: Users },
       { title: "Equipamentos", url: "/equipamentos", icon: Wrench },
       { title: "Contratos", url: "/contratos", icon: FileText },
-      { title: "Regras do Contrato", url: "/contratos/regras", icon: FileText },
+      { title: "Regras do Contrato", url: "/contratos/regras", icon: ScrollText },
     ],
   },
   {
