@@ -750,7 +750,82 @@ export default function ImportarMedicao() {
             </div>
           </CardContent></Card>
 
-          {validas.length > 0 && (
+          {validas.length > 0 && modelo === "M1" && (
+            <Card className="mb-4"><CardContent className="p-4">
+              <h3 className="mb-2 text-sm font-semibold">
+                Amostra do mapeamento — Modelo M1 (aba "{sheetUsed}") — primeiras 5 linhas válidas
+              </h3>
+              <div className="overflow-x-auto border rounded-md">
+                <Table className="min-w-max text-xs">
+                  <TableHeader><TableRow>
+                    <TableHead className="whitespace-nowrap">Mês Referência</TableHead>
+                    <TableHead className="whitespace-nowrap">Nº DJ</TableHead>
+                    <TableHead className="whitespace-nowrap">Contratado</TableHead>
+                    <TableHead className="whitespace-nowrap">Tipo Equipamento</TableHead>
+                    <TableHead className="whitespace-nowrap">Modelo</TableHead>
+                    <TableHead className="whitespace-nowrap">Série</TableHead>
+                    <TableHead className="whitespace-nowrap">Tag</TableHead>
+                    <TableHead className="whitespace-nowrap">Centro Custo</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Horímetro Inicial</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Horímetro Final</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">HT Calculado</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">HT Informado</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Garantia Contratual</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Garantia Real</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Horas Disposição</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Horas Mecânicas</TableHead>
+                    <TableHead className="whitespace-nowrap">Tipo Pagamento</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Horas a Pagar Bruto</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Horas a Pagar Líquido</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Valor/Hora</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Descontos</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Medição Final</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Exceção Chuvoso</TableHead>
+                    <TableHead className="whitespace-nowrap">Observações</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {validas.slice(0, 5).map((l) => {
+                      const garantiaReal = Math.max(l.garantia, l.horas_liquidas);
+                      const horasPagarBruto = l.ht_informado;
+                      return (
+                        <TableRow key={`sample-${l.rowExcel}`}>
+                          <TableCell className="whitespace-nowrap">{fmtCompetencia(l.mes_ref)}</TableCell>
+                          <TableCell className="font-mono whitespace-nowrap">{l.numero_dj || "—"}</TableCell>
+                          <TableCell className="max-w-[200px] truncate" title={l.contratado}>{l.contratado || "—"}</TableCell>
+                          <TableCell className="font-medium whitespace-nowrap">{l.tipo_equip || "—"}</TableCell>
+                          <TableCell className="whitespace-nowrap">{l.modelo || "—"}</TableCell>
+                          <TableCell className="font-mono whitespace-nowrap">{l.serie || "—"}</TableCell>
+                          <TableCell className="font-mono whitespace-nowrap">{l.tag || "—"}</TableCell>
+                          <TableCell className="whitespace-nowrap">{l.centro_custo || "—"}</TableCell>
+                          <TableCell className="num text-right">{l.hor_inicial.toFixed(2)}</TableCell>
+                          <TableCell className="num text-right">{l.hor_final.toFixed(2)}</TableCell>
+                          <TableCell className="num text-right">{l.ht_calculado.toFixed(2)}</TableCell>
+                          <TableCell className="num text-right">{l.ht_informado.toFixed(2)}</TableCell>
+                          <TableCell className="num text-right">{l.garantia.toFixed(2)}</TableCell>
+                          <TableCell className="num text-right">{garantiaReal.toFixed(2)}</TableCell>
+                          <TableCell className="num text-right">{l.horas_disp.toFixed(2)}</TableCell>
+                          <TableCell className="num text-right">{l.horas_mec.toFixed(2)}</TableCell>
+                          <TableCell className="whitespace-nowrap">{l.tipo_pagamento || "—"}</TableCell>
+                          <TableCell className="num text-right">{horasPagarBruto.toFixed(2)}</TableCell>
+                          <TableCell className="num text-right font-semibold">{l.horas_a_pagar.toFixed(2)}</TableCell>
+                          <TableCell className="num text-right">{fmtBRL(l.valor_hora)}</TableCell>
+                          <TableCell className="num text-right">{fmtBRL(l.desc_manutencao)}</TableCell>
+                          <TableCell className="num text-right font-semibold text-primary">{fmtBRL(l.valor_final)}</TableCell>
+                          <TableCell className="num text-right">{l.excecao_chuvoso.toFixed(2)}</TableCell>
+                          <TableCell className="max-w-[220px] truncate" title={l.observacoes}>{l.observacoes || "—"}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Nada foi salvo ainda. Revise os dados e clique em <strong>Confirmar importação</strong> para gravar, ou em <strong>Cancelar</strong> para descartar.
+              </p>
+            </CardContent></Card>
+          )}
+
+          {validas.length > 0 && modelo !== "M1" && (
             <Card className="mb-4"><CardContent className="p-4">
               <h3 className="mb-2 text-sm font-semibold">Amostra do mapeamento — primeiras 5 linhas válidas</h3>
               <div className="overflow-x-auto">
