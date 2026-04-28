@@ -221,6 +221,7 @@ interface LinhaLida {
   mes_ref: string | null;
   numero_dj: string;
   contratado: string;
+  codigo_cliente: string;
   cnpj: string;
   tipo_servico: string;
   tipo_equip: string;
@@ -250,6 +251,8 @@ interface LinhaLida {
   horas_liquidas: number;
   horas_a_pagar: number;
   valor_final: number;
+  valor_planilha: number;
+  diferenca_calc: number;
   erros: string[];
   alertas: string[];
 }
