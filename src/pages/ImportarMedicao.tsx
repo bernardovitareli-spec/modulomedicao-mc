@@ -674,13 +674,12 @@ export default function ImportarMedicao() {
         </Alert>
       )}
 
-      {tipoEquipIgualServico && (
+      {erroMapeamentoTipoEquip && (
         <Alert variant="destructive" className="mb-4">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="text-xs">
-            <strong>Possível erro de mapeamento:</strong> Tipo Equipamento está igual ao Tipo Serviço em todas as linhas.
-            Verifique se as colunas <em>"Tipo Serviço"</em> e <em>"Tipo Equip."</em> estão sendo lidas separadamente na planilha.
-            Se já houver uma medição importada com esse problema, exclua-a e importe novamente após a correção.
+            <strong>Erro de mapeamento:</strong> Tipo Equipamento está sendo preenchido com Tipo Serviço.
+            A importação foi bloqueada; revise a aba "Template Medição" e confirme que a coluna H contém o Tipo Equip.
           </AlertDescription>
         </Alert>
       )}
