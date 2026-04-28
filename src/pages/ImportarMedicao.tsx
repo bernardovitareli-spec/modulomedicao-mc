@@ -604,29 +604,35 @@ export default function ImportarMedicao() {
       for (const l of validas) {
         const ov = overrides[l.numero_dj] ?? {};
         const cnpjEfetivo = (ov.cnpj || l.cnpj || "").trim();
-        const codigoClienteEfetivo = (ov.codigo_cliente || l.codigo_cliente || "").trim();
         const tipoServicoEfetivo = (ov.tipo_servico || l.tipo_servico || "Locação").trim();
         const periodoIniEfetivo = ov.periodo_inicio || l.periodo_inicio || null;
         const periodoFimEfetivo = ov.periodo_fim || l.periodo_fim || null;
 
-        const cliKey = l.contratado.toUpperCase();
-        let clienteId = clientesCache.get(cliKey);
-        if (!clienteId) {
-          const { data, error } = await supabase.from("clientes").insert({
-            razao_social: l.contratado,
-            cnpj: cnpjEfetivo || null,
-            codigo_cliente: codigoClienteEfetivo || null,
-            status: "ativo",
-          } as any).select("id").single();
-          if (error) throw error;
-          clienteId = data.id; clientesCache.set(cliKey, clienteId); createdCli++;
-        } else if (cnpjEfetivo || codigoClienteEfetivo) {
-          // Atualiza dados informados manualmente em cliente já existente
-          const patch: any = {};
-          if (codigoClienteEfetivo) patch.codigo_cliente = codigoClienteEfetivo;
-          if (cnpjEfetivo) patch.cnpj = cnpjEfetivo;
-          if (Object.keys(patch).length) {
-            await supabase.from("clientes").update(patch).eq("id", clienteId);
+        // No M1, "Contratado" da planilha = FORNECEDOR/LOCADORA
+        // O CLIENTE/CONTRATANTE vem do override (ov.cliente_id)
+        const isM1 = modelo === "M1";
+        const fornecedorNome = isM1 ? l.contratado : "";
+        const fornecedorCodigo = isM1 ? l.codigo_cliente : "";
+        const fornecedorCnpj = isM1 ? cnpjEfetivo : "";
+
+        let clienteId: string | undefined;
+        if (isM1) {
+          // Cliente/Contratante selecionado pelo usuário (validado em m1Pendencias)
+          clienteId = ov.cliente_id;
+          if (!clienteId) throw new Error(`Selecione o Cliente/Contratante para o contrato ${l.numero_dj}`);
+        } else {
+          // M2: lógica original — "Contratante" da planilha = cliente
+          const cliKey = l.contratado.toUpperCase();
+          clienteId = clientesCache.get(cliKey);
+          if (!clienteId) {
+            const { data, error } = await supabase.from("clientes").insert({
+              razao_social: l.contratado,
+              cnpj: cnpjEfetivo || null,
+              codigo_cliente: l.codigo_cliente || null,
+              status: "ativo",
+            } as any).select("id").single();
+            if (error) throw error;
+            clienteId = data.id; clientesCache.set(cliKey, clienteId!); createdCli++;
           }
         }
 
@@ -641,15 +647,22 @@ export default function ImportarMedicao() {
             inicio_operacao: inicio, termino_contrato: termino,
             valor_hora_padrao: l.valor_hora, garantia_minima_horas: l.garantia,
             status: "ativo",
+            fornecedor_nome: fornecedorNome || null,
+            fornecedor_codigo: fornecedorCodigo || null,
+            fornecedor_cnpj: fornecedorCnpj || null,
           } as any).select("id, valor_hora_padrao, garantia_minima_horas").single();
           if (error) throw error;
           contrato = { id: data.id, valor_hora: Number(data.valor_hora_padrao ?? 0), garantia: Number(data.garantia_minima_horas ?? 0) };
           contratosCache.set(l.numero_dj, contrato); createdCtr++;
-        } else if (tipoServicoEfetivo || l.centro_custo) {
-          await supabase.from("contratos").update({
-            tipo_servico: tipoServicoEfetivo || undefined,
-            centro_custo: l.centro_custo || null,
-          } as any).eq("id", contrato.id);
+        } else {
+          const patch: any = { tipo_servico: tipoServicoEfetivo || undefined, centro_custo: l.centro_custo || null };
+          if (isM1) {
+            patch.cliente_id = clienteId;
+            if (fornecedorNome) patch.fornecedor_nome = fornecedorNome;
+            if (fornecedorCodigo) patch.fornecedor_codigo = fornecedorCodigo;
+            if (fornecedorCnpj) patch.fornecedor_cnpj = fornecedorCnpj;
+          }
+          await supabase.from("contratos").update(patch).eq("id", contrato.id);
         }
 
         const eqpKey = `${l.serie}|${l.tag}`;
