@@ -169,7 +169,7 @@ export default function MedicaoRegrasActions({ medicaoId, status, onApplied }: P
                       <TableCell className={`text-right num ${Math.abs(d) > 0.01 ? "text-primary font-semibold" : "text-muted-foreground"}`}>{fmtBRL(d)}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
-                          {regras.length === 0 && <span className="text-xs text-muted-foreground">— sem regras vigentes —</span>}
+                          {regras.length === 0 && <span className="text-xs text-muted-foreground">— sem regra aplicada —</span>}
                           {regras.map((r: any, j: number) => (
                             <Badge key={j} variant={r.origem === "equipamento" ? "default" : "secondary"} className="text-[10px]">
                               {labelTipo(r.tipo)}{r.origem === "equipamento" ? " ⚙" : ""}
