@@ -491,6 +491,8 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                   )}
                 </div>
               </section>
+
+              {Math.abs(calc.divergencia_ht) > 0.01 && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
