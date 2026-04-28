@@ -409,11 +409,19 @@ export default function ImportarMedicao() {
 
   // Resumo agregado
   const clientes = Array.from(new Set(validas.map((l) => l.contratado)));
+  const cnpjs = Array.from(new Set(validas.map((l) => l.cnpj).filter(Boolean)));
   const contratos = Array.from(new Set(validas.map((l) => l.numero_dj)));
+  const tiposServico = Array.from(new Set(validas.map((l) => l.tipo_servico).filter(Boolean)));
+  const centrosCusto = Array.from(new Set(validas.map((l) => l.centro_custo).filter(Boolean)));
   const competencias = Array.from(new Set(validas.map((l) => l.mes_ref).filter(Boolean) as string[]));
+  const periodosIni = validas.map((l) => l.periodo_inicio).filter(Boolean) as string[];
+  const periodosFim = validas.map((l) => l.periodo_fim).filter(Boolean) as string[];
+  const periodoIniMin = periodosIni.length ? periodosIni.sort()[0] : "";
+  const periodoFimMax = periodosFim.length ? periodosFim.sort().reverse()[0] : "";
   const totalValor = validas.reduce((s, l) => s + l.valor_final, 0);
   const totalHorasInf = validas.reduce((s, l) => s + l.ht_informado, 0);
   const totalHorasMec = validas.reduce((s, l) => s + l.horas_mec, 0);
+  const totalComplementares = validas.reduce((s, l) => s + l.complementares, 0);
   const totalDesc = validas.reduce((s, l) => s + l.desc_manutencao, 0);
 
   const podeImportar = !headerError && validas.length > 0;
