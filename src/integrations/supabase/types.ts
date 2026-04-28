@@ -492,6 +492,75 @@ export type Database = {
         }
         Relationships: []
       }
+      medicao_item_alteracoes: {
+        Row: {
+          acao: string
+          campo: string | null
+          cliente_id: string | null
+          cliente_nome: string | null
+          competencia: string | null
+          contrato_id: string | null
+          contrato_numero: string | null
+          created_at: string
+          equipamento_id: string | null
+          equipamento_serie: string | null
+          equipamento_tag: string | null
+          id: string
+          medicao_id: string
+          medicao_item_id: string | null
+          motivo: string
+          perfil_usuario: string | null
+          user_email: string | null
+          user_id: string | null
+          valor_anterior: string | null
+          valor_novo: string | null
+        }
+        Insert: {
+          acao?: string
+          campo?: string | null
+          cliente_id?: string | null
+          cliente_nome?: string | null
+          competencia?: string | null
+          contrato_id?: string | null
+          contrato_numero?: string | null
+          created_at?: string
+          equipamento_id?: string | null
+          equipamento_serie?: string | null
+          equipamento_tag?: string | null
+          id?: string
+          medicao_id: string
+          medicao_item_id?: string | null
+          motivo: string
+          perfil_usuario?: string | null
+          user_email?: string | null
+          user_id?: string | null
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Update: {
+          acao?: string
+          campo?: string | null
+          cliente_id?: string | null
+          cliente_nome?: string | null
+          competencia?: string | null
+          contrato_id?: string | null
+          contrato_numero?: string | null
+          created_at?: string
+          equipamento_id?: string | null
+          equipamento_serie?: string | null
+          equipamento_tag?: string | null
+          id?: string
+          medicao_id?: string
+          medicao_item_id?: string | null
+          motivo?: string
+          perfil_usuario?: string | null
+          user_email?: string | null
+          user_id?: string | null
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Relationships: []
+      }
       medicao_itens: {
         Row: {
           contrato_equipamento_id: string | null
@@ -720,6 +789,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _log_item_change: {
+        Args: {
+          _antes: string
+          _campo: string
+          _cliente: Record<string, unknown>
+          _contrato: Record<string, unknown>
+          _depois: string
+          _email: string
+          _eq: Record<string, unknown>
+          _item_id: string
+          _med: Record<string, unknown>
+          _motivo: string
+          _old: Record<string, unknown>
+          _role: string
+          _uid: string
+        }
+        Returns: undefined
+      }
+      _recalc_medicao_totais: {
+        Args: { _medicao_id: string }
+        Returns: undefined
+      }
       admin_list_users: {
         Args: never
         Returns: {
@@ -761,6 +852,26 @@ export type Database = {
       }
       purge_importacao_teste: {
         Args: { _importacao_id: string; _motivo: string }
+        Returns: Json
+      }
+      recalcular_medicao: {
+        Args: { _medicao_id: string; _motivo: string }
+        Returns: Json
+      }
+      update_medicao_item: {
+        Args: {
+          _horas_chuvoso: number
+          _horas_excecao_chuvoso: number
+          _horas_informadas: number
+          _horas_mecanicas: number
+          _horimetro_final: number
+          _horimetro_inicial: number
+          _item_id: string
+          _motivo: string
+          _observacoes: string
+          _valor_complementares: number
+          _valor_descontos: number
+        }
         Returns: Json
       }
     }
