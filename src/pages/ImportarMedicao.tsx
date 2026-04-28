@@ -21,7 +21,7 @@ const TIPOS_SERVICO_M1 = [
   "Outro",
 ];
 import { toast } from "sonner";
-import { fmtBRL, fmtCompetencia, fmtDate } from "@/lib/format";
+import { fmtBRL, fmtCompetencia, fmtDate, fmtNum } from "@/lib/format";
 import { calcularItem } from "@/lib/calculo";
 
 const SHEET_MODELO_1 = "BASE DE DADOS";
@@ -440,7 +440,7 @@ export default function ImportarMedicao() {
         if (modeloDetectado === "M2" && !periodo_fim) erros.push("Período fim inválido");
         if (hor_final < hor_inicial) erros.push("Horímetro final < inicial");
         if (!garantia) alertas.push("Garantia contratual ausente");
-        if (Math.abs(divergencia_ht) > 0.01) alertas.push(`Divergência HT: ${divergencia_ht.toFixed(2)}h`);
+        if (Math.abs(divergencia_ht) > 0.01) alertas.push(`Divergência HT: ${fmtNum(divergencia_ht)}h`);
         if (valor_planilha && Math.abs(diferenca_calc) > 0.10) {
           alertas.push("Divergência entre valor da planilha e valor recalculado.");
         }
@@ -523,15 +523,24 @@ export default function ImportarMedicao() {
 
   const validas = linhas.filter((l) => l.erros.length === 0);
 
+  // Helpers para aplicar overrides M1 (preenchidos manualmente pelo usuário)
+  const ovOf = (dj: string) => overrides[dj] ?? {};
+  const cnpjEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).cnpj || l.cnpj) : l.cnpj);
+  const codClienteEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).codigo_cliente || l.codigo_cliente) : l.codigo_cliente);
+  const tipoServicoEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).tipo_servico || l.tipo_servico) : l.tipo_servico);
+  const periodoIniEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).periodo_inicio || l.periodo_inicio || "") : (l.periodo_inicio || ""));
+  const periodoFimEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).periodo_fim || l.periodo_fim || "") : (l.periodo_fim || ""));
+
   // Resumo agregado
   const clientes = Array.from(new Set(validas.map((l) => l.contratado)));
-  const cnpjs = Array.from(new Set(validas.map((l) => l.cnpj).filter(Boolean)));
+  const cnpjs = Array.from(new Set(validas.map(cnpjEf).filter(Boolean)));
+  const codigosCliente = Array.from(new Set(validas.map(codClienteEf).filter(Boolean)));
   const contratos = Array.from(new Set(validas.map((l) => l.numero_dj)));
-  const tiposServico = Array.from(new Set(validas.map((l) => l.tipo_servico).filter(Boolean)));
+  const tiposServico = Array.from(new Set(validas.map(tipoServicoEf).filter(Boolean)));
   const centrosCusto = Array.from(new Set(validas.map((l) => l.centro_custo).filter(Boolean)));
   const competencias = Array.from(new Set(validas.map((l) => l.mes_ref).filter(Boolean) as string[]));
-  const periodosIni = validas.map((l) => l.periodo_inicio).filter(Boolean) as string[];
-  const periodosFim = validas.map((l) => l.periodo_fim).filter(Boolean) as string[];
+  const periodosIni = validas.map(periodoIniEf).filter(Boolean) as string[];
+  const periodosFim = validas.map(periodoFimEf).filter(Boolean) as string[];
   const periodoIniMin = periodosIni.length ? periodosIni.sort()[0] : "";
   const periodoFimMax = periodosFim.length ? periodosFim.sort().reverse()[0] : "";
   const totalValor = validas.reduce((s, l) => s + l.valor_final, 0);
@@ -599,6 +608,7 @@ export default function ImportarMedicao() {
       for (const l of validas) {
         const ov = overrides[l.numero_dj] ?? {};
         const cnpjEfetivo = (ov.cnpj || l.cnpj || "").trim();
+        const codigoClienteEfetivo = (ov.codigo_cliente || l.codigo_cliente || "").trim();
         const tipoServicoEfetivo = (ov.tipo_servico || l.tipo_servico || "Locação").trim();
         const periodoIniEfetivo = ov.periodo_inicio || l.periodo_inicio || null;
         const periodoFimEfetivo = ov.periodo_fim || l.periodo_fim || null;
@@ -609,10 +619,19 @@ export default function ImportarMedicao() {
           const { data, error } = await supabase.from("clientes").insert({
             razao_social: l.contratado,
             cnpj: cnpjEfetivo || `IMPORT-${Date.now()}-${createdCli}`,
+            codigo_cliente: codigoClienteEfetivo || null,
             status: "ativo",
           } as any).select("id").single();
           if (error) throw error;
           clienteId = data.id; clientesCache.set(cliKey, clienteId); createdCli++;
+        } else if (cnpjEfetivo || codigoClienteEfetivo) {
+          // Atualiza dados informados manualmente em cliente já existente
+          const patch: any = {};
+          if (codigoClienteEfetivo) patch.codigo_cliente = codigoClienteEfetivo;
+          if (cnpjEfetivo && !cnpjEfetivo.startsWith("IMPORT-")) patch.cnpj = cnpjEfetivo;
+          if (Object.keys(patch).length) {
+            await supabase.from("clientes").update(patch).eq("id", clienteId);
+          }
         }
 
         let contrato = contratosCache.get(l.numero_dj);
@@ -823,6 +842,7 @@ export default function ImportarMedicao() {
               <Stat label="Com erro" value={String(linhas.length - validas.length)} />
               <Stat label="Cliente(s)" value={clientes.length === 1 ? clientes[0] : String(clientes.length)} />
               <Stat label="CNPJ" value={cnpjs.length === 1 ? cnpjs[0] : (cnpjs.length ? `${cnpjs.length}` : "—")} />
+              <Stat label="Código cliente" value={codigosCliente.length === 1 ? codigosCliente[0] : (codigosCliente.length ? `${codigosCliente.length}` : "—")} />
               <Stat label="Contrato / Nº DJ" value={contratos.length === 1 ? contratos[0] : String(contratos.length)} />
               <Stat label="Tipo de serviço" value={tiposServico.length === 1 ? tiposServico[0] : (tiposServico.length ? `${tiposServico.length}` : "—")} />
               <Stat label="Centro de custo" value={centrosCusto.length === 1 ? centrosCusto[0] : (centrosCusto.length ? `${centrosCusto.length}` : "—")} />
@@ -830,9 +850,9 @@ export default function ImportarMedicao() {
               <Stat label="Período início" value={periodoIniMin ? fmtDate(periodoIniMin) : "—"} />
               <Stat label="Período fim" value={periodoFimMax ? fmtDate(periodoFimMax) : "—"} />
               <Stat label="Equipamentos válidos" value={String(validas.length)} />
-              <Stat label="Total HT informado" value={totalHorasInf.toFixed(2)} />
-              {modelo === "M1" && <Stat label="Total horas à disposição" value={totalHorasDisp.toFixed(2)} />}
-              <Stat label="Total horas mecânicas" value={totalHorasMec.toFixed(2)} />
+              <Stat label="Total HT informado" value={fmtNum(totalHorasInf)} />
+              {modelo === "M1" && <Stat label="Total horas à disposição" value={fmtNum(totalHorasDisp)} />}
+              <Stat label="Total horas mecânicas" value={fmtNum(totalHorasMec)} />
               <Stat label="Total complementares" value={fmtBRL(totalComplementares)} />
               <Stat label="Total descontos" value={fmtBRL(totalDesc)} />
               <Stat label="Valor total previsto" value={fmtBRL(totalValor)} highlight />
@@ -986,15 +1006,15 @@ export default function ImportarMedicao() {
                           <TableCell className="font-mono whitespace-nowrap">{l.serie || "—"}</TableCell>
                           <TableCell className="font-mono whitespace-nowrap">{l.tag || "—"}</TableCell>
                           <TableCell className="whitespace-nowrap">{l.centro_custo || "—"}</TableCell>
-                          <TableCell className="num text-right">{l.hor_inicial.toFixed(2)}</TableCell>
-                          <TableCell className="num text-right">{l.hor_final.toFixed(2)}</TableCell>
-                          <TableCell className="num text-right">{l.ht_calculado.toFixed(2)}</TableCell>
-                          <TableCell className="num text-right">{l.ht_informado.toFixed(2)}</TableCell>
-                          <TableCell className="num text-right">{l.garantia.toFixed(2)}</TableCell>
-                          <TableCell className="num text-right">{garantiaReal.toFixed(2)}</TableCell>
-                          <TableCell className="num text-right">{l.horas_disp.toFixed(2)}</TableCell>
-                          <TableCell className="num text-right">{l.horas_mec.toFixed(2)}</TableCell>
-                          <TableCell className="num text-right font-semibold">{l.horas_a_pagar.toFixed(2)}</TableCell>
+                          <TableCell className="num text-right">{fmtNum(l.hor_inicial)}</TableCell>
+                          <TableCell className="num text-right">{fmtNum(l.hor_final)}</TableCell>
+                          <TableCell className="num text-right">{fmtNum(l.ht_calculado)}</TableCell>
+                          <TableCell className="num text-right">{fmtNum(l.ht_informado)}</TableCell>
+                          <TableCell className="num text-right">{fmtNum(l.garantia)}</TableCell>
+                          <TableCell className="num text-right">{fmtNum(garantiaReal)}</TableCell>
+                          <TableCell className="num text-right">{fmtNum(l.horas_disp)}</TableCell>
+                          <TableCell className="num text-right">{fmtNum(l.horas_mec)}</TableCell>
+                          <TableCell className="num text-right font-semibold">{fmtNum(l.horas_a_pagar)}</TableCell>
                           <TableCell className="num text-right">{fmtBRL(l.valor_hora)}</TableCell>
                           <TableCell className="num text-right">{fmtBRL(l.desc_manutencao)}</TableCell>
                           <TableCell className="num text-right">{l.valor_planilha ? fmtBRL(l.valor_planilha) : "—"}</TableCell>
@@ -1110,9 +1130,9 @@ export default function ImportarMedicao() {
                         <TableCell className="text-xs max-w-[200px] truncate">{l.contratado}</TableCell>
                         <TableCell className="font-mono text-xs">{l.serie}</TableCell>
                         <TableCell className="font-mono text-xs">{l.tag}</TableCell>
-                        <TableCell className="num text-xs">{l.ht_calculado.toFixed(2)}</TableCell>
-                        <TableCell className="num text-xs">{l.ht_informado.toFixed(2)}</TableCell>
-                        <TableCell className="num text-xs">{l.horas_a_pagar.toFixed(2)}</TableCell>
+                        <TableCell className="num text-xs">{fmtNum(l.ht_calculado)}</TableCell>
+                        <TableCell className="num text-xs">{fmtNum(l.ht_informado)}</TableCell>
+                        <TableCell className="num text-xs">{fmtNum(l.horas_a_pagar)}</TableCell>
                         <TableCell className="num text-xs font-medium">{fmtBRL(l.valor_final)}</TableCell>
                         <TableCell className="text-xs">
                           {l.erros.map((e, j) => <div key={j} className="text-destructive">• {e}</div>)}

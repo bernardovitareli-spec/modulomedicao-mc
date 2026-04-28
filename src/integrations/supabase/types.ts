@@ -99,6 +99,7 @@ export type Database = {
           cep: string | null
           cidade: string | null
           cnpj: string
+          codigo_cliente: string | null
           contato_email: string | null
           contato_nome: string | null
           contato_telefone: string | null
@@ -118,6 +119,7 @@ export type Database = {
           cep?: string | null
           cidade?: string | null
           cnpj: string
+          codigo_cliente?: string | null
           contato_email?: string | null
           contato_nome?: string | null
           contato_telefone?: string | null
@@ -137,6 +139,7 @@ export type Database = {
           cep?: string | null
           cidade?: string | null
           cnpj?: string
+          codigo_cliente?: string | null
           contato_email?: string | null
           contato_nome?: string | null
           contato_telefone?: string | null
