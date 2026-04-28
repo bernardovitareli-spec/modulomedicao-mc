@@ -150,74 +150,78 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
     if (Number(form.horas_informadas_input) < 0) return toast.error("HT informado não pode ser negativo");
     if (Number(form.horas_mecanicas) < 0) return toast.error("Horas mecânicas não pode ser negativa");
     if (calc.valor_final < 0) return toast.error("Valor final não pode ser negativo");
-    setSaving(true);
-    const payload: any = {
-      medicao_id: medicaoId,
-      contrato_equipamento_id: form.contrato_equipamento_id,
-      equipamento_id: form.equipamento_id,
-      periodo_inicio: periodoInicio,
-      periodo_fim: periodoFim,
-      horimetro_inicial: form.horimetro_inicial,
-      horimetro_final: form.horimetro_final,
-      horas_informadas: calc.ht_informado,
-      horas_mecanicas: form.horas_mecanicas,
-      horas_chuvoso: form.horas_chuvoso,
-      horas_excecao_chuvoso: form.horas_excecao_chuvoso,
-      horas_descontaveis: form.horas_mecanicas,
-      horas_liquidas: calc.horas_liquidas,
-      garantia_minima: calc.garantia,
-      horas_a_pagar: calc.horas_a_pagar,
-      valor_hora: calc.valor_hora,
-      valor_bruto: calc.valor_bruto,
-      valor_complementares: form.valor_complementares,
-      valor_descontos: form.valor_descontos,
-      valor_final: calc.valor_final,
-      observacoes: form.observacoes || null,
-    };
-    const { error } = form.id
-      ? await supabase.from("medicao_itens").update(payload).eq("id", form.id)
-      : await supabase.from("medicao_itens").insert(payload);
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    setOpen(false);
-    await load();
-    await recalcTotais();
-    onChanged?.();
-    toast.success("Item salvo e totais atualizados");
-  };
 
-  const recalcularMedicao = async () => {
-    if (!confirm("Recalcular todos os itens da medição com base nas regras atuais do contrato?")) return;
     setSaving(true);
     try {
-      const { data: its } = await supabase
-        .from("medicao_itens")
-        .select("*")
-        .eq("medicao_id", medicaoId);
-      const valorHoraPadrao = Number(contrato?.valor_hora_padrao ?? 0);
-      const garantia = Number(contrato?.garantia_minima_horas ?? 0);
-      for (const it of its ?? []) {
-        const ce = contratoEqs.find((x) => x.id === it.contrato_equipamento_id);
-        const valor_hora = Number(ce?.valor_hora_override ?? valorHoraPadrao);
-        const ht_informado = Number(it.horas_informadas ?? 0);
-        const horas_liquidas = Math.max(0, ht_informado - Number(it.horas_mecanicas ?? 0));
-        const horas_a_pagar = Math.max(horas_liquidas, garantia);
-        const valor_bruto = horas_a_pagar * valor_hora;
-        const valor_final = valor_bruto + Number(it.valor_complementares ?? 0) - Number(it.valor_descontos ?? 0);
-        await supabase.from("medicao_itens").update({
-          horas_liquidas, garantia_minima: garantia, horas_a_pagar,
-          valor_hora, valor_bruto, valor_final,
-        }).eq("id", it.id);
+      if (form.id) {
+        // Edição via RPC com motivo obrigatório e log automático
+        if (!form.motivo || form.motivo.trim().length < 5) {
+          setSaving(false);
+          return toast.error("Informe o motivo da alteração (mínimo 5 caracteres)");
+        }
+        const { error } = await supabase.rpc("update_medicao_item", {
+          _item_id: form.id,
+          _motivo: form.motivo.trim(),
+          _horimetro_inicial: form.horimetro_inicial,
+          _horimetro_final: form.horimetro_final,
+          _horas_informadas: form.horas_informadas_input,
+          _horas_mecanicas: form.horas_mecanicas,
+          _horas_chuvoso: form.horas_chuvoso,
+          _horas_excecao_chuvoso: form.horas_excecao_chuvoso,
+          _valor_complementares: form.valor_complementares,
+          _valor_descontos: form.valor_descontos,
+          _observacoes: form.observacoes || "",
+        });
+        if (error) { setSaving(false); return toast.error(error.message); }
+      } else {
+        // Inserção direta (sem log de campos — é criação inicial)
+        const payload: any = {
+          medicao_id: medicaoId,
+          contrato_equipamento_id: form.contrato_equipamento_id,
+          equipamento_id: form.equipamento_id,
+          periodo_inicio: periodoInicio,
+          periodo_fim: periodoFim,
+          horimetro_inicial: form.horimetro_inicial,
+          horimetro_final: form.horimetro_final,
+          horas_informadas: calc.ht_informado,
+          horas_mecanicas: form.horas_mecanicas,
+          horas_chuvoso: form.horas_chuvoso,
+          horas_excecao_chuvoso: form.horas_excecao_chuvoso,
+          horas_descontaveis: form.horas_mecanicas,
+          horas_liquidas: calc.horas_liquidas,
+          garantia_minima: calc.garantia,
+          horas_a_pagar: calc.horas_a_pagar,
+          valor_hora: calc.valor_hora,
+          valor_bruto: calc.valor_bruto,
+          valor_complementares: form.valor_complementares,
+          valor_descontos: form.valor_descontos,
+          valor_final: calc.valor_final,
+          observacoes: form.observacoes || null,
+        };
+        const { error } = await supabase.from("medicao_itens").insert(payload);
+        if (error) { setSaving(false); return toast.error(error.message); }
+        await recalcTotais();
       }
+      setOpen(false);
       await load();
-      await recalcTotais();
       onChanged?.();
-      toast.success("Medição recalculada");
-    } catch (e: any) {
-      toast.error(e.message ?? "Erro ao recalcular");
+      toast.success("Item salvo e totais atualizados");
     } finally {
       setSaving(false);
     }
+  };
+
+  const recalcularMedicao = async () => {
+    const motivo = window.prompt("Motivo do recálculo (mínimo 5 caracteres):", "Recálculo manual com base nas regras atuais");
+    if (motivo === null) return;
+    if (motivo.trim().length < 5) return toast.error("Motivo é obrigatório");
+    setSaving(true);
+    const { error } = await supabase.rpc("recalcular_medicao", { _medicao_id: medicaoId, _motivo: motivo.trim() });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    await load();
+    onChanged?.();
+    toast.success("Medição recalculada");
   };
 
   const excluir = async (id: string) => {
