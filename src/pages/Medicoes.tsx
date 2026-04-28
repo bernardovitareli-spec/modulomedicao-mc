@@ -4,9 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search } from "lucide-react";
+import { Search, Plus } from "lucide-react";
 import { fmtBRL, fmtDate } from "@/lib/format";
 import { StatusBadge } from "@/components/contrato/ContratoMedicoesTab";
 
@@ -28,7 +29,11 @@ export default function Medicoes() {
 
   return (
     <div>
-      <PageHeader title="Medições mensais" description="Todas as medições por contrato e competência" />
+      <PageHeader
+        title="Medições mensais"
+        description="Todas as medições por contrato e competência"
+        actions={<Button onClick={() => navigate("/medicoes/nova")}><Plus className="mr-1 h-4 w-4" />Nova medição</Button>}
+      />
       <Card><CardContent className="p-4">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <div className="relative max-w-xs flex-1">
