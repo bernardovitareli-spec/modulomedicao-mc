@@ -284,10 +284,10 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                 const diverg = Number(i.horas_informadas ?? 0) - htCalc;
                 return (
                   <TableRow key={i.id} className="group">
-                    <TableCell className="sticky left-0 z-10 bg-background group-hover:bg-muted/50 border-r font-mono text-xs">{i.equipamentos?.serie ?? "-"}</TableCell>
-                    <TableCell className="sticky left-[110px] z-10 bg-background group-hover:bg-muted/50 border-r font-mono text-xs">{i.equipamentos?.tag}</TableCell>
-                    <TableCell className="sticky left-[200px] z-10 bg-background group-hover:bg-muted/50 border-r text-xs">{i.equipamentos?.tipo}</TableCell>
-                    <TableCell className="sticky left-[340px] z-10 bg-background group-hover:bg-muted/50 border-r text-xs">{i.equipamentos?.modelo}</TableCell>
+                    <TableCell className="sticky left-0 z-10 bg-background group-hover:bg-muted/50 border-r font-mono text-xs whitespace-nowrap">{i.equipamentos?.serie ?? "-"}</TableCell>
+                    <TableCell className="sticky left-[110px] z-10 bg-background group-hover:bg-muted/50 border-r font-mono text-xs whitespace-nowrap">{i.equipamentos?.tag}</TableCell>
+                    <TableCell className="sticky left-[200px] z-10 bg-background group-hover:bg-muted/50 border-r text-xs whitespace-nowrap">{i.equipamentos?.tipo}</TableCell>
+                    <TableCell className="sticky left-[370px] z-10 bg-background group-hover:bg-muted/50 border-r text-xs whitespace-nowrap">{i.equipamentos?.modelo}</TableCell>
                     <TableCell className="text-right num">{fmtNum(i.horimetro_inicial)}</TableCell>
                     <TableCell className="text-right num">{fmtNum(i.horimetro_final)}</TableCell>
                     <TableCell className="text-right num">{fmtNum(htCalc)}</TableCell>
