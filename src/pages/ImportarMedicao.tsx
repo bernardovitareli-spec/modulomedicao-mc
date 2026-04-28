@@ -464,11 +464,11 @@ export default function ImportarMedicao() {
 
         let contrato = contratosCache.get(l.numero_dj);
         if (!contrato) {
-          const inicio = l.inicio_op ?? (l.mes_ref ?? new Date().toISOString().slice(0, 10));
+          const inicio = l.inicio_op ?? l.periodo_inicio ?? (l.mes_ref ?? new Date().toISOString().slice(0, 10));
           const termino = l.termino_contrato ?? new Date(new Date(inicio).getFullYear() + 1, 11, 31).toISOString().slice(0, 10);
           const { data, error } = await supabase.from("contratos").insert({
             numero_dj: l.numero_dj, cliente_id: clienteId,
-            tipo_servico: l.tipo_servico || l.tipo_equip || "Locação",
+            tipo_servico: l.tipo_servico || "Locação",
             centro_custo: l.centro_custo || null,
             inicio_operacao: inicio, termino_contrato: termino,
             valor_hora_padrao: l.valor_hora, garantia_minima_horas: l.garantia,
