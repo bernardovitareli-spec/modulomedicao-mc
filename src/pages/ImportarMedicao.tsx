@@ -849,9 +849,17 @@ export default function ImportarMedicao() {
               <Stat label="Linhas válidas" value={String(validas.length)} />
               <Stat label="Linhas ignoradas" value={String(ignoradas.length)} />
               <Stat label="Com erro" value={String(linhas.length - validas.length)} />
-              <Stat label="Cliente(s)" value={clientes.length === 1 ? clientes[0] : String(clientes.length)} />
-              <Stat label="CNPJ" value={cnpjs.length === 1 ? cnpjs[0] : (cnpjs.length ? `${cnpjs.length}` : "—")} />
-              <Stat label="Código cliente" value={codigosCliente.length === 1 ? codigosCliente[0] : (codigosCliente.length ? `${codigosCliente.length}` : "—")} />
+              {modelo === "M1" ? (
+                <>
+                  <Stat label="Fornecedor / Locadora" value={clientes.length === 1 ? clientes[0] : String(clientes.length)} />
+                  <Stat label="Código fornecedor" value={codigosFornecedor.length === 1 ? codigosFornecedor[0] : (codigosFornecedor.length ? `${codigosFornecedor.length}` : "—")} />
+                </>
+              ) : (
+                <>
+                  <Stat label="Cliente(s)" value={clientes.length === 1 ? clientes[0] : String(clientes.length)} />
+                  <Stat label="CNPJ" value={cnpjs.length === 1 ? cnpjs[0] : (cnpjs.length ? `${cnpjs.length}` : "—")} />
+                </>
+              )}
               <Stat label="Contrato / Nº DJ" value={contratos.length === 1 ? contratos[0] : String(contratos.length)} />
               <Stat label="Tipo de serviço" value={tiposServico.length === 1 ? tiposServico[0] : (tiposServico.length ? `${tiposServico.length}` : "—")} />
               <Stat label="Centro de custo" value={centrosCusto.length === 1 ? centrosCusto[0] : (centrosCusto.length ? `${centrosCusto.length}` : "—")} />
