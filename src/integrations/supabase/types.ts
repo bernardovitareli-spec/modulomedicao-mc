@@ -55,32 +55,41 @@ export type Database = {
       audit_log: {
         Row: {
           acao: string
+          contexto: Json | null
           created_at: string
           dados_antes: Json | null
           dados_depois: Json | null
           entidade: string
           entidade_id: string | null
           id: string
+          motivo: string | null
+          perfil_usuario: string | null
           user_id: string | null
         }
         Insert: {
           acao: string
+          contexto?: Json | null
           created_at?: string
           dados_antes?: Json | null
           dados_depois?: Json | null
           entidade: string
           entidade_id?: string | null
           id?: string
+          motivo?: string | null
+          perfil_usuario?: string | null
           user_id?: string | null
         }
         Update: {
           acao?: string
+          contexto?: Json | null
           created_at?: string
           dados_antes?: Json | null
           dados_depois?: Json | null
           entidade?: string
           entidade_id?: string | null
           id?: string
+          motivo?: string | null
+          perfil_usuario?: string | null
           user_id?: string | null
         }
         Relationships: []
@@ -711,6 +720,31 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_list_users: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }[]
+      }
+      admin_set_user_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _target_user: string
+        }
+        Returns: undefined
+      }
+      cancel_medicao: {
+        Args: { _medicao_id: string; _motivo: string }
+        Returns: Json
+      }
+      delete_medicao_safe: {
+        Args: { _medicao_id: string; _motivo: string }
+        Returns: Json
+      }
+      get_primary_role: { Args: { _uid: string }; Returns: string }
       has_any_role: {
         Args: {
           _roles: Database["public"]["Enums"]["app_role"][]
@@ -724,6 +758,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      purge_importacao_teste: {
+        Args: { _importacao_id: string; _motivo: string }
+        Returns: Json
       }
     }
     Enums: {
@@ -746,6 +784,8 @@ export type Database = {
         | "faturada"
         | "rejeitada"
         | "contestada"
+        | "cancelada"
+        | "importada"
       regra_tipo:
         | "valor_hora"
         | "garantia_minima"
@@ -904,6 +944,8 @@ export const Constants = {
         "faturada",
         "rejeitada",
         "contestada",
+        "cancelada",
+        "importada",
       ],
       regra_tipo: [
         "valor_hora",
