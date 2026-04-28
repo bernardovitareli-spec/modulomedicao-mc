@@ -269,6 +269,7 @@ export type Database = {
           observacoes: string | null
           parametros: Json
           tipo: Database["public"]["Enums"]["regra_tipo"]
+          tipo_equipamento: string | null
           vigencia_fim: string | null
           vigencia_inicio: string
         }
@@ -282,6 +283,7 @@ export type Database = {
           observacoes?: string | null
           parametros?: Json
           tipo: Database["public"]["Enums"]["regra_tipo"]
+          tipo_equipamento?: string | null
           vigencia_fim?: string | null
           vigencia_inicio: string
         }
@@ -295,6 +297,7 @@ export type Database = {
           observacoes?: string | null
           parametros?: Json
           tipo?: Database["public"]["Enums"]["regra_tipo"]
+          tipo_equipamento?: string | null
           vigencia_fim?: string | null
           vigencia_inicio?: string
         }
@@ -821,6 +824,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      _norm_tipo_eq: { Args: { _t: string }; Returns: string }
       _recalc_medicao_totais: {
         Args: { _medicao_id: string }
         Returns: undefined
@@ -832,6 +836,7 @@ export type Database = {
           _periodo_fim: string
           _periodo_inicio: string
           _tipo: Database["public"]["Enums"]["regra_tipo"]
+          _tipo_equipamento: string
         }
         Returns: Json
       }
