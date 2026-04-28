@@ -466,6 +466,7 @@ export default function ImportarMedicao() {
   const periodoFimMax = periodosFim.length ? periodosFim.sort().reverse()[0] : "";
   const totalValor = validas.reduce((s, l) => s + l.valor_final, 0);
   const totalHorasInf = validas.reduce((s, l) => s + l.ht_informado, 0);
+  const totalHorasDisp = validas.reduce((s, l) => s + l.horas_disp, 0);
   const totalHorasMec = validas.reduce((s, l) => s + l.horas_mec, 0);
   const totalComplementares = validas.reduce((s, l) => s + l.complementares, 0);
   const totalDesc = validas.reduce((s, l) => s + l.desc_manutencao, 0);
