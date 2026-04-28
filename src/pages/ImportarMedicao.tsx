@@ -481,6 +481,38 @@ export default function ImportarMedicao() {
         } else seen.set(k, i);
       });
 
+      // Prefill de overrides M1: tenta localizar cliente existente por razão social
+      // ou código e copiar CNPJ; usa também valores que já vieram na planilha.
+      if (modeloDetectado === "M1") {
+        const ovs: typeof overrides = {};
+        const djs = Array.from(new Set(lidas.map((l) => l.numero_dj).filter(Boolean)));
+        const nomes = Array.from(new Set(lidas.map((l) => l.contratado.toUpperCase()).filter(Boolean)));
+        let clientesDb: any[] = [];
+        if (nomes.length) {
+          const { data } = await supabase
+            .from("clientes")
+            .select("razao_social, cnpj, nome_fantasia");
+          clientesDb = data ?? [];
+        }
+        for (const dj of djs) {
+          const linhaRef = lidas.find((l) => l.numero_dj === dj);
+          if (!linhaRef) continue;
+          const nomeUp = linhaRef.contratado.toUpperCase();
+          const match = clientesDb.find((c: any) =>
+            String(c.razao_social ?? "").toUpperCase() === nomeUp ||
+            String(c.nome_fantasia ?? "").toUpperCase() === nomeUp
+          );
+          ovs[dj] = {
+            cnpj: linhaRef.cnpj || match?.cnpj || "",
+            codigo_cliente: linhaRef.codigo_cliente || "",
+            tipo_servico: linhaRef.tipo_servico || "",
+            periodo_inicio: linhaRef.periodo_inicio || "",
+            periodo_fim: linhaRef.periodo_fim || "",
+          };
+        }
+        setOverrides(ovs);
+      }
+
       setLinhas(lidas);
       setIgnoradas(ign);
       toast.success(`Modelo ${modeloDetectado} • ${lidas.length} linha(s) lidas, ${ign.length} ignorada(s).`);
