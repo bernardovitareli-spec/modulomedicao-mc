@@ -534,7 +534,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
-              <Button onClick={salvar} disabled={saving || (!!form.id && form.motivo.trim().length < 5)}>Salvar item</Button>
+              <Button onClick={salvar} disabled={saving || !!calc.erro_data || (!!form.id && form.motivo.trim().length < 5)}>Salvar item</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
