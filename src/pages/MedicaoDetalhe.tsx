@@ -86,14 +86,14 @@ export default function MedicaoDetalhe() {
     toast.success("Aprovação registrada"); load();
   };
 
-  const exportarPDF = async (preview = false) => {
+  const exportarPDF = async (preview = false, modo: "interno" | "cliente" = "interno") => {
     if (!id) return;
     if (med?.status === "cancelada") {
       toast.error("Não é permitido gerar PDF de medição cancelada.");
       return;
     }
     try {
-      await gerarBoletimPDF(id, { preview });
+      await gerarBoletimPDF(id, { preview, modo });
     } catch (e: any) {
       toast.error(e.message ?? "Falha ao gerar PDF");
     }
