@@ -468,13 +468,14 @@ export default function ImportarMedicao() {
   const totalComplementares = validas.reduce((s, l) => s + l.complementares, 0);
   const totalDesc = validas.reduce((s, l) => s + l.desc_manutencao, 0);
 
-  const podeImportar = !headerError && validas.length > 0;
-
   // Validação: tipo_equip == tipo_servico em todos os itens (provável mapeamento errado)
   const itensComTipoEquip = validas.filter((l) => l.tipo_equip);
   const tipoEquipIgualServico =
     itensComTipoEquip.length > 0 &&
     itensComTipoEquip.every((l) => normalize(l.tipo_equip) === normalize(l.tipo_servico));
+  const erroMapeamentoTipoEquip = modelo === "M2" && tipoEquipIgualServico;
+
+  const podeImportar = !headerError && validas.length > 0 && !erroMapeamentoTipoEquip;
 
   const confirmar = async () => {
     if (!podeImportar) { toast.error("Não é possível importar"); return; }
