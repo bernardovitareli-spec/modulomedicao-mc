@@ -410,11 +410,26 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                   </div>
                 </div>
               </section>
+
+              {form.id && (
+                <section>
+                  <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Motivo da alteração *</h4>
+                  <Textarea
+                    rows={2}
+                    placeholder="Ex.: Correção do HT informado conforme boletim revisado."
+                    value={form.motivo}
+                    onChange={(e) => setForm({ ...form, motivo: e.target.value })}
+                  />
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Obrigatório (mínimo 5 caracteres). Será registrado no histórico de alterações.
+                  </p>
+                </section>
+              )}
             </div>
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
-              <Button onClick={salvar} disabled={saving}>Salvar item</Button>
+              <Button onClick={salvar} disabled={saving || (!!form.id && form.motivo.trim().length < 5)}>Salvar item</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
