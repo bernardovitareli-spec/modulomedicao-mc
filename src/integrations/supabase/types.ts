@@ -802,6 +802,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _calc_item_com_regras: { Args: { _item_id: string }; Returns: Json }
       _log_item_change: {
         Args: {
           _antes: string
@@ -824,6 +825,15 @@ export type Database = {
         Args: { _medicao_id: string }
         Returns: undefined
       }
+      _regra_vigente: {
+        Args: {
+          _contrato_id: string
+          _data: string
+          _equipamento_id: string
+          _tipo: Database["public"]["Enums"]["regra_tipo"]
+        }
+        Returns: Json
+      }
       admin_list_users: {
         Args: never
         Returns: {
@@ -839,6 +849,10 @@ export type Database = {
           _target_user: string
         }
         Returns: undefined
+      }
+      aplicar_regras_medicao: {
+        Args: { _medicao_id: string; _motivo: string }
+        Returns: Json
       }
       cancel_medicao: {
         Args: { _medicao_id: string; _motivo: string }
@@ -871,6 +885,7 @@ export type Database = {
         Args: { _medicao_id: string; _motivo: string }
         Returns: Json
       }
+      simular_regras_medicao: { Args: { _medicao_id: string }; Returns: Json }
       update_medicao_item: {
         Args: {
           _horas_chuvoso: number
