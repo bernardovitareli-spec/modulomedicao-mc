@@ -508,6 +508,8 @@ export default function ImportarMedicao() {
         }
 
         const medKey = `${contrato.id}|${l.mes_ref}`;
+        const periodoIniMed = l.periodo_inicio ?? l.mes_ref!;
+        const periodoFimMed = l.periodo_fim ?? lastDayOfMonth(l.mes_ref!);
         let medicaoId = medicoesCache.get(medKey);
         if (!medicaoId) {
           const { data: existing } = await supabase.from("medicoes")
@@ -515,10 +517,13 @@ export default function ImportarMedicao() {
           if (existing) {
             medicaoId = existing.id;
             await supabase.from("medicao_itens").delete().eq("medicao_id", medicaoId);
+            await supabase.from("medicoes").update({
+              periodo_inicio: periodoIniMed, periodo_fim: periodoFimMed,
+            } as any).eq("id", medicaoId);
           } else {
             const { data, error } = await supabase.from("medicoes").insert({
               contrato_id: contrato.id, competencia: l.mes_ref!,
-              periodo_inicio: l.mes_ref!, periodo_fim: lastDayOfMonth(l.mes_ref!),
+              periodo_inicio: periodoIniMed, periodo_fim: periodoFimMed,
               status: "rascunho",
               observacoes: `Importado de ${filename}`,
             } as any).select("id").single();
