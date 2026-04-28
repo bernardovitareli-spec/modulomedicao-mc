@@ -452,7 +452,9 @@ export default function ImportarMedicao() {
         let clienteId = clientesCache.get(cliKey);
         if (!clienteId) {
           const { data, error } = await supabase.from("clientes").insert({
-            razao_social: l.contratado, cnpj: `IMPORT-${Date.now()}-${createdCli}`, status: "ativo",
+            razao_social: l.contratado,
+            cnpj: l.cnpj || `IMPORT-${Date.now()}-${createdCli}`,
+            status: "ativo",
           } as any).select("id").single();
           if (error) throw error;
           clienteId = data.id; clientesCache.set(cliKey, clienteId); createdCli++;
@@ -464,7 +466,8 @@ export default function ImportarMedicao() {
           const termino = l.termino_contrato ?? new Date(new Date(inicio).getFullYear() + 1, 11, 31).toISOString().slice(0, 10);
           const { data, error } = await supabase.from("contratos").insert({
             numero_dj: l.numero_dj, cliente_id: clienteId,
-            tipo_servico: l.tipo_equip || "Locação", centro_custo: l.centro_custo || null,
+            tipo_servico: l.tipo_servico || l.tipo_equip || "Locação",
+            centro_custo: l.centro_custo || null,
             inicio_operacao: inicio, termino_contrato: termino,
             valor_hora_padrao: l.valor_hora, garantia_minima_horas: l.garantia,
             status: "ativo",
