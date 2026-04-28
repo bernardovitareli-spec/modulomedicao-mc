@@ -89,11 +89,48 @@ function valoresEquivalentes(a: any, b: any): boolean {
   return false;
 }
 
+// Campos monetários (formatar como BRL no histórico)
+const CAMPOS_MONETARIOS = new Set([
+  "valor_final", "valor_complementares", "valor_descontos", "valor_bruto", "valor_hora",
+]);
+// Campos numéricos de horas (formatar como número decimal)
+const CAMPOS_HORAS = new Set([
+  "horas_informadas", "horas_mecanicas", "horas_chuvoso", "horas_excecao_chuvoso",
+  "horas_a_pagar", "horas_liquidas", "garantia_proporcional", "garantia_mensal_horas",
+  "horimetro_inicial", "horimetro_final",
+]);
+// Campos de data
+const CAMPOS_DATA = new Set([
+  "data_inicio_operacao_item", "data_fim_operacao_item", "periodo_inicio", "periodo_fim",
+]);
+
+function formatValorHistorico(campo: string | null | undefined, valor: any): string {
+  if (valor == null || valor === "") return "-";
+  const s = String(valor).trim();
+  if (!campo) return s;
+  if (CAMPOS_MONETARIOS.has(campo)) {
+    const n = Number(s.replace(",", "."));
+    if (!isNaN(n)) return fmtBRL(n);
+  }
+  if (CAMPOS_HORAS.has(campo)) {
+    const n = Number(s.replace(",", "."));
+    if (!isNaN(n)) return fmtNum(n);
+  }
+  if (CAMPOS_DATA.has(campo)) {
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return fmtDate(s);
+  }
+  // Fallback: se parece um número longo com muitas casas, arredonda
+  const n = Number(s.replace(",", "."));
+  if (!isNaN(n) && /\.\d{3,}/.test(s)) return fmtNum(n);
+  return s;
+}
+
 interface GenerarOpts {
   preview?: boolean;
   /** "interno" exibe histórico completo; "cliente" filtra alterações irrelevantes. */
   modo?: "interno" | "cliente";
 }
+
 
 export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {}) {
   const modo = opts.modo ?? "interno";
