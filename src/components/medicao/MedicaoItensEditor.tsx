@@ -196,14 +196,14 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
           <Button size="sm" onClick={openNovo}><Plus className="mr-1 h-4 w-4" />Adicionar item</Button>
         </div>
 
-        <div className="overflow-x-auto">
-          <Table>
+        <div className="relative overflow-x-auto border rounded-md">
+          <Table className="min-w-max">
             <TableHeader>
               <TableRow>
-                <TableHead>Série</TableHead>
-                <TableHead>Tag</TableHead>
-                <TableHead>Tipo Equip.</TableHead>
-                <TableHead>Modelo</TableHead>
+                <TableHead className="sticky left-0 z-20 bg-background border-r min-w-[110px]">Série</TableHead>
+                <TableHead className="sticky left-[110px] z-20 bg-background border-r min-w-[90px]">Tag</TableHead>
+                <TableHead className="sticky left-[200px] z-20 bg-background border-r min-w-[140px]">Tipo Equip.</TableHead>
+                <TableHead className="sticky left-[340px] z-20 bg-background border-r min-w-[140px]">Modelo</TableHead>
                 <TableHead className="text-right">Horím. Ini.</TableHead>
                 <TableHead className="text-right">Horím. Fin.</TableHead>
                 <TableHead className="text-right">HT Calc.</TableHead>
@@ -220,7 +220,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                 <TableHead className="text-right">Chuvoso</TableHead>
                 <TableHead className="text-right">Exc. Chuv.</TableHead>
                 <TableHead>Obs.</TableHead>
-                <TableHead></TableHead>
+                <TableHead className="text-right whitespace-nowrap">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -229,11 +229,11 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                 const htCalc = Math.max(0, Number(i.horimetro_final ?? 0) - Number(i.horimetro_inicial ?? 0));
                 const diverg = Number(i.horas_informadas ?? 0) - htCalc;
                 return (
-                  <TableRow key={i.id}>
-                    <TableCell className="font-mono text-xs">{i.equipamentos?.serie ?? "-"}</TableCell>
-                    <TableCell className="font-mono text-xs">{i.equipamentos?.tag}</TableCell>
-                    <TableCell className="text-xs">{i.equipamentos?.tipo}</TableCell>
-                    <TableCell className="text-xs">{i.equipamentos?.modelo}</TableCell>
+                  <TableRow key={i.id} className="group">
+                    <TableCell className="sticky left-0 z-10 bg-background group-hover:bg-muted/50 border-r font-mono text-xs">{i.equipamentos?.serie ?? "-"}</TableCell>
+                    <TableCell className="sticky left-[110px] z-10 bg-background group-hover:bg-muted/50 border-r font-mono text-xs">{i.equipamentos?.tag}</TableCell>
+                    <TableCell className="sticky left-[200px] z-10 bg-background group-hover:bg-muted/50 border-r text-xs">{i.equipamentos?.tipo}</TableCell>
+                    <TableCell className="sticky left-[340px] z-10 bg-background group-hover:bg-muted/50 border-r text-xs">{i.equipamentos?.modelo}</TableCell>
                     <TableCell className="text-right num">{fmtNum(i.horimetro_inicial)}</TableCell>
                     <TableCell className="text-right num">{fmtNum(i.horimetro_final)}</TableCell>
                     <TableCell className="text-right num">{fmtNum(htCalc)}</TableCell>
@@ -251,7 +251,8 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                     <TableCell className="text-right num">{fmtNum(i.horas_excecao_chuvoso)}</TableCell>
                     <TableCell className="text-xs max-w-[160px] truncate" title={i.observacoes ?? ""}>{i.observacoes ?? "-"}</TableCell>
                     <TableCell className="text-right whitespace-nowrap">
-                      <Button size="sm" variant="outline" onClick={() => openEditar(i)}><Pencil className="mr-1 h-3 w-3" />Editar</Button>
+                      <Button size="sm" variant="outline" onClick={() => setDetalheItem(i)}><Eye className="mr-1 h-3 w-3" />Ver detalhes</Button>
+                      <Button size="sm" variant="ghost" onClick={() => openEditar(i)} className="ml-1"><Pencil className="h-3 w-3" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => excluir(i.id)}><Trash2 className="h-4 w-4" /></Button>
                     </TableCell>
                   </TableRow>
@@ -260,6 +261,71 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
             </TableBody>
           </Table>
         </div>
+
+        <Dialog open={!!detalheItem} onOpenChange={(o) => !o && setDetalheItem(null)}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                Detalhes do item — {detalheItem?.equipamentos?.tag} {detalheItem?.equipamentos?.modelo ? `(${detalheItem.equipamentos.modelo})` : ""}
+              </DialogTitle>
+            </DialogHeader>
+            {detalheItem && (() => {
+              const htCalc = Math.max(0, Number(detalheItem.horimetro_final ?? 0) - Number(detalheItem.horimetro_inicial ?? 0));
+              const diverg = Number(detalheItem.horas_informadas ?? 0) - htCalc;
+              return (
+                <div className="space-y-4 text-sm">
+                  <section>
+                    <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Equipamento</h4>
+                    <div className="grid gap-3 md:grid-cols-2 rounded-md border p-3">
+                      <DetRow l="Série" v={detalheItem.equipamentos?.serie ?? "-"} />
+                      <DetRow l="Tag" v={detalheItem.equipamentos?.tag ?? "-"} />
+                      <DetRow l="Tipo Equipamento" v={detalheItem.equipamentos?.tipo ?? "-"} />
+                      <DetRow l="Modelo" v={detalheItem.equipamentos?.modelo ?? "-"} />
+                    </div>
+                  </section>
+                  <section>
+                    <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Horímetro & Horas</h4>
+                    <div className="grid gap-3 md:grid-cols-3 rounded-md border p-3">
+                      <DetRow l="Horímetro Inicial" v={fmtNum(detalheItem.horimetro_inicial)} />
+                      <DetRow l="Horímetro Final" v={fmtNum(detalheItem.horimetro_final)} />
+                      <DetRow l="HT Calculado" v={fmtNum(htCalc)} />
+                      <DetRow l="HT Informado" v={fmtNum(detalheItem.horas_informadas)} />
+                      <DetRow l="Divergência HT" v={fmtNum(diverg)} accent={Math.abs(diverg) > 0.01} />
+                      <DetRow l="Garantia Contratual" v={fmtNum(detalheItem.garantia_minima)} />
+                      <DetRow l="Horas Mecânicas" v={fmtNum(detalheItem.horas_mecanicas)} />
+                      <DetRow l="Horas Líquidas" v={fmtNum(detalheItem.horas_liquidas)} />
+                      <DetRow l="Horas a Pagar" v={fmtNum(detalheItem.horas_a_pagar)} />
+                      <DetRow l="Período Chuvoso (h)" v={fmtNum(detalheItem.horas_chuvoso)} />
+                      <DetRow l="Exceção Chuvoso (h)" v={fmtNum(detalheItem.horas_excecao_chuvoso)} />
+                    </div>
+                  </section>
+                  <section>
+                    <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Valores</h4>
+                    <div className="grid gap-3 md:grid-cols-3 rounded-md border p-3">
+                      <DetRow l="Valor/Hora" v={fmtBRL(detalheItem.valor_hora)} />
+                      <DetRow l="Valor Bruto" v={fmtBRL(detalheItem.valor_bruto)} />
+                      <DetRow l="Complementares" v={fmtBRL(detalheItem.valor_complementares)} />
+                      <DetRow l="Descontos" v={fmtBRL(detalheItem.valor_descontos)} />
+                      <DetRow l="Valor Final" v={fmtBRL(detalheItem.valor_final)} accent />
+                    </div>
+                  </section>
+                  {detalheItem.observacoes && (
+                    <section>
+                      <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Observações</h4>
+                      <div className="rounded-md border p-3 whitespace-pre-wrap">{detalheItem.observacoes}</div>
+                    </section>
+                  )}
+                </div>
+              );
+            })()}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDetalheItem(null)}>Fechar</Button>
+              <Button onClick={() => { const i = detalheItem; setDetalheItem(null); if (i) openEditar(i); }}>
+                <Pencil className="mr-1 h-3 w-3" />Editar item
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
