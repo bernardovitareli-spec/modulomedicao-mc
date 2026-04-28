@@ -1,12 +1,14 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, FileText, Wrench, ClipboardList, LogOut, HardHat,
+  ShieldAlert, Eraser, UserCog,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 
 const groups = [
@@ -34,8 +36,21 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const { pathname } = useLocation();
   const { user, signOut } = useAuth();
+  const { isAdmin } = usePermissions();
   const collapsed = state === "collapsed";
   const isActive = (url: string) => (url === "/" ? pathname === "/" : pathname.startsWith(url));
+
+  const allGroups = [
+    ...groups,
+    ...(isAdmin ? [{
+      label: "Administração",
+      items: [
+        { title: "Usuários", url: "/admin/usuarios", icon: UserCog },
+        { title: "Limpar importação", url: "/admin/limpar-importacao", icon: Eraser },
+        { title: "Auditoria", url: "/auditoria", icon: ShieldAlert },
+      ],
+    }] : []),
+  ];
 
   return (
     <Sidebar collapsible="icon">
@@ -56,7 +71,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {groups.map((g) => (
+        {allGroups.map((g) => (
           <SidebarGroup key={g.label}>
             {!collapsed && <SidebarGroupLabel>{g.label}</SidebarGroupLabel>}
             <SidebarGroupContent>

@@ -6,11 +6,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Send, CheckCircle2, XCircle, FileDown, Trash2 } from "lucide-react";
+import { ArrowLeft, Send, CheckCircle2, XCircle, FileDown, Trash2, Ban } from "lucide-react";
 import { fmtBRL, fmtDate, fmtNum, fmtCompetencia } from "@/lib/format";
 import { StatusBadge } from "@/components/contrato/ContratoMedicoesTab";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/lib/permissions";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -20,11 +22,15 @@ export default function MedicaoDetalhe() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, hasAnyRole } = useAuth();
+  const perms = usePermissions();
   const [med, setMed] = useState<any>(null);
   const [itens, setItens] = useState<any[]>([]);
   const [aprovs, setAprovs] = useState<any[]>([]);
   const [dlg, setDlg] = useState<{ open: boolean; etapa: string; resultado: string }>({ open: false, etapa: "", resultado: "" });
   const [coment, setComent] = useState("");
+  const [delOpen, setDelOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const load = async () => {
     if (!id) return;
@@ -42,16 +48,24 @@ export default function MedicaoDetalhe() {
     toast.success("Enviado para revisão técnica"); load();
   };
 
-  const excluirMedicaoTeste = async () => {
-    if (!id || !confirm("Excluir esta medição e seus itens para importar novamente?")) return;
-    const { error: errItens } = await supabase.from("medicao_itens").delete().eq("medicao_id", id);
-    if (errItens) return toast.error(errItens.message);
-    await supabase.from("aprovacoes").delete().eq("medicao_id", id);
-    await supabase.from("faturas").delete().eq("medicao_id", id);
-    const { error } = await supabase.from("medicoes").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Medição excluída. Importe a planilha novamente com o mapeamento corrigido.");
-    navigate("/medicoes/importar");
+  const onDelete = async (motivo: string): Promise<void> => {
+    if (!id) return;
+    setBusy(true);
+    const { error } = await supabase.rpc("delete_medicao_safe", { _medicao_id: id, _motivo: motivo });
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Medição excluída.");
+    navigate("/medicoes");
+  };
+
+  const onCancel = async (motivo: string): Promise<void> => {
+    if (!id) return;
+    setBusy(true);
+    const { error } = await supabase.rpc("cancel_medicao", { _medicao_id: id, _motivo: motivo });
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Medição cancelada.");
+    load();
   };
 
   const registrar = async () => {
@@ -97,7 +111,17 @@ export default function MedicaoDetalhe() {
         actions={<div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={med.status} />
           <Button size="sm" variant="outline" onClick={exportarPDF}><FileDown className="mr-1 h-4 w-4" />PDF</Button>
-          {med.status === "rascunho" && podeAprovar && <Button size="sm" variant="destructive" onClick={excluirMedicaoTeste}><Trash2 className="mr-1 h-4 w-4" />Excluir e reimportar</Button>}
+          {perms.canCancelMedicao(med.status) && (
+            <Button size="sm" variant="outline" onClick={() => setCancelOpen(true)}>
+              <Ban className="mr-1 h-4 w-4" />Cancelar medição
+            </Button>
+          )}
+          {perms.canDeleteMedicao(med.status) && (
+            <Button size="sm" variant="destructive" onClick={() => setDelOpen(true)}>
+              <Trash2 className="mr-1 h-4 w-4" />
+              {perms.isAdmin ? "Excluir medição teste" : "Excluir medição"}
+            </Button>
+          )}
           {med.status === "rascunho" && podeAprovar && <Button size="sm" onClick={enviarRevisao}><Send className="mr-1 h-4 w-4" />Enviar para revisão</Button>}
           {med.status === "revisao_tecnica" && podeAprovar && (<>
             <Button size="sm" variant="default" onClick={() => setDlg({ open: true, etapa: aprovs.some((a) => a.etapa === "revisao_tecnica" && a.resultado === "aprovado") ? "aprovacao_gerencial" : "revisao_tecnica", resultado: "aprovado" })}><CheckCircle2 className="mr-1 h-4 w-4" />Aprovar</Button>
@@ -160,6 +184,25 @@ export default function MedicaoDetalhe() {
           <DialogFooter><Button variant="outline" onClick={() => setDlg({ ...dlg, open: false })}>Cancelar</Button><Button onClick={registrar}>Confirmar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmDialog
+        open={delOpen}
+        onOpenChange={setDelOpen}
+        title="Excluir medição"
+        message="Tem certeza que deseja excluir esta medição? Esta ação removerá todos os itens da medição e não poderá ser desfeita."
+        confirmWord="EXCLUIR"
+        loading={busy}
+        onConfirm={onDelete}
+      />
+      <DeleteConfirmDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        title="Cancelar medição"
+        message="Cancelar mantém o histórico e marca o status como 'cancelada'. Informe o motivo."
+        confirmWord="CANCELAR"
+        loading={busy}
+        onConfirm={onCancel}
+      />
     </div>
   );
 }

@@ -24,6 +24,9 @@ import Faturamento from "./pages/Faturamento";
 import Relatorios from "./pages/Relatorios";
 import Historico from "./pages/Historico";
 import NotFound from "./pages/NotFound";
+import Auditoria from "./pages/Auditoria";
+import LimparImportacao from "./pages/LimparImportacao";
+import Usuarios from "./pages/Usuarios";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +58,9 @@ const App = () => (
               <Route path="/faturamento" element={<Faturamento />} />
               <Route path="/relatorios" element={<Relatorios />} />
               <Route path="/historico" element={<Historico />} />
+              <Route path="/auditoria" element={<Auditoria />} />
+              <Route path="/admin/limpar-importacao" element={<LimparImportacao />} />
+              <Route path="/admin/usuarios" element={<Usuarios />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
