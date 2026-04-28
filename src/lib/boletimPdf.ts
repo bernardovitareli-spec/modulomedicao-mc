@@ -223,44 +223,51 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   doc.line(marginX, y, pageW - marginX, y);
   y += 4;
 
-  // === Identificação ===
+  // === Identificação (duas colunas independentes) ===
   const cliente = (med as any).contratos?.clientes?.razao_social ?? "-";
   const fornecedorNome = (med as any).contratos?.fornecedor_nome;
   const fornecedorCodigo = (med as any).contratos?.fornecedor_codigo;
   const fornecedorTexto = fornecedorNome ? String(fornecedorNome) : "Não informado";
 
-  const ident: [string, string][] = [
+  const colEsq: [string, string][] = [
     ["Cliente / Contratante", cliente],
-    ["Fornecedor / Locadora", fornecedorTexto],
-    ...(fornecedorCodigo ? [["Código fornecedor", String(fornecedorCodigo)] as [string, string]] : []),
     ["Contrato / Nº DJ", (med as any).contratos?.numero_dj ?? "-"],
-    ["Tipo de serviço", (med as any).contratos?.tipo_servico ?? "-"],
     ["Centro de custo", (med as any).contratos?.centro_custo ?? "-"],
-    ["Competência", fmtCompetencia(med.competencia)],
     ["Período", `${fmtDate(med.periodo_inicio)} a ${fmtDate(med.periodo_fim)}`],
+  ];
+  const colDir: [string, string][] = [
+    ["Fornecedor / Locadora", fornecedorTexto],
+    ["Código fornecedor", fornecedorCodigo ? String(fornecedorCodigo) : "-"],
+    ["Tipo de serviço", (med as any).contratos?.tipo_servico ?? "-"],
+    ["Competência", fmtCompetencia(med.competencia)],
     ["Status", STATUS_LABEL[med.status] ?? med.status],
   ];
 
   doc.setFontSize(8);
-  const colW = (pageW - marginX * 2) / 2;
+  const gap = 6;
+  const colWidth = (pageW - marginX * 2 - gap) / 2;
   const labelW = 36;
-  const valueW = colW - labelW - 2;
-  let identMaxLine = 0;
-  ident.forEach((row, i) => {
-    const col = i % 2;
-    const line = Math.floor(i / 2);
-    const xx = marginX + col * colW;
-    const yy = y + line * 5;
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(100, 116, 139);
-    doc.text(`${row[0]}:`, xx, yy);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(0, 0, 0);
-    const wrapped = doc.splitTextToSize(String(row[1]), valueW);
-    doc.text(wrapped, xx + labelW, yy);
-    identMaxLine = Math.max(identMaxLine, line + (wrapped.length - 1) * 0.8 + 1);
-  });
-  y += Math.ceil(identMaxLine) * 5 + 4;
+  const valueW = colWidth - labelW - 1;
+
+  const renderColuna = (rows: [string, string][], xBase: number): number => {
+    let cy = y;
+    rows.forEach(([label, valor]) => {
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(100, 116, 139);
+      doc.text(`${label}:`, xBase, cy);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(0, 0, 0);
+      const wrapped = doc.splitTextToSize(String(valor), valueW);
+      doc.text(wrapped, xBase + labelW, cy);
+      cy += Math.max(1, wrapped.length) * 4 + 1;
+    });
+    return cy;
+  };
+
+  const yEsq = renderColuna(colEsq, marginX);
+  const yDir = renderColuna(colDir, marginX + colWidth + gap);
+  y = Math.max(yEsq, yDir) + 3;
+
 
 
   // === Resumo financeiro ===
@@ -331,8 +338,8 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     columnStyles: {
       0: { cellWidth: 16 },                                  // Série
       1: { cellWidth: 13 },                                  // Tag
-      2: { cellWidth: 17 },                                  // Tipo
-      3: { cellWidth: 19 },                                  // Modelo
+      2: { cellWidth: 26 },                                  // Tipo
+      3: { cellWidth: 26 },                                  // Modelo
       4: { cellWidth: 14, halign: "right" },                 // Hor. Ini
       5: { cellWidth: 14, halign: "right" },                 // Hor. Fim
       6: { cellWidth: 12, halign: "right" },                 // HT calc
@@ -344,8 +351,8 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
       12: { cellWidth: 11, halign: "center" },               // Prop?
       13: { cellWidth: 14, halign: "right" },                // H. pagar
       14: { cellWidth: 18, halign: "right" },                // Valor/h
-      15: { cellWidth: 16, halign: "right" },                // Compl
-      16: { cellWidth: 16, halign: "right" },                // Desc
+      15: { cellWidth: 14, halign: "right" },                // Compl
+      16: { cellWidth: 14, halign: "right" },                // Desc
       17: { cellWidth: 24, halign: "right", fontStyle: "bold" }, // Valor final
     },
     head: [[
@@ -519,19 +526,38 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   let histList = (alteracoes ?? []) as any[];
 
   if (modo === "cliente") {
-    histList = histList.filter((l) => {
-      // Oculta motivo "Teste"
+    // 1) filtra entradas irrelevantes
+    const filtered = histList.filter((l) => {
       if (l.motivo && /^teste$/i.test(String(l.motivo).trim())) return false;
-      // Oculta alterações sem mudança real
       if (l.campo && valoresEquivalentes(l.valor_anterior, l.valor_novo)) return false;
-      // Apenas campos relevantes ou ações de cálculo
-      if (l.campo) {
-        return CAMPOS_RELEVANTES_CLIENTE.has(l.campo);
-      }
-      // Sem campo: mantém apenas se for ação de recálculo/regras/proporcionalidade
+      if (l.campo) return CAMPOS_RELEVANTES_CLIENTE.has(l.campo);
       const acao = String(l.acao ?? "").toUpperCase();
       return acao.includes("RECALCULO") || acao.includes("REGRAS") || acao.includes("PROPORCION");
     });
+
+    // 2) consolida por (equipamento_id, campo): pega valor inicial (mais antigo) e valor final (mais recente)
+    // alteracoes vem ordenado DESC (mais recente primeiro)
+    const byKey = new Map<string, { equip: string; campo: string; primeiro: any; ultimo: any; data: string }>();
+    for (const l of filtered) {
+      if (!l.campo) continue;
+      const key = `${l.equipamento_item_id ?? l.equipamento_tag ?? "_"}|${l.campo}`;
+      const existing = byKey.get(key);
+      if (!existing) {
+        byKey.set(key, {
+          equip: l.equipamento_tag ?? "-",
+          campo: l.campo,
+          primeiro: l.valor_anterior, // será sobrescrito pelas entradas mais antigas
+          ultimo: l.valor_novo,        // primeira entrada (mais recente) tem o valor mais novo
+          data: l.created_at,
+        });
+      } else {
+        // Entradas seguintes são mais antigas → atualiza "primeiro" (valor anterior original)
+        existing.primeiro = l.valor_anterior;
+      }
+    }
+
+    // 3) remove ajustes cujo primeiro==ultimo (revertidos)
+    histList = Array.from(byKey.values()).filter((r) => !valoresEquivalentes(r.primeiro, r.ultimo));
   }
 
   if (histList.length === 0) {
@@ -542,49 +568,56 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
     y += 5;
+  } else if (modo === "cliente") {
+    autoTable(doc, {
+      startY: y,
+      margin: { left: marginX, right: marginX },
+      theme: "grid",
+      styles: { fontSize: 7.5, cellPadding: 1.5, overflow: "linebreak" },
+      headStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59] },
+      columnStyles: {
+        0: { cellWidth: 26 },
+        1: { cellWidth: 50 },
+        2: { cellWidth: 42, halign: "right" },
+        3: { cellWidth: 42, halign: "right", fontStyle: "bold" },
+      },
+      head: [["Equipamento", "Item ajustado", "Valor anterior", "Valor final"]],
+      body: histList.map((r: any) => [
+        r.equip,
+        FIELD_LABEL[r.campo] ?? r.campo,
+        formatValorHistorico(r.campo, r.primeiro),
+        formatValorHistorico(r.campo, r.ultimo),
+      ]),
+      rowPageBreak: "avoid",
+      showHead: "everyPage",
+    });
+    y = (doc as any).lastAutoTable.finalY + 5;
   } else {
-    const headHist = modo === "cliente"
-      ? [["Data", "Equip.", "Campo", "Anterior", "Novo", "Motivo"]]
-      : [["Data/Hora", "Usuário", "Equip.", "Campo", "Anterior", "Novo", "Motivo"]];
-
-    const colsHistCliente = {
-      0: { cellWidth: 22 },
-      1: { cellWidth: 22 },
-      2: { cellWidth: 32 },
-      3: { cellWidth: 28, halign: "right" as const },
-      4: { cellWidth: 28, halign: "right" as const },
-      5: { cellWidth: "auto" as const },
-    };
-    const colsHistInterno = {
-      0: { cellWidth: 22 },
-      1: { cellWidth: 28 },
-      2: { cellWidth: 18 },
-      3: { cellWidth: 24 },
-      4: { cellWidth: 22, halign: "right" as const },
-      5: { cellWidth: 22, halign: "right" as const },
-      6: { cellWidth: "auto" as const },
-    };
-
     autoTable(doc, {
       startY: y,
       margin: { left: marginX, right: marginX },
       theme: "grid",
       styles: { fontSize: 6.5, cellPadding: 1, overflow: "linebreak" },
       headStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59] },
-      columnStyles: modo === "cliente" ? colsHistCliente : colsHistInterno,
-      head: headHist,
-      body: histList.slice(0, 200).map((l: any) => {
-        const data = modo === "cliente"
-          ? new Date(l.created_at).toLocaleDateString("pt-BR")
-          : new Date(l.created_at).toLocaleString("pt-BR");
-        const campoLabel = l.campo ? (FIELD_LABEL[l.campo] ?? l.campo) : (l.acao ?? "-");
-        const anterior = formatValorHistorico(l.campo, l.valor_anterior);
-        const novo = formatValorHistorico(l.campo, l.valor_novo);
-        if (modo === "cliente") {
-          return [data, l.equipamento_tag ?? "-", campoLabel, anterior, novo, l.motivo ?? "-"];
-        }
-        return [data, l.user_email ?? "-", l.equipamento_tag ?? "-", campoLabel, anterior, novo, l.motivo ?? "-"];
-      }),
+      columnStyles: {
+        0: { cellWidth: 22 },
+        1: { cellWidth: 28 },
+        2: { cellWidth: 18 },
+        3: { cellWidth: 24 },
+        4: { cellWidth: 22, halign: "right" as const },
+        5: { cellWidth: 22, halign: "right" as const },
+        6: { cellWidth: "auto" as const },
+      },
+      head: [["Data/Hora", "Usuário", "Equip.", "Campo", "Anterior", "Novo", "Motivo"]],
+      body: histList.slice(0, 200).map((l: any) => [
+        new Date(l.created_at).toLocaleString("pt-BR"),
+        l.user_email ?? "-",
+        l.equipamento_tag ?? "-",
+        l.campo ? (FIELD_LABEL[l.campo] ?? l.campo) : (l.acao ?? "-"),
+        formatValorHistorico(l.campo, l.valor_anterior),
+        formatValorHistorico(l.campo, l.valor_novo),
+        l.motivo ?? "-",
+      ]),
       rowPageBreak: "avoid",
       showHead: "everyPage",
     });
@@ -592,7 +625,7 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     if (histList.length > 200) {
       doc.setFontSize(7);
       doc.setTextColor(100, 116, 139);
-      doc.text(`Exibindo os 200 ajustes mais recentes de ${histList.length}.`, marginX, y);
+      doc.text(`Exibindo as 200 alterações mais recentes de ${histList.length}.`, marginX, y);
       doc.setTextColor(0, 0, 0);
       y += 4;
     }
