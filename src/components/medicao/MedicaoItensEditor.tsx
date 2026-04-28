@@ -38,6 +38,9 @@ interface ItemForm {
   valor_descontos: number;
   observacoes: string;
   motivo: string;
+  data_inicio_operacao_item: string;
+  data_fim_operacao_item: string;
+  motivo_proporcionalidade: string;
 }
 
 const empty = (): ItemForm => ({
@@ -53,7 +56,32 @@ const empty = (): ItemForm => ({
   valor_descontos: 0,
   observacoes: "",
   motivo: "",
+  data_inicio_operacao_item: "",
+  data_fim_operacao_item: "",
+  motivo_proporcionalidade: "",
 });
+
+// Calcula garantia proporcional (espelho da função SQL _calc_proporcionalidade_item)
+function calcProporcionalidade(
+  pIni: string, pFim: string,
+  dIni: string | null, dFim: string | null,
+  garantiaMensal: number, baseDias: number,
+) {
+  const periodoIni = pIni;
+  const periodoFim = pFim;
+  const ini = dIni && dIni.length ? dIni : periodoIni;
+  const fim = dFim && dFim.length ? dFim : periodoFim;
+  let erro: string | null = null;
+  if (dFim && dFim < periodoIni) erro = "Data de fim do equipamento anterior ao início da medição.";
+  else if (dIni && dIni > periodoFim) erro = "Data de início do equipamento posterior ao fim da medição.";
+  else if (ini > fim) erro = "Data de início do equipamento maior que a data fim.";
+  const ms = (a: string, b: string) => Math.round((new Date(b + "T00:00:00").getTime() - new Date(a + "T00:00:00").getTime()) / 86400000);
+  const dias = Math.max(0, ms(ini, fim) + 1);
+  const proporcional = ini > periodoIni || fim < periodoFim;
+  const base = baseDias && baseDias > 0 ? baseDias : 30;
+  const garantiaProp = proporcional ? Math.round(((garantiaMensal || 0) / base) * dias * 100) / 100 : (garantiaMensal || 0);
+  return { ini, fim, dias, proporcional, garantiaProp, erro };
+}
 
 export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, periodoFim, competencia, cliente, contratoNumero, onChanged }: Props) {
   const [contratoEqs, setContratoEqs] = useState<any[]>([]);
