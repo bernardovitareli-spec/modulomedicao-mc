@@ -15,7 +15,8 @@ import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { calcularItem } from "@/lib/calculo";
 
-const SHEET_NAME = "BASE DE DADOS";
+const SHEET_MODELO_1 = "BASE DE DADOS";
+const SHEET_MODELO_2 = "Template Medição";
 
 // ---------- Normalização ----------
 const normalize = (s: any): string =>
@@ -31,15 +32,19 @@ const COLUMN_ALIASES: Record<string, string[]> = {
   mes_ref: ["mes referencia", "mes ref", "mes", "competencia", "referencia"],
   numero_dj: ["n dj", "no dj", "numero dj", "num dj", "dj"],
   contratado: ["contratado", "contratante", "cliente", "razao social"],
-  tipo_equip: ["tipo equipamento", "tipo equip", "tipo"],
+  cnpj: ["cnpj"],
+  tipo_servico: ["tipo servico", "servico"],
+  tipo_equip: ["tipo equipamento", "tipo equip", "tipo equip", "tipo"],
   modelo: ["modelo"],
   serie: ["serie", "n serie", "numero serie"],
   tag: ["tag", "patrimonio"],
   centro_custo: ["centro custo", "cc"],
+  periodo_inicio: ["periodo inicio", "per inicio", "data inicio periodo"],
+  periodo_fim: ["periodo fim", "per fim", "data fim periodo"],
   inicio_op: ["inicio operacao", "inicio op", "data inicio"],
   termino_contrato: ["termino contrato", "fim contrato", "data fim"],
-  hor_inicial: ["hor inicial", "horimetro inicial", "h inicial"],
-  hor_final: ["hor final", "horimetro final", "h final"],
+  hor_inicial: ["h inicial", "hor inicial", "horimetro inicial"],
+  hor_final: ["h final", "hor final", "horimetro final"],
   ht_informado: ["ht informado boletim", "ht informado", "horas informadas", "ht"],
   garantia: ["garantia contratual", "garantia", "garantia minima"],
   horas_disp: ["horas disposicao", "h disposicao", "disposicao"],
@@ -48,11 +53,15 @@ const COLUMN_ALIASES: Record<string, string[]> = {
   tipo_pagamento: ["tipo pagamento"],
   valor_hora: ["valor hora r", "valor hora", "valor por hora", "vlr hora", "r hora"],
   desc_manutencao: ["desc manutencao r", "desc manutencao", "desconto manutencao", "descontos", "desconto"],
-  excecao_chuvoso: ["excecao chuvoso", "exc chuvoso", "excecao chuva"],
+  periodo_chuvoso: ["periodo chuvoso s n", "periodo chuvoso", "chuvoso s n", "chuvoso"],
+  excecao_chuvoso: ["excecao chuvoso s n", "excecao chuvoso", "exc chuvoso", "excecao chuva"],
   observacoes: ["observacoes", "obs"],
 };
 
-const REQUIRED_FOR_HEADER = ["mes_ref", "numero_dj", "contratado", "serie", "tag", "valor_hora"];
+// Modelo 1 (BASE DE DADOS) requer mes_ref e desc_manutencao
+const REQUIRED_M1 = ["mes_ref", "numero_dj", "contratado", "serie", "tag", "valor_hora"];
+// Modelo 2 (Template Medição) usa periodo_fim no lugar de mes_ref
+const REQUIRED_M2 = ["numero_dj", "contratado", "serie", "tag", "valor_hora", "periodo_fim"];
 
 // ---------- Parsers ----------
 const num = (v: any): number => {
