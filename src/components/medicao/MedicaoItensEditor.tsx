@@ -197,12 +197,12 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
     if (Number(form.horimetro_final) < Number(form.horimetro_inicial)) return toast.error("Horímetro final deve ser ≥ inicial");
     if (Number(form.horas_informadas_input) < 0) return toast.error("HT informado não pode ser negativo");
     if (Number(form.horas_mecanicas) < 0) return toast.error("Horas mecânicas não pode ser negativa");
+    if (calc.erro_data) return toast.error(calc.erro_data);
     if (calc.valor_final < 0) return toast.error("Valor final não pode ser negativo");
 
     setSaving(true);
     try {
       if (form.id) {
-        // Edição via RPC com motivo obrigatório e log automático
         if (!form.motivo || form.motivo.trim().length < 5) {
           setSaving(false);
           return toast.error("Informe o motivo da alteração (mínimo 5 caracteres)");
@@ -219,10 +219,12 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
           _valor_complementares: form.valor_complementares,
           _valor_descontos: form.valor_descontos,
           _observacoes: form.observacoes || "",
-        });
+          _data_inicio_operacao_item: form.data_inicio_operacao_item || null,
+          _data_fim_operacao_item: form.data_fim_operacao_item || null,
+          _motivo_proporcionalidade: form.motivo_proporcionalidade || null,
+        } as any);
         if (error) { setSaving(false); return toast.error(error.message); }
       } else {
-        // Inserção direta (sem log de campos — é criação inicial)
         const payload: any = {
           medicao_id: medicaoId,
           contrato_equipamento_id: form.contrato_equipamento_id,
@@ -238,6 +240,13 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
           horas_descontaveis: form.horas_mecanicas,
           horas_liquidas: calc.horas_liquidas,
           garantia_minima: calc.garantia,
+          garantia_mensal_horas: calc.garantia_mensal,
+          garantia_proporcional_horas: calc.garantia_proporcional,
+          aplicar_garantia_proporcional: calc.aplicar_proporcional,
+          dias_considerados: calc.dias_considerados,
+          data_inicio_operacao_item: form.data_inicio_operacao_item || null,
+          data_fim_operacao_item: form.data_fim_operacao_item || null,
+          motivo_proporcionalidade: form.motivo_proporcionalidade || null,
           horas_a_pagar: calc.horas_a_pagar,
           valor_hora: calc.valor_hora,
           valor_bruto: calc.valor_bruto,
