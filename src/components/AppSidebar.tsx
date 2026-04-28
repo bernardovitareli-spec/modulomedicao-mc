@@ -62,9 +62,9 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="flex flex-col leading-tight">
-              <span className="text-sm font-bold text-sidebar-foreground">MedControl</span>
+              <span className="text-sm font-bold text-sidebar-foreground">Módulo de Medição</span>
               <span className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60">
-                Gestão de Medições
+                MC Terraplenagem
               </span>
             </div>
           )}
