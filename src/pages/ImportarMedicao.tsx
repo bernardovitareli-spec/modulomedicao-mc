@@ -1104,45 +1104,57 @@ export default function ImportarMedicao() {
                 <span className="font-medium">{filename}</span>
                 <span className="text-muted-foreground">({linhas.length} linhas processadas)</span>
               </div>
-              <div className="max-h-[500px] overflow-auto">
-                <Table>
+              <div className="max-h-[500px] overflow-auto border rounded-md">
+                <Table className="min-w-max text-xs">
                   <TableHeader><TableRow>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Linha</TableHead>
-                    <TableHead>Mês</TableHead>
-                    <TableHead>Nº DJ</TableHead>
-                    <TableHead>Contratado</TableHead>
-                    <TableHead>Série</TableHead>
-                    <TableHead>Tag</TableHead>
-                    <TableHead className="text-right">HT Calc.</TableHead>
-                    <TableHead className="text-right">HT Inf.</TableHead>
-                    <TableHead className="text-right">H. pagar</TableHead>
-                    <TableHead className="text-right">Valor final</TableHead>
-                    <TableHead>Mensagens</TableHead>
+                    <TableHead className="whitespace-nowrap">Status</TableHead>
+                    <TableHead className="whitespace-nowrap">Linha</TableHead>
+                    <TableHead className="whitespace-nowrap">Mês</TableHead>
+                    <TableHead className="whitespace-nowrap">Nº DJ</TableHead>
+                    <TableHead className="whitespace-nowrap">Contratado</TableHead>
+                    <TableHead className="whitespace-nowrap">Série</TableHead>
+                    <TableHead className="whitespace-nowrap">Tag</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">HT Calc.</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">HT Inf.</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">H. pagar</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Valor planilha</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Valor final</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Diferença</TableHead>
+                    <TableHead className="whitespace-nowrap">Mensagens</TableHead>
                   </TableRow></TableHeader>
                   <TableBody>
-                    {linhas.slice(0, 300).map((l) => (
-                      <TableRow key={l.rowExcel}>
-                        <TableCell>{l.erros.length === 0 ? <CheckCircle2 className="h-4 w-4 text-success" /> : <AlertCircle className="h-4 w-4 text-destructive" />}</TableCell>
-                        <TableCell className="font-mono text-xs">{l.rowExcel}</TableCell>
-                        <TableCell className="text-xs num">{l.mes_ref?.slice(0, 7) ?? "?"}</TableCell>
-                        <TableCell className="font-mono text-xs">{l.numero_dj}</TableCell>
-                        <TableCell className="text-xs max-w-[200px] truncate">{l.contratado}</TableCell>
-                        <TableCell className="font-mono text-xs">{l.serie}</TableCell>
-                        <TableCell className="font-mono text-xs">{l.tag}</TableCell>
-                        <TableCell className="num text-xs">{fmtNum(l.ht_calculado)}</TableCell>
-                        <TableCell className="num text-xs">{fmtNum(l.ht_informado)}</TableCell>
-                        <TableCell className="num text-xs">{fmtNum(l.horas_a_pagar)}</TableCell>
-                        <TableCell className="num text-xs font-medium">{fmtBRL(l.valor_final)}</TableCell>
-                        <TableCell className="text-xs">
-                          {l.erros.map((e, j) => <div key={j} className="text-destructive">• {e}</div>)}
-                          {l.alertas.map((a, j) => <div key={j} className="text-warning">⚠ {a}</div>)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {linhas.slice(0, 300).map((l) => {
+                      const divergente = !!l.valor_planilha && Math.abs(l.diferenca_calc) > 0.10;
+                      return (
+                        <TableRow key={l.rowExcel}>
+                          <TableCell className="whitespace-nowrap">{l.erros.length === 0 ? <CheckCircle2 className="h-4 w-4 text-success" /> : <AlertCircle className="h-4 w-4 text-destructive" />}</TableCell>
+                          <TableCell className="font-mono whitespace-nowrap">{l.rowExcel}</TableCell>
+                          <TableCell className="num whitespace-nowrap">{l.mes_ref ? fmtCompetencia(l.mes_ref) : "?"}</TableCell>
+                          <TableCell className="font-mono whitespace-nowrap">{l.numero_dj}</TableCell>
+                          <TableCell className="max-w-[220px] truncate" title={l.contratado}>{l.contratado}</TableCell>
+                          <TableCell className="font-mono whitespace-nowrap">{l.serie}</TableCell>
+                          <TableCell className="font-mono whitespace-nowrap">{l.tag}</TableCell>
+                          <TableCell className="num text-right whitespace-nowrap">{fmtNum(l.ht_calculado)}</TableCell>
+                          <TableCell className="num text-right whitespace-nowrap">{fmtNum(l.ht_informado)}</TableCell>
+                          <TableCell className="num text-right whitespace-nowrap">{fmtNum(l.horas_a_pagar)}</TableCell>
+                          <TableCell className="num text-right whitespace-nowrap">{l.valor_planilha ? fmtBRL(l.valor_planilha) : "—"}</TableCell>
+                          <TableCell className="num text-right font-medium whitespace-nowrap">{fmtBRL(l.valor_final)}</TableCell>
+                          <TableCell
+                            className={`num text-right whitespace-nowrap ${divergente ? "text-destructive font-semibold" : ""}`}
+                            title={divergente ? "Divergência entre valor da planilha e valor recalculado." : ""}
+                          >
+                            {l.valor_planilha ? fmtBRL(l.diferenca_calc) : "—"}
+                          </TableCell>
+                          <TableCell>
+                            {l.erros.map((e, j) => <div key={j} className="text-destructive">• {e}</div>)}
+                            {l.alertas.map((a, j) => <div key={j} className="text-warning">⚠ {a}</div>)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
-                {linhas.length > 300 && <p className="mt-2 text-xs text-muted-foreground">... primeiras 300 de {linhas.length}</p>}
+                {linhas.length > 300 && <p className="m-2 text-xs text-muted-foreground">... primeiras 300 de {linhas.length}</p>}
               </div>
             </CardContent></Card>
           )}
