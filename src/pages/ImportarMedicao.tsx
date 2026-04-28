@@ -291,7 +291,7 @@ export default function ImportarMedicao() {
       if (!modeloDetectado) {
         const tryM2 = detectHeader(matrix, REQUIRED_M2, 5);
         if (tryM2.rowIndex >= 0 && tryM2.missingRequired.length === 0) {
-          modeloDetectado = "M2"; required = REQUIRED_M2; hdr = tryM2;
+          modeloDetectado = "M2"; required = REQUIRED_M2; hdr = detectHeaderM2(matrix, 5);
         } else {
           const tryM1 = detectHeader(matrix, REQUIRED_M1, 30);
           if (tryM1.rowIndex >= 0 && tryM1.missingRequired.length === 0) {
@@ -305,7 +305,7 @@ export default function ImportarMedicao() {
           }
         }
       } else {
-        hdr = detectHeader(matrix, required, headerSearchRows);
+        hdr = modeloDetectado === "M2" ? detectHeaderM2(matrix, headerSearchRows) : detectHeader(matrix, required, headerSearchRows);
       }
 
       setModelo(modeloDetectado);
