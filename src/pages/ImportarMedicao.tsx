@@ -65,6 +65,7 @@ const COLUMN_ALIASES: Record<string, string[]> = {
   periodo_chuvoso: ["periodo chuvoso s n", "periodo chuvoso", "chuvoso s n", "chuvoso"],
   excecao_chuvoso: ["excecao chuvoso s n", "excecao chuvoso", "exc chuvoso", "excecao chuva"],
   observacoes: ["observacoes", "obs"],
+  medicao_planilha: ["medicao final", "medicao", "valor medicao", "valor final medicao", "total medicao", "total medição"],
 };
 
 // Modelo 1 (BASE DE DADOS) requer mes_ref e desc_manutencao
