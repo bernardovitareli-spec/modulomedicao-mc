@@ -154,3 +154,7 @@ export default function MedicaoDetalhe() {
 function Kpi({ l, v, accent }: { l: string; v: string; accent?: boolean }) {
   return <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">{l}</p><p className={`mt-1 text-lg font-bold num ${accent ? "text-primary" : ""}`}>{v}</p></CardContent></Card>;
 }
+
+function Info({ l, v }: { l: string; v: string }) {
+  return <div><p className="text-xs text-muted-foreground">{l}</p><p className="mt-0.5 font-medium">{v}</p></div>;
+}
