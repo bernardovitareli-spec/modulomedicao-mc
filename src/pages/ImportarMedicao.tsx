@@ -15,7 +15,8 @@ import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { calcularItem } from "@/lib/calculo";
 
-const SHEET_NAME = "BASE DE DADOS";
+const SHEET_MODELO_1 = "BASE DE DADOS";
+const SHEET_MODELO_2 = "Template Medição";
 
 // ---------- Normalização ----------
 const normalize = (s: any): string =>
@@ -31,15 +32,19 @@ const COLUMN_ALIASES: Record<string, string[]> = {
   mes_ref: ["mes referencia", "mes ref", "mes", "competencia", "referencia"],
   numero_dj: ["n dj", "no dj", "numero dj", "num dj", "dj"],
   contratado: ["contratado", "contratante", "cliente", "razao social"],
-  tipo_equip: ["tipo equipamento", "tipo equip", "tipo"],
+  cnpj: ["cnpj"],
+  tipo_servico: ["tipo servico", "servico"],
+  tipo_equip: ["tipo equipamento", "tipo equip", "tipo equip", "tipo"],
   modelo: ["modelo"],
   serie: ["serie", "n serie", "numero serie"],
   tag: ["tag", "patrimonio"],
   centro_custo: ["centro custo", "cc"],
+  periodo_inicio: ["periodo inicio", "per inicio", "data inicio periodo"],
+  periodo_fim: ["periodo fim", "per fim", "data fim periodo"],
   inicio_op: ["inicio operacao", "inicio op", "data inicio"],
   termino_contrato: ["termino contrato", "fim contrato", "data fim"],
-  hor_inicial: ["hor inicial", "horimetro inicial", "h inicial"],
-  hor_final: ["hor final", "horimetro final", "h final"],
+  hor_inicial: ["h inicial", "hor inicial", "horimetro inicial"],
+  hor_final: ["h final", "hor final", "horimetro final"],
   ht_informado: ["ht informado boletim", "ht informado", "horas informadas", "ht"],
   garantia: ["garantia contratual", "garantia", "garantia minima"],
   horas_disp: ["horas disposicao", "h disposicao", "disposicao"],
@@ -48,11 +53,15 @@ const COLUMN_ALIASES: Record<string, string[]> = {
   tipo_pagamento: ["tipo pagamento"],
   valor_hora: ["valor hora r", "valor hora", "valor por hora", "vlr hora", "r hora"],
   desc_manutencao: ["desc manutencao r", "desc manutencao", "desconto manutencao", "descontos", "desconto"],
-  excecao_chuvoso: ["excecao chuvoso", "exc chuvoso", "excecao chuva"],
+  periodo_chuvoso: ["periodo chuvoso s n", "periodo chuvoso", "chuvoso s n", "chuvoso"],
+  excecao_chuvoso: ["excecao chuvoso s n", "excecao chuvoso", "exc chuvoso", "excecao chuva"],
   observacoes: ["observacoes", "obs"],
 };
 
-const REQUIRED_FOR_HEADER = ["mes_ref", "numero_dj", "contratado", "serie", "tag", "valor_hora"];
+// Modelo 1 (BASE DE DADOS) requer mes_ref e desc_manutencao
+const REQUIRED_M1 = ["mes_ref", "numero_dj", "contratado", "serie", "tag", "valor_hora"];
+// Modelo 2 (Template Medição) usa periodo_fim no lugar de mes_ref
+const REQUIRED_M2 = ["numero_dj", "contratado", "serie", "tag", "valor_hora", "periodo_fim"];
 
 // ---------- Parsers ----------
 const num = (v: any): number => {
@@ -125,9 +134,9 @@ interface HeaderInfo {
   missingRequired: string[];
 }
 
-function detectHeader(matrix: any[][]): HeaderInfo {
-  const maxScan = Math.min(matrix.length, 30);
-  let best: HeaderInfo = { rowIndex: -1, colMap: {}, missingRequired: REQUIRED_FOR_HEADER.slice() };
+function detectHeader(matrix: any[][], required: string[], maxRows = 30): HeaderInfo {
+  const maxScan = Math.min(matrix.length, maxRows);
+  let best: HeaderInfo = { rowIndex: -1, colMap: {}, missingRequired: required.slice() };
   for (let i = 0; i < maxScan; i++) {
     const row = matrix[i] ?? [];
     const normCells = row.map((c) => normalize(c));
@@ -141,7 +150,7 @@ function detectHeader(matrix: any[][]): HeaderInfo {
         }
       }
     }
-    const missing = REQUIRED_FOR_HEADER.filter((k) => !(k in colMap));
+    const missing = required.filter((k) => !(k in colMap));
     if (missing.length < best.missingRequired.length) {
       best = { rowIndex: i, colMap, missingRequired: missing };
       if (missing.length === 0) return best;
@@ -151,18 +160,28 @@ function detectHeader(matrix: any[][]): HeaderInfo {
 }
 
 // ---------- Modelo ----------
+type ModeloLayout = "M1" | "M2";
+
+const parseSN = (v: any): boolean => {
+  const s = normalize(v);
+  return s === "s" || s === "sim" || s === "yes" || s === "true" || s === "1";
+};
+
 interface LinhaLida {
   rowExcel: number;
   raw: any[];
-  // valores
   mes_ref: string | null;
   numero_dj: string;
   contratado: string;
+  cnpj: string;
+  tipo_servico: string;
   tipo_equip: string;
   modelo: string;
   serie: string;
   tag: string;
   centro_custo: string;
+  periodo_inicio: string | null;
+  periodo_fim: string | null;
   inicio_op: string | null;
   termino_contrato: string | null;
   hor_inicial: number;
@@ -176,6 +195,7 @@ interface LinhaLida {
   complementares: number;
   valor_hora: number;
   desc_manutencao: number;
+  periodo_chuvoso: boolean;
   excecao_chuvoso: number;
   observacoes: string;
   horas_liquidas: number;
@@ -198,25 +218,63 @@ export default function ImportarMedicao() {
   const [ignoradas, setIgnoradas] = useState<LinhaIgnorada[]>([]);
   const [headerInfo, setHeaderInfo] = useState<HeaderInfo | null>(null);
   const [headerError, setHeaderError] = useState<string>("");
+  const [modelo, setModelo] = useState<ModeloLayout | null>(null);
+  const [sheetUsed, setSheetUsed] = useState<string>("");
   const [importing, setImporting] = useState(false);
 
   const onFile = async (file: File) => {
     setFilename(file.name);
-    setLinhas([]); setIgnoradas([]); setHeaderError(""); setHeaderInfo(null);
+    setLinhas([]); setIgnoradas([]); setHeaderError(""); setHeaderInfo(null); setModelo(null); setSheetUsed("");
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { cellDates: true });
-      const sheetName = wb.SheetNames.find((n) => normalize(n) === normalize(SHEET_NAME)) ?? wb.SheetNames[0];
-      if (normalize(sheetName) !== normalize(SHEET_NAME)) {
-        toast.warning(`Aba "${SHEET_NAME}" não encontrada. Usando "${sheetName}".`);
+
+      const sheetM1 = wb.SheetNames.find((n) => normalize(n) === normalize(SHEET_MODELO_1));
+      const sheetM2 = wb.SheetNames.find((n) => normalize(n) === normalize(SHEET_MODELO_2));
+
+      let modeloDetectado: ModeloLayout | null = null;
+      let sheetName = "";
+      let headerSearchRows = 30;
+      let required: string[] = REQUIRED_M1;
+
+      if (sheetM1) {
+        modeloDetectado = "M1"; sheetName = sheetM1; required = REQUIRED_M1; headerSearchRows = 30;
+      } else if (sheetM2) {
+        modeloDetectado = "M2"; sheetName = sheetM2; required = REQUIRED_M2; headerSearchRows = 5;
+      } else {
+        sheetName = wb.SheetNames[0];
       }
+
       const sheet = wb.Sheets[sheetName];
       const matrix: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", blankrows: false });
 
-      const hdr = detectHeader(matrix);
+      let hdr: HeaderInfo;
+      if (!modeloDetectado) {
+        const tryM2 = detectHeader(matrix, REQUIRED_M2, 5);
+        if (tryM2.rowIndex >= 0 && tryM2.missingRequired.length === 0) {
+          modeloDetectado = "M2"; required = REQUIRED_M2; hdr = tryM2;
+        } else {
+          const tryM1 = detectHeader(matrix, REQUIRED_M1, 30);
+          if (tryM1.rowIndex >= 0 && tryM1.missingRequired.length === 0) {
+            modeloDetectado = "M1"; required = REQUIRED_M1; hdr = tryM1;
+          } else {
+            const msg = `Não foi possível identificar o layout da planilha. Esperadas as abas "${SHEET_MODELO_1}" ou "${SHEET_MODELO_2}", ou um cabeçalho reconhecível.`;
+            setHeaderError(msg);
+            toast.error(msg);
+            setHeaderInfo(tryM1.missingRequired.length <= tryM2.missingRequired.length ? tryM1 : tryM2);
+            return;
+          }
+        }
+      } else {
+        hdr = detectHeader(matrix, required, headerSearchRows);
+      }
+
+      setModelo(modeloDetectado);
+      setSheetUsed(sheetName);
       setHeaderInfo(hdr);
+
       if (hdr.rowIndex < 0 || hdr.missingRequired.length > 0) {
-        const msg = `Cabeçalho não localizado. Colunas obrigatórias ausentes: ${hdr.missingRequired.join(", ")}`;
+        const msg = `Modelo ${modeloDetectado} (aba "${sheetName}"): cabeçalho não localizado. Colunas obrigatórias ausentes: ${hdr.missingRequired.join(", ")}`;
         setHeaderError(msg);
         toast.error(msg);
         return;
@@ -230,13 +288,11 @@ export default function ImportarMedicao() {
 
       for (let i = hdr.rowIndex + 1; i < matrix.length; i++) {
         const row = matrix[i] ?? [];
-        const rowExcel = i + 1; // 1-based para usuário
+        const rowExcel = i + 1;
 
-        // Linha vazia
         const hasAny = row.some((c) => str(c) !== "");
         if (!hasAny) { continue; }
 
-        // TOTAL na primeira coluna (qualquer das principais)
         const firstNonEmpty = row.find((c) => str(c) !== "");
         const firstNorm = normalize(firstNonEmpty);
         if (firstNorm.startsWith("total") || firstNorm === "subtotal") {
@@ -246,18 +302,31 @@ export default function ImportarMedicao() {
 
         const numero_dj = str(get(row, "numero_dj"));
         const contratado = str(get(row, "contratado"));
+        const cnpj = str(get(row, "cnpj"));
         const serie = str(get(row, "serie"));
         const tag = str(get(row, "tag"));
         const valor_hora = num(get(row, "valor_hora"));
-        const mes_ref = parseMesRef(get(row, "mes_ref"));
 
-        // Filtros de descarte automático
+        const trat = (raw: any) => (raw === 0 || raw === "0") ? null : parseDate(raw);
+        const periodo_inicio = trat(get(row, "periodo_inicio"));
+        const periodo_fim = trat(get(row, "periodo_fim"));
+        const inicio_op = trat(get(row, "inicio_op"));
+        const termino_contrato = trat(get(row, "termino_contrato"));
+
+        let mes_ref: string | null = null;
+        if (modeloDetectado === "M1") {
+          mes_ref = parseMesRef(get(row, "mes_ref"));
+        } else if (periodo_fim) {
+          mes_ref = periodo_fim.slice(0, 7) + "-01";
+        }
+
         const faltando: string[] = [];
         if (!numero_dj) faltando.push("Nº DJ");
         if (!contratado) faltando.push("Contratado");
         if (!serie) faltando.push("Série");
         if (!tag) faltando.push("Tag");
         if (!valor_hora) faltando.push("Valor/Hora");
+        if (modeloDetectado === "M2" && !periodo_fim) faltando.push("Período Fim");
         if (faltando.length) {
           ign.push({
             rowExcel,
@@ -274,41 +343,50 @@ export default function ImportarMedicao() {
         const horas_disp = num(get(row, "horas_disp"));
         const horas_mec = num(get(row, "horas_mec"));
         const complementares = num(get(row, "complementares"));
-        const desc_manutencao = num(get(row, "desc_manutencao"));
-        const excecao_chuvoso = num(get(row, "excecao_chuvoso"));
+        const desc_manutencao = modeloDetectado === "M2" ? 0 : num(get(row, "desc_manutencao"));
+        const periodo_chuvoso = parseSN(get(row, "periodo_chuvoso"));
+        const excecao_raw = get(row, "excecao_chuvoso");
+        const excecao_chuvoso = modeloDetectado === "M2"
+          ? (parseSN(excecao_raw) ? 1 : 0)
+          : num(excecao_raw);
 
         const ht_calculado = hor_final - hor_inicial;
-        const divergencia_ht = ht_informado - ht_calculado;
+        const divergencia_ht = ht_calculado - ht_informado;
         const horas_liquidas = Math.max(0, ht_informado - horas_mec);
         const horas_a_pagar = Math.max(horas_liquidas, garantia);
         const valor_final = horas_a_pagar * valor_hora + complementares - desc_manutencao;
 
         const erros: string[] = [];
         const alertas: string[] = [];
-        if (!mes_ref) erros.push("Mês Referência inválido");
+        if (!mes_ref) erros.push("Competência inválida");
         if (hor_final < hor_inicial) erros.push("Horímetro final < inicial");
         if (!garantia) alertas.push("Garantia contratual ausente");
         if (Math.abs(divergencia_ht) > 0.01) alertas.push(`Divergência HT: ${divergencia_ht.toFixed(2)}h`);
 
+        const tipo_equip_raw = str(get(row, "tipo_equip"));
+        const tipo_equip = tipo_equip_raw
+          ? tipo_equip_raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase()
+          : "";
+
         lidas.push({
           rowExcel, raw: row,
-          mes_ref, numero_dj, contratado,
-          tipo_equip: str(get(row, "tipo_equip")),
+          mes_ref, numero_dj, contratado, cnpj,
+          tipo_servico: str(get(row, "tipo_servico")),
+          tipo_equip,
           modelo: str(get(row, "modelo")),
           serie, tag,
           centro_custo: str(get(row, "centro_custo")),
-          inicio_op: parseDate(get(row, "inicio_op")),
-          termino_contrato: parseDate(get(row, "termino_contrato")),
+          periodo_inicio, periodo_fim,
+          inicio_op, termino_contrato,
           hor_inicial, hor_final, ht_calculado, ht_informado, divergencia_ht,
           garantia, horas_disp, horas_mec, complementares,
-          valor_hora, desc_manutencao, excecao_chuvoso,
+          valor_hora, desc_manutencao, periodo_chuvoso, excecao_chuvoso,
           observacoes: str(get(row, "observacoes")),
           horas_liquidas, horas_a_pagar, valor_final,
           erros, alertas,
         });
       }
 
-      // Duplicidade: Nº DJ + competência + Série + Tag
       const seen = new Map<string, number>();
       lidas.forEach((l, i) => {
         if (!l.mes_ref) return;
@@ -321,7 +399,7 @@ export default function ImportarMedicao() {
 
       setLinhas(lidas);
       setIgnoradas(ign);
-      toast.success(`${lidas.length} linha(s) lidas, ${ign.length} ignorada(s).`);
+      toast.success(`Modelo ${modeloDetectado} • ${lidas.length} linha(s) lidas, ${ign.length} ignorada(s).`);
     } catch (e: any) {
       toast.error("Erro ao ler planilha: " + e.message);
     }
@@ -331,11 +409,19 @@ export default function ImportarMedicao() {
 
   // Resumo agregado
   const clientes = Array.from(new Set(validas.map((l) => l.contratado)));
+  const cnpjs = Array.from(new Set(validas.map((l) => l.cnpj).filter(Boolean)));
   const contratos = Array.from(new Set(validas.map((l) => l.numero_dj)));
+  const tiposServico = Array.from(new Set(validas.map((l) => l.tipo_servico).filter(Boolean)));
+  const centrosCusto = Array.from(new Set(validas.map((l) => l.centro_custo).filter(Boolean)));
   const competencias = Array.from(new Set(validas.map((l) => l.mes_ref).filter(Boolean) as string[]));
+  const periodosIni = validas.map((l) => l.periodo_inicio).filter(Boolean) as string[];
+  const periodosFim = validas.map((l) => l.periodo_fim).filter(Boolean) as string[];
+  const periodoIniMin = periodosIni.length ? periodosIni.sort()[0] : "";
+  const periodoFimMax = periodosFim.length ? periodosFim.sort().reverse()[0] : "";
   const totalValor = validas.reduce((s, l) => s + l.valor_final, 0);
   const totalHorasInf = validas.reduce((s, l) => s + l.ht_informado, 0);
   const totalHorasMec = validas.reduce((s, l) => s + l.horas_mec, 0);
+  const totalComplementares = validas.reduce((s, l) => s + l.complementares, 0);
   const totalDesc = validas.reduce((s, l) => s + l.desc_manutencao, 0);
 
   const podeImportar = !headerError && validas.length > 0;
@@ -366,7 +452,9 @@ export default function ImportarMedicao() {
         let clienteId = clientesCache.get(cliKey);
         if (!clienteId) {
           const { data, error } = await supabase.from("clientes").insert({
-            razao_social: l.contratado, cnpj: `IMPORT-${Date.now()}-${createdCli}`, status: "ativo",
+            razao_social: l.contratado,
+            cnpj: l.cnpj || `IMPORT-${Date.now()}-${createdCli}`,
+            status: "ativo",
           } as any).select("id").single();
           if (error) throw error;
           clienteId = data.id; clientesCache.set(cliKey, clienteId); createdCli++;
@@ -378,7 +466,8 @@ export default function ImportarMedicao() {
           const termino = l.termino_contrato ?? new Date(new Date(inicio).getFullYear() + 1, 11, 31).toISOString().slice(0, 10);
           const { data, error } = await supabase.from("contratos").insert({
             numero_dj: l.numero_dj, cliente_id: clienteId,
-            tipo_servico: l.tipo_equip || "Locação", centro_custo: l.centro_custo || null,
+            tipo_servico: l.tipo_servico || l.tipo_equip || "Locação",
+            centro_custo: l.centro_custo || null,
             inicio_operacao: inicio, termino_contrato: termino,
             valor_hora_padrao: l.valor_hora, garantia_minima_horas: l.garantia,
             status: "ativo",
@@ -501,7 +590,7 @@ export default function ImportarMedicao() {
     <div>
       <PageHeader
         title="Importar planilha de medição"
-        description='Carregue um arquivo .xlsx contendo a aba "BASE DE DADOS"'
+        description='Suporta layouts "BASE DE DADOS" (Modelo 1) e "Template Medição" (Modelo 2)'
         actions={<Button variant="outline" onClick={() => navigate("/medicoes")}><ArrowLeft className="mr-1 h-4 w-4" />Voltar</Button>}
       />
 
@@ -509,7 +598,7 @@ export default function ImportarMedicao() {
         <Label>Arquivo Excel (.xlsx) *</Label>
         <Input type="file" accept=".xlsx,.xls" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
         <p className="mt-2 text-xs text-muted-foreground">
-          O sistema localiza automaticamente a linha de cabeçalho (procurando por Mês Referência, Nº DJ, Contratado, Série, Tag e Valor/Hora) e ignora linhas vazias, de TOTAL ou sem dados essenciais.
+          O sistema identifica automaticamente o modelo: aba <strong>"BASE DE DADOS"</strong> = Modelo 1, aba <strong>"Template Medição"</strong> = Modelo 2. Caso nenhuma exista, tenta localizar o cabeçalho automaticamente.
         </p>
       </CardContent></Card>
 
@@ -520,11 +609,11 @@ export default function ImportarMedicao() {
         </Alert>
       )}
 
-      {headerInfo && headerInfo.rowIndex >= 0 && !headerError && (
+      {modelo && headerInfo && headerInfo.rowIndex >= 0 && !headerError && (
         <Alert className="mb-4">
           <CheckCircle2 className="h-4 w-4" />
           <AlertDescription className="text-xs">
-            Cabeçalho localizado na linha {headerInfo.rowIndex + 1}. {Object.keys(headerInfo.colMap).length} colunas mapeadas.
+            <strong>Modelo {modelo}</strong> detectado{sheetUsed ? ` (aba "${sheetUsed}")` : ""}. Cabeçalho na linha {headerInfo.rowIndex + 1}. {Object.keys(headerInfo.colMap).length} colunas mapeadas.
           </AlertDescription>
         </Alert>
       )}
@@ -534,17 +623,24 @@ export default function ImportarMedicao() {
           <Card className="mb-4"><CardContent className="p-4">
             <h3 className="mb-3 text-sm font-semibold">Resumo da pré-visualização</h3>
             <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4">
+              <Stat label="Modelo identificado" value={modelo ?? "—"} />
               <Stat label="Linhas lidas" value={String(linhas.length + ignoradas.length)} />
               <Stat label="Linhas válidas" value={String(validas.length)} />
               <Stat label="Linhas ignoradas" value={String(ignoradas.length)} />
               <Stat label="Com erro" value={String(linhas.length - validas.length)} />
               <Stat label="Cliente(s)" value={clientes.length === 1 ? clientes[0] : String(clientes.length)} />
-              <Stat label="Contrato(s)" value={contratos.length === 1 ? contratos[0] : String(contratos.length)} />
+              <Stat label="CNPJ" value={cnpjs.length === 1 ? cnpjs[0] : (cnpjs.length ? `${cnpjs.length}` : "—")} />
+              <Stat label="Contrato / Nº DJ" value={contratos.length === 1 ? contratos[0] : String(contratos.length)} />
+              <Stat label="Tipo de serviço" value={tiposServico.length === 1 ? tiposServico[0] : (tiposServico.length ? `${tiposServico.length}` : "—")} />
+              <Stat label="Centro de custo" value={centrosCusto.length === 1 ? centrosCusto[0] : (centrosCusto.length ? `${centrosCusto.length}` : "—")} />
               <Stat label="Competência(s)" value={competencias.map((c) => c.slice(0, 7)).join(", ") || "—"} />
+              <Stat label="Período início" value={periodoIniMin || "—"} />
+              <Stat label="Período fim" value={periodoFimMax || "—"} />
               <Stat label="Equipamentos válidos" value={String(validas.length)} />
-              <Stat label="Horas informadas" value={totalHorasInf.toFixed(2)} />
-              <Stat label="Horas mecânicas" value={totalHorasMec.toFixed(2)} />
-              <Stat label="Descontos" value={fmtBRL(totalDesc)} />
+              <Stat label="Total HT informado" value={totalHorasInf.toFixed(2)} />
+              <Stat label="Total horas mecânicas" value={totalHorasMec.toFixed(2)} />
+              <Stat label="Total complementares" value={fmtBRL(totalComplementares)} />
+              <Stat label="Total descontos" value={fmtBRL(totalDesc)} />
               <Stat label="Valor total previsto" value={fmtBRL(totalValor)} highlight />
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
