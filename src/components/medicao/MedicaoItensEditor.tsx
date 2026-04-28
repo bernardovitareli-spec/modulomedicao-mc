@@ -507,8 +507,8 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                   <FieldRO label="HT calculado" value={fmtNum(calc.ht_calc)} hint="final − inicial" />
                   <FieldRO label="Divergência HT" value={fmtNum(calc.divergencia_ht)} hint="informado − calculado" accent={Math.abs(calc.divergencia_ht) > 0.01} />
                   <FieldRO label="Horas líquidas" value={fmtNum(calc.horas_liquidas)} hint="HT inf. − mecânicas" />
-                  <FieldRO label="Garantia contratual" value={fmtNum(calc.garantia)} />
-                  <FieldRO label="Horas a pagar" value={fmtNum(calc.horas_a_pagar)} hint="máx(líq, garantia)" />
+                  <FieldRO label={calc.aplicar_proporcional ? "Garantia (proporcional)" : "Garantia contratual"} value={fmtNum(calc.garantia)} hint={calc.aplicar_proporcional ? `${fmtNum(calc.garantia_mensal)}h ÷ ${calc.base_dias} × ${calc.dias_considerados} dias` : undefined} accent={calc.aplicar_proporcional} />
+                  <FieldRO label="Horas a pagar" value={fmtNum(calc.horas_a_pagar)} hint="máx(líq, garantia efetiva)" />
                   <FieldRO label="Valor/hora" value={fmtBRL(calc.valor_hora)} />
                   <div className="md:col-span-3">
                     <FieldRO label="Valor final" value={fmtBRL(calc.valor_final)} hint={`${fmtNum(calc.horas_a_pagar)}h × ${fmtBRL(calc.valor_hora)} + compl. − desc.`} accent />
