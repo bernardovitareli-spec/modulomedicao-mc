@@ -412,3 +412,12 @@ function FieldRO({ label, value, hint, accent }: { label: string; value: string;
     </div>
   );
 }
+
+function DetRow({ l, v, accent }: { l: string; v: string; accent?: boolean }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{l}</p>
+      <p className={`mt-0.5 font-medium num ${accent ? "text-primary" : ""}`}>{v}</p>
+    </div>
+  );
+}
