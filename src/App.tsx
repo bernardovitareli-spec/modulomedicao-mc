@@ -15,6 +15,7 @@ import ContratoDetalhe from "./pages/ContratoDetalhe";
 import Importacao from "./pages/Importacao";
 import Medicoes from "./pages/Medicoes";
 import NovaMedicao from "./pages/NovaMedicao";
+import ImportarMedicao from "./pages/ImportarMedicao";
 import MedicaoDetalhe from "./pages/MedicaoDetalhe";
 import MemoriaCalculo from "./pages/MemoriaCalculo";
 import Boletim from "./pages/Boletim";
@@ -45,6 +46,7 @@ const App = () => (
               <Route path="/importacao" element={<Importacao />} />
               <Route path="/medicoes" element={<Medicoes />} />
               <Route path="/medicoes/nova" element={<NovaMedicao />} />
+              <Route path="/medicoes/importar" element={<ImportarMedicao />} />
               <Route path="/medicoes/:id" element={<MedicaoDetalhe />} />
               <Route path="/memoria-calculo" element={<MemoriaCalculo />} />
               <Route path="/memoria-calculo/:itemId" element={<MemoriaCalculo />} />
