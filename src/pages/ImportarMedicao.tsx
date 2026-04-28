@@ -354,7 +354,15 @@ export default function ImportarMedicao() {
         }
 
         const numero_dj = str(get(row, "numero_dj"));
-        const contratado = str(get(row, "contratado"));
+        const contratadoRaw = str(get(row, "contratado"));
+        // Extrair código do cliente quando vier no formato "Nome | Código"
+        let contratado = contratadoRaw;
+        let codigo_cliente = "";
+        const mPipe = contratadoRaw.match(/^(.*?)[\s]*\|[\s]*([^|]+?)\s*$/);
+        if (mPipe) {
+          contratado = mPipe[1].trim();
+          codigo_cliente = mPipe[2].trim();
+        }
         const cnpj = str(get(row, "cnpj"));
         const serie = str(get(row, "serie"));
         const tag = str(get(row, "tag"));
