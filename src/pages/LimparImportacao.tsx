@@ -32,7 +32,7 @@ export default function LimparImportacao() {
       _importacao_id: target.id, _motivo: motivo,
     });
     setLoading(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success(`Removido: ${(data as any)?.medicoes ?? 0} medições, ${(data as any)?.equipamentos ?? 0} equipamentos, ${(data as any)?.contratos ?? 0} contratos, ${(data as any)?.clientes ?? 0} clientes.`);
     setTarget(null); load();
   };
