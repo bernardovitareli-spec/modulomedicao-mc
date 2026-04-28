@@ -96,6 +96,8 @@ export default function ContratoRegras() {
               <TableHead>Contrato</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead>Tipo</TableHead>
+              <TableHead>Escopo</TableHead>
+              <TableHead>Tipo de equipamento</TableHead>
               <TableHead>Equipamento</TableHead>
               <TableHead>Vigência</TableHead>
               <TableHead>Parâmetros</TableHead>
@@ -103,22 +105,25 @@ export default function ContratoRegras() {
               <TableHead className="w-12"></TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {loading && <TableRow><TableCell colSpan={8} className="text-center py-8 text-sm text-muted-foreground">Carregando…</TableCell></TableRow>}
-              {!loading && filtered.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-8 text-sm text-muted-foreground">Nenhuma regra encontrada.</TableCell></TableRow>}
+              {loading && <TableRow><TableCell colSpan={10} className="text-center py-8 text-sm text-muted-foreground">Carregando…</TableCell></TableRow>}
+              {!loading && filtered.length === 0 && <TableRow><TableCell colSpan={10} className="text-center py-8 text-sm text-muted-foreground">Nenhuma regra encontrada.</TableCell></TableRow>}
               {filtered.map((r) => {
                 const vigente = r.ativa && r.vigencia_inicio <= hoje && (!r.vigencia_fim || r.vigencia_fim >= hoje);
+                const escopo = r.equipamento_id ? "Equipamento específico" : r.tipo_equipamento ? "Tipo de equipamento" : "Geral";
                 return (
                   <TableRow key={r.id}>
                     <TableCell className="font-mono text-xs whitespace-nowrap">{r.contratos?.numero_dj ?? "—"}</TableCell>
                     <TableCell className="text-xs max-w-[220px] truncate" title={r.contratos?.clientes?.razao_social}>{r.contratos?.clientes?.razao_social ?? "—"}</TableCell>
                     <TableCell className="font-medium whitespace-nowrap">{labelTipo(r.tipo)}</TableCell>
+                    <TableCell><Badge variant="outline">{escopo}</Badge></TableCell>
+                    <TableCell className="text-xs">{r.tipo_equipamento ?? "—"}</TableCell>
                     <TableCell className="text-xs">
                       {r.equipamento_id
                         ? <span className="font-mono">{r.equipamentos?.serie ?? ""} / {r.equipamentos?.tag ?? ""}</span>
-                        : <Badge variant="outline">Geral</Badge>}
+                        : "—"}
                     </TableCell>
                     <TableCell className="text-sm num whitespace-nowrap">
-                      {fmtDate(r.vigencia_inicio)} → {r.vigencia_fim ? fmtDate(r.vigencia_fim) : "vigente"}
+                      {fmtDate(r.vigencia_inicio)} → {r.vigencia_fim ? fmtDate(r.vigencia_fim) : "—"}
                     </TableCell>
                     <TableCell className="font-mono text-xs max-w-[220px] truncate" title={JSON.stringify(r.parametros)}>
                       {Object.entries(r.parametros ?? {}).map(([k, v]) => `${k}: ${v}`).join(" · ") || "—"}
