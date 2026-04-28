@@ -18,6 +18,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { MedicaoItensEditor } from "@/components/medicao/MedicaoItensEditor";
 import { MedicaoHistoricoTab } from "@/components/medicao/MedicaoHistoricoTab";
+import MedicaoRegrasActions from "@/components/medicao/MedicaoRegrasActions";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export default function MedicaoDetalhe() {
@@ -113,6 +114,7 @@ export default function MedicaoDetalhe() {
         actions={<div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={med.status} />
           <Button size="sm" variant="outline" onClick={exportarPDF}><FileDown className="mr-1 h-4 w-4" />PDF</Button>
+          <MedicaoRegrasActions medicaoId={med.id} status={med.status} onApplied={load} />
           {perms.canCancelMedicao(med.status) && (
             <Button size="sm" variant="outline" onClick={() => setCancelOpen(true)}>
               <Ban className="mr-1 h-4 w-4" />Cancelar medição

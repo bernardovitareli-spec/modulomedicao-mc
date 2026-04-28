@@ -12,6 +12,7 @@ import Clientes from "./pages/Clientes";
 import Equipamentos from "./pages/Equipamentos";
 import Contratos from "./pages/Contratos";
 import ContratoDetalhe from "./pages/ContratoDetalhe";
+import ContratoRegras from "./pages/ContratoRegras";
 import Importacao from "./pages/Importacao";
 import Medicoes from "./pages/Medicoes";
 import NovaMedicao from "./pages/NovaMedicao";
@@ -45,6 +46,7 @@ const App = () => (
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/equipamentos" element={<Equipamentos />} />
               <Route path="/contratos" element={<Contratos />} />
+              <Route path="/contratos/regras" element={<ContratoRegras />} />
               <Route path="/contratos/:id" element={<ContratoDetalhe />} />
               <Route path="/importacao" element={<Importacao />} />
               <Route path="/medicoes" element={<Medicoes />} />
