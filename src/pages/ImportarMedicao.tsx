@@ -677,9 +677,10 @@ export default function ImportarMedicao() {
           const mesmasMedicao = validas.filter((x) => x.numero_dj === l.numero_dj && x.mes_ref === l.mes_ref);
           const inicios = mesmasMedicao.map((x) => x.periodo_inicio).filter(Boolean).sort() as string[];
           const fins = mesmasMedicao.map((x) => x.periodo_fim).filter(Boolean).sort() as string[];
+          // Override M1 prevalece (período real informado pelo usuário)
           periodoPorMedicao.set(medKey, {
-            inicio: inicios[0] ?? l.mes_ref!,
-            fim: fins[fins.length - 1] ?? lastDayOfMonth(l.mes_ref!),
+            inicio: periodoIniEfetivo ?? inicios[0] ?? l.mes_ref!,
+            fim: periodoFimEfetivo ?? fins[fins.length - 1] ?? lastDayOfMonth(l.mes_ref!),
           });
         }
         const periodoMed = periodoPorMedicao.get(medKey)!;
