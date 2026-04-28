@@ -135,8 +135,12 @@ export default function MedicaoDetalhe() {
 
       <Card className="mb-4">
         <CardContent className="p-4 grid gap-3 md:grid-cols-3 lg:grid-cols-5 text-sm">
-          <Info l="Cliente" v={med.contratos?.clientes?.razao_social ?? "-"} />
-          <Info l="CNPJ" v={med.contratos?.clientes?.cnpj ?? "-"} />
+          <Info l="Cliente / Contratante" v={med.contratos?.clientes?.razao_social ?? "-"} />
+          <Info l="Fornecedor / Locadora" v={
+            med.contratos?.fornecedor_nome
+              ? `${med.contratos.fornecedor_nome}${med.contratos.fornecedor_codigo ? ` (${med.contratos.fornecedor_codigo})` : ""}`
+              : "-"
+          } />
           <Info l="Contrato / Nº DJ" v={med.contratos?.numero_dj ?? "-"} />
           <Info l="Tipo de serviço" v={med.contratos?.tipo_servico ?? "-"} />
           <Info l="Centro de custo" v={med.contratos?.centro_custo ?? "-"} />
