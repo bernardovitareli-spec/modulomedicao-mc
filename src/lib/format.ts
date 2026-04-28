@@ -19,3 +19,29 @@ export const monthKey = (d: Date | string) => {
   const date = typeof d === "string" ? new Date(d) : d;
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 };
+
+const MESES_PT = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
+/**
+ * Formata competência para exibição: "Abril/2026".
+ * Aceita "YYYY-MM", "YYYY-MM-DD" ou Date. Armazenamento permanece YYYY-MM(-DD).
+ */
+export const fmtCompetencia = (v: string | Date | null | undefined) => {
+  if (!v) return "-";
+  let year: number;
+  let monthIdx: number;
+  if (typeof v === "string") {
+    const m = v.match(/^(\d{4})-(\d{2})/);
+    if (!m) return v;
+    year = Number(m[1]);
+    monthIdx = Number(m[2]) - 1;
+  } else {
+    year = v.getFullYear();
+    monthIdx = v.getMonth();
+  }
+  if (monthIdx < 0 || monthIdx > 11) return String(v);
+  return `${MESES_PT[monthIdx]}/${year}`;
+};

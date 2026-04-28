@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Plus, Upload } from "lucide-react";
-import { fmtBRL, fmtDate } from "@/lib/format";
+import { fmtBRL, fmtDate, fmtCompetencia } from "@/lib/format";
 import { StatusBadge } from "@/components/contrato/ContratoMedicoesTab";
 
 export default function Medicoes() {
@@ -68,7 +68,7 @@ export default function Medicoes() {
             {filtered.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-sm text-muted-foreground">Nenhuma medição.</TableCell></TableRow>}
             {filtered.map((m) => (
               <TableRow key={m.id} className="cursor-pointer" onClick={() => navigate(`/medicoes/${m.id}`)}>
-                <TableCell className="num font-medium">{fmtDate(m.competencia).slice(3)}</TableCell>
+                <TableCell className="num font-medium">{fmtCompetencia(m.competencia)}</TableCell>
                 <TableCell className="font-mono">{m.contratos?.numero_dj}</TableCell>
                 <TableCell className="text-sm">{m.contratos?.clientes?.razao_social}</TableCell>
                 <TableCell className="text-right num">{Number(m.total_horas_pagar).toFixed(2)}</TableCell>

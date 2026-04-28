@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { fmtBRL } from "@/lib/format";
+import { fmtBRL, fmtCompetencia } from "@/lib/format";
 import { calcularItem } from "@/lib/calculo";
 
 const SHEET_MODELO_1 = "BASE DE DADOS";
@@ -633,7 +633,7 @@ export default function ImportarMedicao() {
               <Stat label="Contrato / Nº DJ" value={contratos.length === 1 ? contratos[0] : String(contratos.length)} />
               <Stat label="Tipo de serviço" value={tiposServico.length === 1 ? tiposServico[0] : (tiposServico.length ? `${tiposServico.length}` : "—")} />
               <Stat label="Centro de custo" value={centrosCusto.length === 1 ? centrosCusto[0] : (centrosCusto.length ? `${centrosCusto.length}` : "—")} />
-              <Stat label="Competência(s)" value={competencias.map((c) => c.slice(0, 7)).join(", ") || "—"} />
+              <Stat label="Competência(s)" value={competencias.map((c) => fmtCompetencia(c)).join(", ") || "—"} />
               <Stat label="Período início" value={periodoIniMin || "—"} />
               <Stat label="Período fim" value={periodoFimMax || "—"} />
               <Stat label="Equipamentos válidos" value={String(validas.length)} />
