@@ -427,6 +427,7 @@ export default function ImportarMedicao() {
           garantia, horas_disp, horas_mec, complementares,
           valor_hora, desc_manutencao, periodo_chuvoso, excecao_chuvoso,
           observacoes: str(get(row, "observacoes")),
+          tipo_pagamento: str(get(row, "tipo_pagamento")),
           horas_liquidas, horas_a_pagar, valor_final,
           erros, alertas,
         });
