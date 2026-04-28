@@ -1,8 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Users, FileText, Wrench, Settings2, History,
-  FileSpreadsheet, ClipboardList, Calculator, FileCheck, CheckCircle2,
-  Receipt, BarChart3, LogOut, HardHat,
+  LayoutDashboard, Users, FileText, Wrench, ClipboardList, LogOut, HardHat,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -14,7 +12,7 @@ import { Button } from "@/components/ui/button";
 const groups = [
   {
     label: "Visão geral",
-    items: [{ title: "Dashboard", url: "/", icon: LayoutDashboard }],
+    items: [{ title: "Início", url: "/", icon: LayoutDashboard }],
   },
   {
     label: "Cadastros",
@@ -27,22 +25,7 @@ const groups = [
   {
     label: "Operação",
     items: [
-      { title: "Importação mensal", url: "/importacao", icon: FileSpreadsheet },
       { title: "Medições", url: "/medicoes", icon: ClipboardList },
-      { title: "Memória de cálculo", url: "/memoria-calculo", icon: Calculator },
-      { title: "Boletim consolidado", url: "/boletim", icon: FileCheck },
-      { title: "Aprovação", url: "/aprovacao", icon: CheckCircle2 },
-    ],
-  },
-  {
-    label: "Financeiro",
-    items: [{ title: "Faturamento", url: "/faturamento", icon: Receipt }],
-  },
-  {
-    label: "Análises",
-    items: [
-      { title: "Relatórios", url: "/relatorios", icon: BarChart3 },
-      { title: "Histórico", url: "/historico", icon: History },
     ],
   },
 ];
