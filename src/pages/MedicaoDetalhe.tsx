@@ -22,11 +22,15 @@ export default function MedicaoDetalhe() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, hasAnyRole } = useAuth();
+  const perms = usePermissions();
   const [med, setMed] = useState<any>(null);
   const [itens, setItens] = useState<any[]>([]);
   const [aprovs, setAprovs] = useState<any[]>([]);
   const [dlg, setDlg] = useState<{ open: boolean; etapa: string; resultado: string }>({ open: false, etapa: "", resultado: "" });
   const [coment, setComent] = useState("");
+  const [delOpen, setDelOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const load = async () => {
     if (!id) return;
