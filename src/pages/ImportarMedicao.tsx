@@ -836,20 +836,107 @@ export default function ImportarMedicao() {
               <Stat label="Total complementares" value={fmtBRL(totalComplementares)} />
               <Stat label="Total descontos" value={fmtBRL(totalDesc)} />
               <Stat label="Valor total previsto" value={fmtBRL(totalValor)} highlight />
+              {modelo === "M1" && totalValorPlanilha > 0 && (
+                <>
+                  <Stat label="Total medição (planilha)" value={fmtBRL(totalValorPlanilha)} />
+                  <Stat label="Total recalculado" value={fmtBRL(totalValor)} />
+                  <Stat label="Diferença total" value={fmtBRL(totalDifCalc)} highlight={Math.abs(totalDifCalc) > 0.10} />
+                </>
+              )}
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Badge variant="default"><CheckCircle2 className="mr-1 h-3 w-3" />{validas.length} válidas</Badge>
               {linhas.length - validas.length > 0 && <Badge variant="destructive"><AlertCircle className="mr-1 h-3 w-3" />{linhas.length - validas.length} com erro</Badge>}
               {ignoradas.length > 0 && <Badge variant="secondary">{ignoradas.length} ignoradas</Badge>}
+              {linhasComDivergencia > 0 && <Badge variant="destructive">{linhasComDivergencia} com divergência de cálculo</Badge>}
               <div className="ml-auto flex gap-2">
-                <Button variant="outline" onClick={() => { setLinhas([]); setIgnoradas([]); setFilename(""); setHeaderInfo(null); setHeaderError(""); }}>Cancelar</Button>
+                <Button variant="outline" onClick={() => { setLinhas([]); setIgnoradas([]); setFilename(""); setHeaderInfo(null); setHeaderError(""); setOverrides({}); setConfirmDivergencia(false); }}>Cancelar</Button>
                 <Button onClick={confirmar} disabled={importing || !podeImportar}>
                   {importing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Upload className="mr-1 h-4 w-4" />}
                   Confirmar importação ({validas.length})
                 </Button>
               </div>
             </div>
+            {m1Pendencias.length > 0 && (
+              <Alert variant="destructive" className="mt-3">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  <strong>Preencha os campos obrigatórios antes de confirmar:</strong>
+                  <ul className="mt-1 ml-4 list-disc">
+                    {m1Pendencias.map((p, i) => <li key={i}>{p}</li>)}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
+            {precisaConfirmarDivergencia && (
+              <Alert variant="destructive" className="mt-3">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  <div className="mb-2">
+                    Existem <strong>{linhasComDivergencia}</strong> linha(s) com divergência maior que R$ 0,10 entre o valor da planilha e o valor recalculado pelo sistema. A importação não está bloqueada, mas requer confirmação.
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={confirmDivergencia} onChange={(e) => setConfirmDivergencia(e.target.checked)} />
+                    <span>Estou ciente das divergências e desejo prosseguir.</span>
+                  </label>
+                </AlertDescription>
+              </Alert>
+            )}
           </CardContent></Card>
+
+          {modelo === "M1" && validas.length > 0 && (
+            <Card className="mb-4"><CardContent className="p-4">
+              <h3 className="mb-2 text-sm font-semibold">
+                Campos obrigatórios por contrato (Modelo M1)
+              </h3>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Estes campos podem não existir na planilha "BASE DE DADOS". Preencha antes de confirmar.
+                A competência continua sendo {competencias.map((c) => fmtCompetencia(c)).join(", ")}, mas o período real da medição será salvo separadamente.
+              </p>
+              <div className="space-y-4">
+                {Array.from(new Set(validas.map((l) => l.numero_dj))).map((dj) => {
+                  const ov = overrides[dj] ?? {};
+                  const setOv = (patch: Partial<typeof ov>) =>
+                    setOverrides((prev) => ({ ...prev, [dj]: { ...(prev[dj] ?? {}), ...patch } }));
+                  const linhaRef = validas.find((l) => l.numero_dj === dj)!;
+                  return (
+                    <div key={dj} className="rounded-md border p-3">
+                      <div className="mb-2 text-xs font-medium">
+                        Contrato <span className="font-mono">{dj}</span> · {linhaRef.contratado}
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+                        <div>
+                          <Label className="text-xs">CNPJ do cliente</Label>
+                          <Input value={ov.cnpj ?? ""} onChange={(e) => setOv({ cnpj: e.target.value })} placeholder="opcional" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Código do cliente</Label>
+                          <Input value={ov.codigo_cliente ?? ""} onChange={(e) => setOv({ codigo_cliente: e.target.value })} placeholder="ex: 15811" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Tipo de serviço *</Label>
+                          <Select value={ov.tipo_servico ?? ""} onValueChange={(v) => setOv({ tipo_servico: v })}>
+                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              {TIPOS_SERVICO_M1.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Período início *</Label>
+                          <Input type="date" value={ov.periodo_inicio ?? ""} onChange={(e) => setOv({ periodo_inicio: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Período fim *</Label>
+                          <Input type="date" value={ov.periodo_fim ?? ""} onChange={(e) => setOv({ periodo_fim: e.target.value })} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent></Card>
+          )}
 
           {validas.length > 0 && modelo === "M1" && (
             <Card className="mb-4"><CardContent className="p-4">
