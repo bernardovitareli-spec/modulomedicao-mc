@@ -323,7 +323,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                 <TableHead className="text-right whitespace-nowrap">HT Calc.</TableHead>
                 <TableHead className="text-right whitespace-nowrap">HT Inf.</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Diverg. HT</TableHead>
-                <TableHead className="text-right whitespace-nowrap">Garantia</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Garantia mensal</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Base dias</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Garant. Prop.</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Dias Cons.</TableHead>
@@ -342,7 +342,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
               </TableRow>
             </TableHeader>
             <TableBody>
-              {itens.length === 0 && <TableRow><TableCell colSpan={24} className="text-center py-6 text-sm text-muted-foreground">Nenhum item. Clique em "Adicionar item".</TableCell></TableRow>}
+              {itens.length === 0 && <TableRow><TableCell colSpan={25} className="text-center py-6 text-sm text-muted-foreground">Nenhum item. Clique em "Adicionar item".</TableCell></TableRow>}
               {itens.map((i) => {
                 const htCalc = Math.max(0, Number(i.horimetro_final ?? 0) - Number(i.horimetro_inicial ?? 0));
                 const diverg = Number(i.horas_informadas ?? 0) - htCalc;
@@ -357,7 +357,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                     <TableCell className="text-right num">{fmtNum(htCalc)}</TableCell>
                     <TableCell className="text-right num">{fmtNum(i.horas_informadas)}</TableCell>
                     <TableCell className={`text-right num ${Math.abs(diverg) > 0.01 ? "text-destructive" : ""}`}>{fmtNum(diverg)}</TableCell>
-                    <TableCell className="text-right num">{fmtNum(i.garantia_minima)}</TableCell>
+                    <TableCell className="text-right num">{fmtNum(i.garantia_mensal_horas ?? i.garantia_minima)}</TableCell>
                     <TableCell className="text-right num">{contrato?.base_dias_garantia ?? 30}</TableCell>
                     <TableCell className="text-right num">{i.aplicar_garantia_proporcional ? fmtNum(i.garantia_proporcional_horas) : "-"}</TableCell>
                     <TableCell className="text-right num">{i.dias_considerados ?? "-"}</TableCell>
@@ -509,7 +509,11 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                   <FieldRO label="HT calculado" value={fmtNum(calc.ht_calc)} hint="final − inicial" />
                   <FieldRO label="Divergência HT" value={fmtNum(calc.divergencia_ht)} hint="informado − calculado" accent={Math.abs(calc.divergencia_ht) > 0.01} />
                   <FieldRO label="Horas líquidas" value={fmtNum(calc.horas_liquidas)} hint="HT inf. − mecânicas" />
-                  <FieldRO label={calc.aplicar_proporcional ? "Garantia (proporcional)" : "Garantia contratual"} value={fmtNum(calc.garantia)} hint={calc.aplicar_proporcional ? `${fmtNum(calc.garantia_mensal)}h ÷ ${calc.base_dias} × ${calc.dias_considerados} dias` : undefined} accent={calc.aplicar_proporcional} />
+                  <FieldRO label="Dias considerados" value={String(calc.dias_considerados)} />
+                  <FieldRO label="Base dias garantia" value={String(calc.base_dias)} />
+                  <FieldRO label="Garantia mensal" value={`${fmtNum(calc.garantia_mensal)}h`} />
+                  <FieldRO label="Garantia proporcional" value={`${fmtNum(calc.garantia_proporcional)}h`} hint={`${fmtNum(calc.garantia_mensal)}h ÷ ${calc.base_dias} × ${calc.dias_considerados} dias`} accent={calc.aplicar_proporcional} />
+                  <FieldRO label="Proporcionalidade aplicada" value={calc.aplicar_proporcional ? "Sim" : "Não"} accent={calc.aplicar_proporcional} />
                   <FieldRO label="Horas a pagar" value={fmtNum(calc.horas_a_pagar)} hint="máx(líq, garantia efetiva)" />
                   <FieldRO label="Valor/hora" value={fmtBRL(calc.valor_hora)} />
                   <div className="md:col-span-3">
