@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft, Send, CheckCircle2, XCircle, FileDown } from "lucide-react";
-import { fmtBRL, fmtDate, fmtNum } from "@/lib/format";
+import { fmtBRL, fmtDate, fmtNum, fmtCompetencia } from "@/lib/format";
 import { StatusBadge } from "@/components/contrato/ContratoMedicoesTab";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
@@ -63,7 +63,7 @@ export default function MedicaoDetalhe() {
     doc.setFontSize(10);
     doc.text(`Cliente: ${med.contratos.clientes.razao_social}`, 14, 26);
     doc.text(`Contrato: ${med.contratos.numero_dj}`, 14, 32);
-    doc.text(`Competência: ${fmtDate(med.competencia).slice(3)}`, 14, 38);
+    doc.text(`Competência: ${fmtCompetencia(med.competencia)}`, 14, 38);
     doc.text(`Período: ${fmtDate(med.periodo_inicio)} a ${fmtDate(med.periodo_fim)}`, 14, 44);
     autoTable(doc, {
       startY: 50,
@@ -81,7 +81,7 @@ export default function MedicaoDetalhe() {
   return (
     <div>
       <Button variant="ghost" size="sm" className="mb-2 -ml-2" onClick={() => navigate(-1)}><ArrowLeft className="mr-1 h-4 w-4" />Voltar</Button>
-      <PageHeader title={`Medição ${fmtDate(med.competencia).slice(3)}`} description={`${med.contratos.numero_dj} — ${med.contratos.clientes.razao_social}`}
+      <PageHeader title={`Medição ${fmtCompetencia(med.competencia)}`} description={`${med.contratos.numero_dj} — ${med.contratos.clientes.razao_social}`}
         actions={<div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={med.status} />
           <Button size="sm" variant="outline" onClick={exportarPDF}><FileDown className="mr-1 h-4 w-4" />PDF</Button>
