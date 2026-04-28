@@ -453,7 +453,44 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                 </div>
               </section>
 
-              {Math.abs(calc.divergencia_ht) > 0.01 && (
+              <section>
+                <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Período efetivo do equipamento (proporcionalidade)</h4>
+                <div className="rounded-md border bg-muted/20 p-3 space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    Período da medição: <strong>{periodoInicio}</strong> a <strong>{periodoFim}</strong>. Se o equipamento foi mobilizado/desmobilizado dentro do período, informe as datas para aplicar garantia proporcional. Em branco, considera o período inteiro.
+                  </p>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div>
+                      <Label>Data início operação</Label>
+                      <Input type="date" value={form.data_inicio_operacao_item} onChange={(e) => setForm({ ...form, data_inicio_operacao_item: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label>Data fim operação / desmobilização</Label>
+                      <Input type="date" value={form.data_fim_operacao_item} onChange={(e) => setForm({ ...form, data_fim_operacao_item: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-4 text-xs">
+                    <div><span className="text-muted-foreground">Dias considerados:</span> <strong>{calc.dias_considerados}</strong></div>
+                    <div><span className="text-muted-foreground">Garantia mensal:</span> <strong>{fmtNum(calc.garantia_mensal)}h</strong></div>
+                    <div><span className="text-muted-foreground">Base de dias:</span> <strong>{calc.base_dias}</strong></div>
+                    <div><span className="text-muted-foreground">Garantia proporcional:</span> <strong className={calc.aplicar_proporcional ? "text-amber-600" : ""}>{fmtNum(calc.garantia_proporcional)}h</strong></div>
+                  </div>
+                  {calc.aplicar_proporcional && (
+                    <div>
+                      <Label>Motivo da proporcionalidade</Label>
+                      <Textarea rows={2} placeholder="Ex.: equipamento desmobilizado em 28/03/2026"
+                        value={form.motivo_proporcionalidade}
+                        onChange={(e) => setForm({ ...form, motivo_proporcionalidade: e.target.value })} />
+                    </div>
+                  )}
+                  {calc.erro_data && (
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>{calc.erro_data}</AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              </section>
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
