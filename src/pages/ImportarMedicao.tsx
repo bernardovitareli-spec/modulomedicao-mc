@@ -274,6 +274,17 @@ export default function ImportarMedicao() {
   const [modelo, setModelo] = useState<ModeloLayout | null>(null);
   const [sheetUsed, setSheetUsed] = useState<string>("");
   const [importing, setImporting] = useState(false);
+  // Overrides por contrato (Nº DJ) — usados especialmente no Modelo M1 onde
+  // CNPJ, tipo_servico, codigo_cliente, periodo_inicio e periodo_fim podem
+  // não vir na planilha e precisam ser informados antes de confirmar.
+  const [overrides, setOverrides] = useState<Record<string, {
+    cnpj?: string;
+    codigo_cliente?: string;
+    tipo_servico?: string;
+    periodo_inicio?: string;
+    periodo_fim?: string;
+  }>>({});
+  const [confirmDivergencia, setConfirmDivergencia] = useState(false);
 
   const onFile = async (file: File) => {
     setFilename(file.name);
