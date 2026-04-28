@@ -14,16 +14,749 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      aprovacoes: {
+        Row: {
+          comentario: string | null
+          created_at: string
+          etapa: Database["public"]["Enums"]["aprovacao_etapa"]
+          id: string
+          medicao_id: string
+          resultado: Database["public"]["Enums"]["aprovacao_resultado"]
+          user_id: string
+        }
+        Insert: {
+          comentario?: string | null
+          created_at?: string
+          etapa: Database["public"]["Enums"]["aprovacao_etapa"]
+          id?: string
+          medicao_id: string
+          resultado: Database["public"]["Enums"]["aprovacao_resultado"]
+          user_id: string
+        }
+        Update: {
+          comentario?: string | null
+          created_at?: string
+          etapa?: Database["public"]["Enums"]["aprovacao_etapa"]
+          id?: string
+          medicao_id?: string
+          resultado?: Database["public"]["Enums"]["aprovacao_resultado"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aprovacoes_medicao_id_fkey"
+            columns: ["medicao_id"]
+            isOneToOne: false
+            referencedRelation: "medicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_log: {
+        Row: {
+          acao: string
+          created_at: string
+          dados_antes: Json | null
+          dados_depois: Json | null
+          entidade: string
+          entidade_id: string | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          dados_antes?: Json | null
+          dados_depois?: Json | null
+          entidade: string
+          entidade_id?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          dados_antes?: Json | null
+          dados_depois?: Json | null
+          entidade?: string
+          entidade_id?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      clientes: {
+        Row: {
+          cep: string | null
+          cidade: string | null
+          cnpj: string
+          contato_email: string | null
+          contato_nome: string | null
+          contato_telefone: string | null
+          created_at: string
+          created_by: string | null
+          endereco: string | null
+          id: string
+          inscricao_estadual: string | null
+          nome_fantasia: string | null
+          observacoes: string | null
+          razao_social: string
+          status: Database["public"]["Enums"]["cliente_status"]
+          uf: string | null
+          updated_at: string
+        }
+        Insert: {
+          cep?: string | null
+          cidade?: string | null
+          cnpj: string
+          contato_email?: string | null
+          contato_nome?: string | null
+          contato_telefone?: string | null
+          created_at?: string
+          created_by?: string | null
+          endereco?: string | null
+          id?: string
+          inscricao_estadual?: string | null
+          nome_fantasia?: string | null
+          observacoes?: string | null
+          razao_social: string
+          status?: Database["public"]["Enums"]["cliente_status"]
+          uf?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cep?: string | null
+          cidade?: string | null
+          cnpj?: string
+          contato_email?: string | null
+          contato_nome?: string | null
+          contato_telefone?: string | null
+          created_at?: string
+          created_by?: string | null
+          endereco?: string | null
+          id?: string
+          inscricao_estadual?: string | null
+          nome_fantasia?: string | null
+          observacoes?: string | null
+          razao_social?: string
+          status?: Database["public"]["Enums"]["cliente_status"]
+          uf?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contrato_alteracoes: {
+        Row: {
+          contrato_id: string
+          created_at: string
+          created_by: string | null
+          descricao: string
+          detalhes: Json | null
+          id: string
+          impacto_prazo_dias: number | null
+          impacto_valor: number | null
+          numero_aditivo: string | null
+          vigencia_fim: string | null
+          vigencia_inicio: string
+        }
+        Insert: {
+          contrato_id: string
+          created_at?: string
+          created_by?: string | null
+          descricao: string
+          detalhes?: Json | null
+          id?: string
+          impacto_prazo_dias?: number | null
+          impacto_valor?: number | null
+          numero_aditivo?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio: string
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string
+          detalhes?: Json | null
+          id?: string
+          impacto_prazo_dias?: number | null
+          impacto_valor?: number | null
+          numero_aditivo?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contrato_alteracoes_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contrato_equipamentos: {
+        Row: {
+          ativo: boolean
+          contrato_id: string
+          created_at: string
+          data_fim: string | null
+          data_inicio: string
+          equipamento_id: string
+          horimetro_inicial: number | null
+          id: string
+          valor_hora_override: number | null
+        }
+        Insert: {
+          ativo?: boolean
+          contrato_id: string
+          created_at?: string
+          data_fim?: string | null
+          data_inicio: string
+          equipamento_id: string
+          horimetro_inicial?: number | null
+          id?: string
+          valor_hora_override?: number | null
+        }
+        Update: {
+          ativo?: boolean
+          contrato_id?: string
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          equipamento_id?: string
+          horimetro_inicial?: number | null
+          id?: string
+          valor_hora_override?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contrato_equipamentos_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrato_equipamentos_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contrato_regras: {
+        Row: {
+          ativa: boolean
+          contrato_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          observacoes: string | null
+          parametros: Json
+          tipo: Database["public"]["Enums"]["regra_tipo"]
+          vigencia_fim: string | null
+          vigencia_inicio: string
+        }
+        Insert: {
+          ativa?: boolean
+          contrato_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          observacoes?: string | null
+          parametros?: Json
+          tipo: Database["public"]["Enums"]["regra_tipo"]
+          vigencia_fim?: string | null
+          vigencia_inicio: string
+        }
+        Update: {
+          ativa?: boolean
+          contrato_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          observacoes?: string | null
+          parametros?: Json
+          tipo?: Database["public"]["Enums"]["regra_tipo"]
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contrato_regras_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contratos: {
+        Row: {
+          centro_custo: string | null
+          cliente_id: string
+          created_at: string
+          created_by: string | null
+          garantia_minima_horas: number | null
+          id: string
+          inicio_operacao: string
+          numero_dj: string
+          observacoes: string | null
+          status: Database["public"]["Enums"]["contrato_status"]
+          termino_contrato: string
+          tipo_servico: string
+          updated_at: string
+          valor_global: number | null
+          valor_hora_padrao: number | null
+        }
+        Insert: {
+          centro_custo?: string | null
+          cliente_id: string
+          created_at?: string
+          created_by?: string | null
+          garantia_minima_horas?: number | null
+          id?: string
+          inicio_operacao: string
+          numero_dj: string
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["contrato_status"]
+          termino_contrato: string
+          tipo_servico: string
+          updated_at?: string
+          valor_global?: number | null
+          valor_hora_padrao?: number | null
+        }
+        Update: {
+          centro_custo?: string | null
+          cliente_id?: string
+          created_at?: string
+          created_by?: string | null
+          garantia_minima_horas?: number | null
+          id?: string
+          inicio_operacao?: string
+          numero_dj?: string
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["contrato_status"]
+          termino_contrato?: string
+          tipo_servico?: string
+          updated_at?: string
+          valor_global?: number | null
+          valor_hora_padrao?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contratos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipamentos: {
+        Row: {
+          ano: number | null
+          created_at: string
+          id: string
+          modelo: string
+          observacoes: string | null
+          serie: string | null
+          status: Database["public"]["Enums"]["equipamento_status"]
+          tag: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          ano?: number | null
+          created_at?: string
+          id?: string
+          modelo: string
+          observacoes?: string | null
+          serie?: string | null
+          status?: Database["public"]["Enums"]["equipamento_status"]
+          tag: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          ano?: number | null
+          created_at?: string
+          id?: string
+          modelo?: string
+          observacoes?: string | null
+          serie?: string | null
+          status?: Database["public"]["Enums"]["equipamento_status"]
+          tag?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      faturas: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_emissao: string | null
+          data_pagamento: string | null
+          data_vencimento: string | null
+          id: string
+          medicao_id: string
+          numero_nf: string | null
+          observacoes: string | null
+          status: Database["public"]["Enums"]["fatura_status"]
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_emissao?: string | null
+          data_pagamento?: string | null
+          data_vencimento?: string | null
+          id?: string
+          medicao_id: string
+          numero_nf?: string | null
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["fatura_status"]
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_emissao?: string | null
+          data_pagamento?: string | null
+          data_vencimento?: string | null
+          id?: string
+          medicao_id?: string
+          numero_nf?: string | null
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["fatura_status"]
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "faturas_medicao_id_fkey"
+            columns: ["medicao_id"]
+            isOneToOne: true
+            referencedRelation: "medicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      importacoes: {
+        Row: {
+          arquivo_nome: string
+          competencia: string
+          created_at: string
+          created_by: string | null
+          id: string
+          linhas_erro: number
+          linhas_validas: number
+          resumo: Json | null
+          total_linhas: number
+        }
+        Insert: {
+          arquivo_nome: string
+          competencia: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          linhas_erro?: number
+          linhas_validas?: number
+          resumo?: Json | null
+          total_linhas?: number
+        }
+        Update: {
+          arquivo_nome?: string
+          competencia?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          linhas_erro?: number
+          linhas_validas?: number
+          resumo?: Json | null
+          total_linhas?: number
+        }
+        Relationships: []
+      }
+      medicao_itens: {
+        Row: {
+          contrato_equipamento_id: string | null
+          created_at: string
+          equipamento_id: string
+          garantia_minima: number
+          horas_a_pagar: number
+          horas_chuvoso: number
+          horas_descontaveis: number
+          horas_excecao_chuvoso: number
+          horas_informadas: number
+          horas_liquidas: number
+          horas_mecanicas: number
+          horas_paradas: number
+          horimetro_final: number | null
+          horimetro_inicial: number | null
+          id: string
+          medicao_id: string
+          memoria_calculo: Json | null
+          observacoes: string | null
+          periodo_fim: string
+          periodo_inicio: string
+          regras_aplicadas: Json | null
+          updated_at: string
+          valor_aditivos: number
+          valor_bruto: number
+          valor_complementares: number
+          valor_descontos: number
+          valor_final: number
+          valor_glosas: number
+          valor_hora: number
+        }
+        Insert: {
+          contrato_equipamento_id?: string | null
+          created_at?: string
+          equipamento_id: string
+          garantia_minima?: number
+          horas_a_pagar?: number
+          horas_chuvoso?: number
+          horas_descontaveis?: number
+          horas_excecao_chuvoso?: number
+          horas_informadas?: number
+          horas_liquidas?: number
+          horas_mecanicas?: number
+          horas_paradas?: number
+          horimetro_final?: number | null
+          horimetro_inicial?: number | null
+          id?: string
+          medicao_id: string
+          memoria_calculo?: Json | null
+          observacoes?: string | null
+          periodo_fim: string
+          periodo_inicio: string
+          regras_aplicadas?: Json | null
+          updated_at?: string
+          valor_aditivos?: number
+          valor_bruto?: number
+          valor_complementares?: number
+          valor_descontos?: number
+          valor_final?: number
+          valor_glosas?: number
+          valor_hora?: number
+        }
+        Update: {
+          contrato_equipamento_id?: string | null
+          created_at?: string
+          equipamento_id?: string
+          garantia_minima?: number
+          horas_a_pagar?: number
+          horas_chuvoso?: number
+          horas_descontaveis?: number
+          horas_excecao_chuvoso?: number
+          horas_informadas?: number
+          horas_liquidas?: number
+          horas_mecanicas?: number
+          horas_paradas?: number
+          horimetro_final?: number | null
+          horimetro_inicial?: number | null
+          id?: string
+          medicao_id?: string
+          memoria_calculo?: Json | null
+          observacoes?: string | null
+          periodo_fim?: string
+          periodo_inicio?: string
+          regras_aplicadas?: Json | null
+          updated_at?: string
+          valor_aditivos?: number
+          valor_bruto?: number
+          valor_complementares?: number
+          valor_descontos?: number
+          valor_final?: number
+          valor_glosas?: number
+          valor_hora?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medicao_itens_contrato_equipamento_id_fkey"
+            columns: ["contrato_equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "contrato_equipamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medicao_itens_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medicao_itens_medicao_id_fkey"
+            columns: ["medicao_id"]
+            isOneToOne: false
+            referencedRelation: "medicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      medicoes: {
+        Row: {
+          competencia: string
+          contrato_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          importacao_id: string | null
+          observacoes: string | null
+          periodo_fim: string
+          periodo_inicio: string
+          status: Database["public"]["Enums"]["medicao_status"]
+          total_horas_informadas: number
+          total_horas_liquidas: number
+          total_horas_pagar: number
+          updated_at: string
+          valor_aditivos: number
+          valor_bruto: number
+          valor_complementares: number
+          valor_descontos: number
+          valor_final: number
+          valor_glosas: number
+        }
+        Insert: {
+          competencia: string
+          contrato_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          importacao_id?: string | null
+          observacoes?: string | null
+          periodo_fim: string
+          periodo_inicio: string
+          status?: Database["public"]["Enums"]["medicao_status"]
+          total_horas_informadas?: number
+          total_horas_liquidas?: number
+          total_horas_pagar?: number
+          updated_at?: string
+          valor_aditivos?: number
+          valor_bruto?: number
+          valor_complementares?: number
+          valor_descontos?: number
+          valor_final?: number
+          valor_glosas?: number
+        }
+        Update: {
+          competencia?: string
+          contrato_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          importacao_id?: string | null
+          observacoes?: string | null
+          periodo_fim?: string
+          periodo_inicio?: string
+          status?: Database["public"]["Enums"]["medicao_status"]
+          total_horas_informadas?: number
+          total_horas_liquidas?: number
+          total_horas_pagar?: number
+          updated_at?: string
+          valor_aditivos?: number
+          valor_bruto?: number
+          valor_complementares?: number
+          valor_descontos?: number
+          valor_final?: number
+          valor_glosas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medicoes_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medicoes_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_any_role: {
+        Args: {
+          _roles: Database["public"]["Enums"]["app_role"][]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role:
+        | "admin"
+        | "gestor_contrato"
+        | "operacional"
+        | "faturamento"
+        | "visualizacao"
+      aprovacao_etapa: "revisao_tecnica" | "aprovacao_gerencial"
+      aprovacao_resultado: "aprovado" | "rejeitado" | "ajuste_solicitado"
+      cliente_status: "ativo" | "inativo"
+      contrato_status: "rascunho" | "ativo" | "suspenso" | "encerrado"
+      equipamento_status: "ativo" | "manutencao" | "inativo"
+      fatura_status: "pendente" | "emitida" | "paga" | "cancelada"
+      medicao_status:
+        | "rascunho"
+        | "revisao_tecnica"
+        | "aprovada"
+        | "faturada"
+        | "rejeitada"
+        | "contestada"
+      regra_tipo:
+        | "valor_hora"
+        | "garantia_minima"
+        | "desconto_horas_mecanicas"
+        | "desconto_horas_paradas"
+        | "periodo_chuvoso"
+        | "excecao_chuvoso"
+        | "complementar"
+        | "desconto"
+        | "glosa"
+        | "aditivo_contratual"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +883,40 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: [
+        "admin",
+        "gestor_contrato",
+        "operacional",
+        "faturamento",
+        "visualizacao",
+      ],
+      aprovacao_etapa: ["revisao_tecnica", "aprovacao_gerencial"],
+      aprovacao_resultado: ["aprovado", "rejeitado", "ajuste_solicitado"],
+      cliente_status: ["ativo", "inativo"],
+      contrato_status: ["rascunho", "ativo", "suspenso", "encerrado"],
+      equipamento_status: ["ativo", "manutencao", "inativo"],
+      fatura_status: ["pendente", "emitida", "paga", "cancelada"],
+      medicao_status: [
+        "rascunho",
+        "revisao_tecnica",
+        "aprovada",
+        "faturada",
+        "rejeitada",
+        "contestada",
+      ],
+      regra_tipo: [
+        "valor_hora",
+        "garantia_minima",
+        "desconto_horas_mecanicas",
+        "desconto_horas_paradas",
+        "periodo_chuvoso",
+        "excecao_chuvoso",
+        "complementar",
+        "desconto",
+        "glosa",
+        "aditivo_contratual",
+      ],
+    },
   },
 } as const
