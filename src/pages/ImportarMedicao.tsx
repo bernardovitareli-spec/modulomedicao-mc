@@ -608,6 +608,7 @@ export default function ImportarMedicao() {
       for (const l of validas) {
         const ov = overrides[l.numero_dj] ?? {};
         const cnpjEfetivo = (ov.cnpj || l.cnpj || "").trim();
+        const codigoClienteEfetivo = (ov.codigo_cliente || l.codigo_cliente || "").trim();
         const tipoServicoEfetivo = (ov.tipo_servico || l.tipo_servico || "Locação").trim();
         const periodoIniEfetivo = ov.periodo_inicio || l.periodo_inicio || null;
         const periodoFimEfetivo = ov.periodo_fim || l.periodo_fim || null;
@@ -618,10 +619,19 @@ export default function ImportarMedicao() {
           const { data, error } = await supabase.from("clientes").insert({
             razao_social: l.contratado,
             cnpj: cnpjEfetivo || `IMPORT-${Date.now()}-${createdCli}`,
+            codigo_cliente: codigoClienteEfetivo || null,
             status: "ativo",
           } as any).select("id").single();
           if (error) throw error;
           clienteId = data.id; clientesCache.set(cliKey, clienteId); createdCli++;
+        } else if (cnpjEfetivo || codigoClienteEfetivo) {
+          // Atualiza dados informados manualmente em cliente já existente
+          const patch: any = {};
+          if (codigoClienteEfetivo) patch.codigo_cliente = codigoClienteEfetivo;
+          if (cnpjEfetivo && !cnpjEfetivo.startsWith("IMPORT-")) patch.cnpj = cnpjEfetivo;
+          if (Object.keys(patch).length) {
+            await supabase.from("clientes").update(patch).eq("id", clienteId);
+          }
         }
 
         let contrato = contratosCache.get(l.numero_dj);
