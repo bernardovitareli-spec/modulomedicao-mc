@@ -77,8 +77,8 @@ function calcProporcionalidade(
   else if (ini > fim) erro = "Data de início do equipamento maior que a data fim.";
   const ms = (a: string, b: string) => Math.round((new Date(b + "T00:00:00").getTime() - new Date(a + "T00:00:00").getTime()) / 86400000);
   const dias = Math.max(0, ms(ini, fim) + 1);
-  const proporcional = ini > periodoIni || fim < periodoFim;
   const base = baseDias && baseDias > 0 ? baseDias : 30;
+  const proporcional = dias < base;
   const garantiaProp = proporcional ? Math.round(((garantiaMensal || 0) / base) * dias * 100) / 100 : (garantiaMensal || 0);
   return { ini, fim, dias, proporcional, garantiaProp, erro };
 }
@@ -324,6 +324,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                 <TableHead className="text-right whitespace-nowrap">HT Inf.</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Diverg. HT</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Garantia</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Base dias</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Garant. Prop.</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Dias Cons.</TableHead>
                 <TableHead className="text-center whitespace-nowrap">Proporc.</TableHead>
@@ -357,6 +358,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
                     <TableCell className="text-right num">{fmtNum(i.horas_informadas)}</TableCell>
                     <TableCell className={`text-right num ${Math.abs(diverg) > 0.01 ? "text-destructive" : ""}`}>{fmtNum(diverg)}</TableCell>
                     <TableCell className="text-right num">{fmtNum(i.garantia_minima)}</TableCell>
+                    <TableCell className="text-right num">{contrato?.base_dias_garantia ?? 30}</TableCell>
                     <TableCell className="text-right num">{i.aplicar_garantia_proporcional ? fmtNum(i.garantia_proporcional_horas) : "-"}</TableCell>
                     <TableCell className="text-right num">{i.dias_considerados ?? "-"}</TableCell>
                     <TableCell className="text-center text-xs">{i.aplicar_garantia_proporcional ? <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-amber-700 dark:text-amber-400">Sim</span> : <span className="text-muted-foreground">Não</span>}</TableCell>
