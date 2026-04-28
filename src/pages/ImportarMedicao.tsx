@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { fmtBRL, fmtCompetencia } from "@/lib/format";
+import { fmtBRL, fmtCompetencia, fmtDate } from "@/lib/format";
 import { calcularItem } from "@/lib/calculo";
 
 const SHEET_MODELO_1 = "BASE DE DADOS";
@@ -745,6 +745,38 @@ export default function ImportarMedicao() {
               </div>
             </div>
           </CardContent></Card>
+
+          {validas.length > 0 && (
+            <Card className="mb-4"><CardContent className="p-4">
+              <h3 className="mb-2 text-sm font-semibold">Amostra do mapeamento — primeiras 5 linhas válidas</h3>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>Tipo Serviço</TableHead>
+                    <TableHead>Tipo Equipamento</TableHead>
+                    <TableHead>Modelo</TableHead>
+                    <TableHead>Série</TableHead>
+                    <TableHead>Tag</TableHead>
+                    <TableHead>Período Início</TableHead>
+                    <TableHead>Período Fim</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {validas.slice(0, 5).map((l) => (
+                      <TableRow key={`sample-${l.rowExcel}`}>
+                        <TableCell className="text-xs">{l.tipo_servico || "—"}</TableCell>
+                        <TableCell className="text-xs font-medium">{l.tipo_equip || "—"}</TableCell>
+                        <TableCell className="text-xs">{l.modelo || "—"}</TableCell>
+                        <TableCell className="font-mono text-xs">{l.serie || "—"}</TableCell>
+                        <TableCell className="font-mono text-xs">{l.tag || "—"}</TableCell>
+                        <TableCell className="text-xs num">{fmtDate(l.periodo_inicio)}</TableCell>
+                        <TableCell className="text-xs num">{fmtDate(l.periodo_fim)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent></Card>
+          )}
 
           {ignoradas.length > 0 && (
             <Card className="mb-4"><CardContent className="p-4">
