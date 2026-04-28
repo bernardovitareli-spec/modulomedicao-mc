@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { fmtBRL, fmtDate } from "@/lib/format";
+import { fmtBRL, fmtDate, fmtCompetencia } from "@/lib/format";
 
 export default function ContratoMedicoesTab({ contratoId }: { contratoId: string }) {
   const [list, setList] = useState<any[]>([]);
@@ -28,7 +28,7 @@ export default function ContratoMedicoesTab({ contratoId }: { contratoId: string
           {list.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-6 text-sm text-muted-foreground">Nenhuma medição.</TableCell></TableRow>}
           {list.map((m) => (
             <TableRow key={m.id} className="cursor-pointer" onClick={() => navigate(`/medicoes/${m.id}`)}>
-              <TableCell className="num font-medium">{fmtDate(m.competencia).slice(3)}</TableCell>
+              <TableCell className="num font-medium">{fmtCompetencia(m.competencia)}</TableCell>
               <TableCell className="text-sm num">{fmtDate(m.periodo_inicio)} → {fmtDate(m.periodo_fim)}</TableCell>
               <TableCell className="text-right num">{Number(m.total_horas_pagar).toFixed(2)}</TableCell>
               <TableCell className="text-right num font-semibold">{fmtBRL(m.valor_final)}</TableCell>
