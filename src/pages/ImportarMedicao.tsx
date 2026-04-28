@@ -145,8 +145,10 @@ function detectHeader(matrix: any[][], required: string[], maxRows = 30): Header
       for (let c = 0; c < normCells.length; c++) {
         const cell = normCells[c];
         if (!cell) continue;
-        if (aliases.some((a) => cell === a || cell.includes(a) || a.includes(cell))) {
-          if (!(logical in colMap)) colMap[logical] = c;
+        // Match exato OU cabeçalho começa com alias seguido de espaço (evita "tipo servico" casar com "tipo")
+        const matched = aliases.some((a) => cell === a || cell.startsWith(a + " ") || cell.endsWith(" " + a));
+        if (matched && !(logical in colMap)) {
+          colMap[logical] = c;
         }
       }
     }
