@@ -309,67 +309,105 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
           </Table>
         </div>
 
-        <Dialog open={!!detalheItem} onOpenChange={(o) => !o && setDetalheItem(null)}>
+        <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>
-                Detalhes do item — {detalheItem?.equipamentos?.tag} {detalheItem?.equipamentos?.modelo ? `(${detalheItem.equipamentos.modelo})` : ""}
-              </DialogTitle>
+              <DialogTitle>{form.id ? "Detalhes / Editar item" : "Novo item de medição"}</DialogTitle>
             </DialogHeader>
-            {detalheItem && (() => {
-              const htCalc = Math.max(0, Number(detalheItem.horimetro_final ?? 0) - Number(detalheItem.horimetro_inicial ?? 0));
-              const diverg = Number(detalheItem.horas_informadas ?? 0) - htCalc;
-              return (
-                <div className="space-y-4 text-sm">
+
+            <div className="space-y-4">
+              {/* Identificação (somente leitura) */}
+              {form.id && (() => {
+                const ce = contratoEqs.find((x) => x.id === form.contrato_equipamento_id);
+                const eq = ce?.equipamentos;
+                return (
                   <section>
-                    <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Equipamento</h4>
-                    <div className="grid gap-3 md:grid-cols-2 rounded-md border p-3">
-                      <DetRow l="Série" v={detalheItem.equipamentos?.serie ?? "-"} />
-                      <DetRow l="Tag" v={detalheItem.equipamentos?.tag ?? "-"} />
-                      <DetRow l="Tipo Equipamento" v={detalheItem.equipamentos?.tipo ?? "-"} />
-                      <DetRow l="Modelo" v={detalheItem.equipamentos?.modelo ?? "-"} />
+                    <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Identificação</h4>
+                    <div className="grid gap-3 md:grid-cols-3 rounded-md border bg-muted/20 p-3 text-sm">
+                      <DetRow l="Cliente" v={cliente ?? "-"} />
+                      <DetRow l="Contrato" v={contratoNumero ?? "-"} />
+                      <DetRow l="Competência" v={competencia ? fmtCompetencia(competencia) : "-"} />
+                      <DetRow l="Série" v={eq?.serie ?? "-"} />
+                      <DetRow l="Tag" v={eq?.tag ?? "-"} />
+                      <DetRow l="Tipo Equipamento" v={eq?.tipo ?? "-"} />
+                      <DetRow l="Modelo" v={eq?.modelo ?? "-"} />
                     </div>
                   </section>
-                  <section>
-                    <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Horímetro & Horas</h4>
-                    <div className="grid gap-3 md:grid-cols-3 rounded-md border p-3">
-                      <DetRow l="Horímetro Inicial" v={fmtNum(detalheItem.horimetro_inicial)} />
-                      <DetRow l="Horímetro Final" v={fmtNum(detalheItem.horimetro_final)} />
-                      <DetRow l="HT Calculado" v={fmtNum(htCalc)} />
-                      <DetRow l="HT Informado" v={fmtNum(detalheItem.horas_informadas)} />
-                      <DetRow l="Divergência HT" v={fmtNum(diverg)} accent={Math.abs(diverg) > 0.01} />
-                      <DetRow l="Garantia Contratual" v={fmtNum(detalheItem.garantia_minima)} />
-                      <DetRow l="Horas Mecânicas" v={fmtNum(detalheItem.horas_mecanicas)} />
-                      <DetRow l="Horas Líquidas" v={fmtNum(detalheItem.horas_liquidas)} />
-                      <DetRow l="Horas a Pagar" v={fmtNum(detalheItem.horas_a_pagar)} />
-                      <DetRow l="Período Chuvoso (h)" v={fmtNum(detalheItem.horas_chuvoso)} />
-                      <DetRow l="Exceção Chuvoso (h)" v={fmtNum(detalheItem.horas_excecao_chuvoso)} />
-                    </div>
-                  </section>
-                  <section>
-                    <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Valores</h4>
-                    <div className="grid gap-3 md:grid-cols-3 rounded-md border p-3">
-                      <DetRow l="Valor/Hora" v={fmtBRL(detalheItem.valor_hora)} />
-                      <DetRow l="Valor Bruto" v={fmtBRL(detalheItem.valor_bruto)} />
-                      <DetRow l="Complementares" v={fmtBRL(detalheItem.valor_complementares)} />
-                      <DetRow l="Descontos" v={fmtBRL(detalheItem.valor_descontos)} />
-                      <DetRow l="Valor Final" v={fmtBRL(detalheItem.valor_final)} accent />
-                    </div>
-                  </section>
-                  {detalheItem.observacoes && (
-                    <section>
-                      <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Observações</h4>
-                      <div className="rounded-md border p-3 whitespace-pre-wrap">{detalheItem.observacoes}</div>
-                    </section>
-                  )}
+                );
+              })()}
+
+              {!form.id && (
+                <div>
+                  <Label>Equipamento *</Label>
+                  <Select value={form.contrato_equipamento_id} onValueChange={onSelectEq}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      {eqOptions.map((ce) => (
+                        <SelectItem key={ce.id} value={ce.id}>
+                          {ce.equipamentos?.tag} — {ce.equipamentos?.tipo} {ce.equipamentos?.modelo}
+                          {ce.equipamentos?.serie ? ` (S/N ${ce.equipamentos.serie})` : ""}
+                        </SelectItem>
+                      ))}
+                      {eqOptions.length === 0 && <div className="px-2 py-2 text-xs text-muted-foreground">Todos os equipamentos do contrato já foram adicionados.</div>}
+                    </SelectContent>
+                  </Select>
                 </div>
-              );
-            })()}
+              )}
+
+              <section>
+                <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Campos operacionais (editáveis)</h4>
+                <div className="space-y-3">
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <Field label="Horímetro inicial" value={form.horimetro_inicial} onChange={(v) => setForm({ ...form, horimetro_inicial: v })} />
+                    <Field label="Horímetro final" value={form.horimetro_final} onChange={(v) => setForm({ ...form, horimetro_final: v })} />
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <Field label="HT informado (boletim)" value={form.horas_informadas_input} onChange={(v) => setForm({ ...form, horas_informadas_input: v })} />
+                    <Field label="Horas mecânicas" value={form.horas_mecanicas} onChange={(v) => setForm({ ...form, horas_mecanicas: v })} />
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <Field label="Período chuvoso (h)" value={form.horas_chuvoso} onChange={(v) => setForm({ ...form, horas_chuvoso: v })} />
+                    <Field label="Exceção chuvoso (h)" value={form.horas_excecao_chuvoso} onChange={(v) => setForm({ ...form, horas_excecao_chuvoso: v })} />
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <Field label="Complementares (R$)" value={form.valor_complementares} onChange={(v) => setForm({ ...form, valor_complementares: v })} />
+                    <Field label="Descontos (R$)" value={form.valor_descontos} onChange={(v) => setForm({ ...form, valor_descontos: v })} />
+                  </div>
+                  <div>
+                    <Label>Observações</Label>
+                    <Textarea rows={2} value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} />
+                  </div>
+                </div>
+              </section>
+
+              {Math.abs(calc.divergencia_ht) > 0.01 && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Divergência entre HT calculado ({fmtNum(calc.ht_calc)}) e HT informado ({fmtNum(calc.ht_informado)}): {fmtNum(calc.divergencia_ht)}h. Verifique os horímetros — você pode salvar mesmo assim.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <section>
+                <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Campos calculados (somente leitura)</h4>
+                <div className="grid gap-3 md:grid-cols-3 rounded-md border bg-muted/30 p-3">
+                  <FieldRO label="HT calculado" value={fmtNum(calc.ht_calc)} hint="final − inicial" />
+                  <FieldRO label="Divergência HT" value={fmtNum(calc.divergencia_ht)} hint="informado − calculado" accent={Math.abs(calc.divergencia_ht) > 0.01} />
+                  <FieldRO label="Horas líquidas" value={fmtNum(calc.horas_liquidas)} hint="HT inf. − mecânicas" />
+                  <FieldRO label="Garantia contratual" value={fmtNum(calc.garantia)} />
+                  <FieldRO label="Horas a pagar" value={fmtNum(calc.horas_a_pagar)} hint="máx(líq, garantia)" />
+                  <FieldRO label="Valor/hora" value={fmtBRL(calc.valor_hora)} />
+                  <div className="md:col-span-3">
+                    <FieldRO label="Valor final" value={fmtBRL(calc.valor_final)} hint={`${fmtNum(calc.horas_a_pagar)}h × ${fmtBRL(calc.valor_hora)} + compl. − desc.`} accent />
+                  </div>
+                </div>
+              </section>
+            </div>
+
             <DialogFooter>
-              <Button variant="outline" onClick={() => setDetalheItem(null)}>Fechar</Button>
-              <Button onClick={() => { const i = detalheItem; setDetalheItem(null); if (i) openEditar(i); }}>
-                <Pencil className="mr-1 h-3 w-3" />Editar item
-              </Button>
+              <Button variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
+              <Button onClick={salvar} disabled={saving}>Salvar item</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
