@@ -484,33 +484,25 @@ export default function ImportarMedicao() {
         } else seen.set(k, i);
       });
 
-      // Prefill de overrides M1: tenta localizar cliente existente por razão social
-      // ou código e copiar CNPJ; usa também valores que já vieram na planilha.
+      // Prefill de overrides M1: o "Contratado" da planilha = FORNECEDOR.
+      // Cliente/Contratante deve ser selecionado (default: Construtora Ápia).
       if (modeloDetectado === "M1") {
         const ovs: typeof overrides = {};
         const djs = Array.from(new Set(lidas.map((l) => l.numero_dj).filter(Boolean)));
-        const nomes = Array.from(new Set(lidas.map((l) => l.contratado.toUpperCase()).filter(Boolean)));
-        let clientesDb: any[] = [];
-        if (nomes.length) {
-          const { data } = await supabase
-            .from("clientes")
-            .select("razao_social, cnpj, nome_fantasia");
-          clientesDb = data ?? [];
-        }
+        const { data: cliAtivos } = await supabase
+          .from("clientes").select("id, razao_social").eq("status", "ativo").order("razao_social");
+        setClientesAtivos(cliAtivos ?? []);
+        const apia = (cliAtivos ?? []).find((c: any) =>
+          ["CONSTRUTORA ÁPIA", "CONSTRUTORA APIA"].includes(String(c.razao_social).toUpperCase()));
         for (const dj of djs) {
           const linhaRef = lidas.find((l) => l.numero_dj === dj);
           if (!linhaRef) continue;
-          const nomeUp = linhaRef.contratado.toUpperCase();
-          const match = clientesDb.find((c: any) =>
-            String(c.razao_social ?? "").toUpperCase() === nomeUp ||
-            String(c.nome_fantasia ?? "").toUpperCase() === nomeUp
-          );
           ovs[dj] = {
-            cnpj: linhaRef.cnpj || match?.cnpj || "",
-            codigo_cliente: linhaRef.codigo_cliente || "",
+            cnpj: linhaRef.cnpj || "",
             tipo_servico: linhaRef.tipo_servico || "",
             periodo_inicio: linhaRef.periodo_inicio || "",
             periodo_fim: linhaRef.periodo_fim || "",
+            cliente_id: apia?.id || "",
           };
         }
         setOverrides(ovs);
