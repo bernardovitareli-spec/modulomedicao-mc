@@ -523,15 +523,24 @@ export default function ImportarMedicao() {
 
   const validas = linhas.filter((l) => l.erros.length === 0);
 
+  // Helpers para aplicar overrides M1 (preenchidos manualmente pelo usuário)
+  const ovOf = (dj: string) => overrides[dj] ?? {};
+  const cnpjEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).cnpj || l.cnpj) : l.cnpj);
+  const codClienteEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).codigo_cliente || l.codigo_cliente) : l.codigo_cliente);
+  const tipoServicoEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).tipo_servico || l.tipo_servico) : l.tipo_servico);
+  const periodoIniEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).periodo_inicio || l.periodo_inicio || "") : (l.periodo_inicio || ""));
+  const periodoFimEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).periodo_fim || l.periodo_fim || "") : (l.periodo_fim || ""));
+
   // Resumo agregado
   const clientes = Array.from(new Set(validas.map((l) => l.contratado)));
-  const cnpjs = Array.from(new Set(validas.map((l) => l.cnpj).filter(Boolean)));
+  const cnpjs = Array.from(new Set(validas.map(cnpjEf).filter(Boolean)));
+  const codigosCliente = Array.from(new Set(validas.map(codClienteEf).filter(Boolean)));
   const contratos = Array.from(new Set(validas.map((l) => l.numero_dj)));
-  const tiposServico = Array.from(new Set(validas.map((l) => l.tipo_servico).filter(Boolean)));
+  const tiposServico = Array.from(new Set(validas.map(tipoServicoEf).filter(Boolean)));
   const centrosCusto = Array.from(new Set(validas.map((l) => l.centro_custo).filter(Boolean)));
   const competencias = Array.from(new Set(validas.map((l) => l.mes_ref).filter(Boolean) as string[]));
-  const periodosIni = validas.map((l) => l.periodo_inicio).filter(Boolean) as string[];
-  const periodosFim = validas.map((l) => l.periodo_fim).filter(Boolean) as string[];
+  const periodosIni = validas.map(periodoIniEf).filter(Boolean) as string[];
+  const periodosFim = validas.map(periodoFimEf).filter(Boolean) as string[];
   const periodoIniMin = periodosIni.length ? periodosIni.sort()[0] : "";
   const periodoFimMax = periodosFim.length ? periodosFim.sort().reverse()[0] : "";
   const totalValor = validas.reduce((s, l) => s + l.valor_final, 0);
