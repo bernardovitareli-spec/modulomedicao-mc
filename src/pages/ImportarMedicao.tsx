@@ -440,7 +440,7 @@ export default function ImportarMedicao() {
         if (modeloDetectado === "M2" && !periodo_fim) erros.push("Período fim inválido");
         if (hor_final < hor_inicial) erros.push("Horímetro final < inicial");
         if (!garantia) alertas.push("Garantia contratual ausente");
-        if (Math.abs(divergencia_ht) > 0.01) alertas.push(`Divergência HT: ${divergencia_ht.toFixed(2)}h`);
+        if (Math.abs(divergencia_ht) > 0.01) alertas.push(`Divergência HT: ${fmtNum(divergencia_ht)}h`);
         if (valor_planilha && Math.abs(diferenca_calc) > 0.10) {
           alertas.push("Divergência entre valor da planilha e valor recalculado.");
         }
@@ -830,9 +830,9 @@ export default function ImportarMedicao() {
               <Stat label="Período início" value={periodoIniMin ? fmtDate(periodoIniMin) : "—"} />
               <Stat label="Período fim" value={periodoFimMax ? fmtDate(periodoFimMax) : "—"} />
               <Stat label="Equipamentos válidos" value={String(validas.length)} />
-              <Stat label="Total HT informado" value={totalHorasInf.toFixed(2)} />
-              {modelo === "M1" && <Stat label="Total horas à disposição" value={totalHorasDisp.toFixed(2)} />}
-              <Stat label="Total horas mecânicas" value={totalHorasMec.toFixed(2)} />
+              <Stat label="Total HT informado" value={fmtNum(totalHorasInf)} />
+              {modelo === "M1" && <Stat label="Total horas à disposição" value={fmtNum(totalHorasDisp)} />}
+              <Stat label="Total horas mecânicas" value={fmtNum(totalHorasMec)} />
               <Stat label="Total complementares" value={fmtBRL(totalComplementares)} />
               <Stat label="Total descontos" value={fmtBRL(totalDesc)} />
               <Stat label="Valor total previsto" value={fmtBRL(totalValor)} highlight />
@@ -986,15 +986,15 @@ export default function ImportarMedicao() {
                           <TableCell className="font-mono whitespace-nowrap">{l.serie || "—"}</TableCell>
                           <TableCell className="font-mono whitespace-nowrap">{l.tag || "—"}</TableCell>
                           <TableCell className="whitespace-nowrap">{l.centro_custo || "—"}</TableCell>
-                          <TableCell className="num text-right">{l.hor_inicial.toFixed(2)}</TableCell>
-                          <TableCell className="num text-right">{l.hor_final.toFixed(2)}</TableCell>
-                          <TableCell className="num text-right">{l.ht_calculado.toFixed(2)}</TableCell>
-                          <TableCell className="num text-right">{l.ht_informado.toFixed(2)}</TableCell>
-                          <TableCell className="num text-right">{l.garantia.toFixed(2)}</TableCell>
-                          <TableCell className="num text-right">{garantiaReal.toFixed(2)}</TableCell>
-                          <TableCell className="num text-right">{l.horas_disp.toFixed(2)}</TableCell>
-                          <TableCell className="num text-right">{l.horas_mec.toFixed(2)}</TableCell>
-                          <TableCell className="num text-right font-semibold">{l.horas_a_pagar.toFixed(2)}</TableCell>
+                          <TableCell className="num text-right">{fmtNum(l.hor_inicial)}</TableCell>
+                          <TableCell className="num text-right">{fmtNum(l.hor_final)}</TableCell>
+                          <TableCell className="num text-right">{fmtNum(l.ht_calculado)}</TableCell>
+                          <TableCell className="num text-right">{fmtNum(l.ht_informado)}</TableCell>
+                          <TableCell className="num text-right">{fmtNum(l.garantia)}</TableCell>
+                          <TableCell className="num text-right">{fmtNum(garantiaReal)}</TableCell>
+                          <TableCell className="num text-right">{fmtNum(l.horas_disp)}</TableCell>
+                          <TableCell className="num text-right">{fmtNum(l.horas_mec)}</TableCell>
+                          <TableCell className="num text-right font-semibold">{fmtNum(l.horas_a_pagar)}</TableCell>
                           <TableCell className="num text-right">{fmtBRL(l.valor_hora)}</TableCell>
                           <TableCell className="num text-right">{fmtBRL(l.desc_manutencao)}</TableCell>
                           <TableCell className="num text-right">{l.valor_planilha ? fmtBRL(l.valor_planilha) : "—"}</TableCell>
@@ -1110,9 +1110,9 @@ export default function ImportarMedicao() {
                         <TableCell className="text-xs max-w-[200px] truncate">{l.contratado}</TableCell>
                         <TableCell className="font-mono text-xs">{l.serie}</TableCell>
                         <TableCell className="font-mono text-xs">{l.tag}</TableCell>
-                        <TableCell className="num text-xs">{l.ht_calculado.toFixed(2)}</TableCell>
-                        <TableCell className="num text-xs">{l.ht_informado.toFixed(2)}</TableCell>
-                        <TableCell className="num text-xs">{l.horas_a_pagar.toFixed(2)}</TableCell>
+                        <TableCell className="num text-xs">{fmtNum(l.ht_calculado)}</TableCell>
+                        <TableCell className="num text-xs">{fmtNum(l.ht_informado)}</TableCell>
+                        <TableCell className="num text-xs">{fmtNum(l.horas_a_pagar)}</TableCell>
                         <TableCell className="num text-xs font-medium">{fmtBRL(l.valor_final)}</TableCell>
                         <TableCell className="text-xs">
                           {l.erros.map((e, j) => <div key={j} className="text-destructive">• {e}</div>)}
