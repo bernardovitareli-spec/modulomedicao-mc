@@ -264,6 +264,7 @@ export type Database = {
           contrato_id: string
           created_at: string
           created_by: string | null
+          equipamento_id: string | null
           id: string
           observacoes: string | null
           parametros: Json
@@ -276,6 +277,7 @@ export type Database = {
           contrato_id: string
           created_at?: string
           created_by?: string | null
+          equipamento_id?: string | null
           id?: string
           observacoes?: string | null
           parametros?: Json
@@ -288,6 +290,7 @@ export type Database = {
           contrato_id?: string
           created_at?: string
           created_by?: string | null
+          equipamento_id?: string | null
           id?: string
           observacoes?: string | null
           parametros?: Json
@@ -301,6 +304,13 @@ export type Database = {
             columns: ["contrato_id"]
             isOneToOne: false
             referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrato_regras_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos"
             referencedColumns: ["id"]
           },
         ]
@@ -911,6 +921,8 @@ export type Database = {
         | "desconto"
         | "glosa"
         | "aditivo_contratual"
+        | "desconto_manual"
+        | "regra_personalizada"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1072,6 +1084,8 @@ export const Constants = {
         "desconto",
         "glosa",
         "aditivo_contratual",
+        "desconto_manual",
+        "regra_personalizada",
       ],
     },
   },
