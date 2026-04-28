@@ -21,7 +21,7 @@ const TIPOS_SERVICO_M1 = [
   "Outro",
 ];
 import { toast } from "sonner";
-import { fmtBRL, fmtCompetencia, fmtDate } from "@/lib/format";
+import { fmtBRL, fmtCompetencia, fmtDate, fmtNum } from "@/lib/format";
 import { calcularItem } from "@/lib/calculo";
 
 const SHEET_MODELO_1 = "BASE DE DADOS";
