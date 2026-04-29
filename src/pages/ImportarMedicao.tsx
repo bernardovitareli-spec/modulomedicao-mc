@@ -729,7 +729,7 @@ export default function ImportarMedicao() {
           continue;
         }
         if (r.decisao === "reabrir") {
-          const { error } = await supabase.rpc("reabrir_medicao_cancelada", {
+          const { error } = await supabase.rpc("reabrir_medicao_cancelada" as any, {
             _medicao_id: conflito.medicaoExistente.id,
             _motivo: r.motivo,
           });
