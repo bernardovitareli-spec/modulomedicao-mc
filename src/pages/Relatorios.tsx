@@ -16,7 +16,7 @@ export default function Relatorios() {
 
   useEffect(() => {
     (async () => {
-      const { data: m } = await supabase.from("medicoes").select("valor_final, total_horas_pagar, contratos(clientes(razao_social))").gte("competencia", ini).lte("competencia", fim).in("status", ["aprovada", "faturada"]);
+      const { data: m } = await supabase.from("medicoes").select("valor_final, total_horas_pagar, contratos(clientes(razao_social))").gte("competencia", ini).lte("competencia", fim).in("status", ["aprovada_internamente", "aprovada_cliente", "faturada", "paga"]);
       const cli: Record<string, { nome: string; valor: number; horas: number }> = {};
       m?.forEach((x: any) => {
         const k = x.contratos?.clientes?.razao_social ?? "—";

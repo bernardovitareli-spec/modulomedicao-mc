@@ -13,7 +13,7 @@ export default function Aprovacao() {
   const [list, setList] = useState<any[]>([]);
 
   useEffect(() => {
-    supabase.from("medicoes").select("*, contratos(numero_dj, clientes(razao_social))").eq("status", "revisao_tecnica").order("competencia", { ascending: false })
+    supabase.from("medicoes").select("*, contratos(numero_dj, clientes(razao_social))").in("status", ["em_revisao_interna", "aprovada_internamente"]).order("competencia", { ascending: false })
       .then(({ data }) => setList(data ?? []));
   }, []);
 
