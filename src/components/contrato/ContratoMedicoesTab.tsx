@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { fmtBRL, fmtDate, fmtCompetencia } from "@/lib/format";
+import { STATUS_LABELS, STATUS_BADGE_VARIANT } from "@/lib/medicaoStatus";
 
 export default function ContratoMedicoesTab({ contratoId }: { contratoId: string }) {
   const [list, setList] = useState<any[]>([]);
@@ -42,9 +43,7 @@ export default function ContratoMedicoesTab({ contratoId }: { contratoId: string
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { STATUS_LABELS, STATUS_BADGE_VARIANT } = require("@/lib/medicaoStatus");
-  const v = STATUS_BADGE_VARIANT[status] ?? "secondary";
-  const l = STATUS_LABELS[status] ?? status;
+  const v = (STATUS_BADGE_VARIANT as any)[status] ?? "secondary";
+  const l = (STATUS_LABELS as any)[status] ?? status;
   return <Badge variant={v as any}>{l}</Badge>;
 }
