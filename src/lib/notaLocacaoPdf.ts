@@ -7,16 +7,25 @@ let _logoDataUrl: string | null = null;
 async function loadLogoDataUrl(): Promise<string | null> {
   if (_logoDataUrl) return _logoDataUrl;
   try {
-    const res = await fetch(logoMcUrl);
-    const blob = await res.blob();
-    _logoDataUrl = await new Promise<string>((resolve, reject) => {
-      const r = new FileReader();
-      r.onloadend = () => resolve(r.result as string);
-      r.onerror = reject;
-      r.readAsDataURL(blob);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = logoMcUrl;
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = (e) => reject(e);
     });
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0);
+    _logoDataUrl = canvas.toDataURL("image/png");
     return _logoDataUrl;
-  } catch { return null; }
+  } catch (e) {
+    console.error("[notaLocacaoPdf] Falha ao carregar logo:", e);
+    return null;
+  }
 }
 export async function getLogoDataUrl() { return loadLogoDataUrl(); }
 
