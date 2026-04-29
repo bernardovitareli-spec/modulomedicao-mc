@@ -42,14 +42,9 @@ export default function ContratoMedicoesTab({ contratoId }: { contratoId: string
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { v: any; l: string }> = {
-    rascunho: { v: "outline", l: "Rascunho" },
-    revisao_tecnica: { v: "secondary", l: "Em revisão" },
-    aprovada: { v: "default", l: "Aprovada" },
-    faturada: { v: "default", l: "Faturada" },
-    rejeitada: { v: "destructive", l: "Rejeitada" },
-    contestada: { v: "destructive", l: "Contestada" },
-  };
-  const c = map[status] ?? { v: "secondary", l: status };
-  return <Badge variant={c.v}>{c.l}</Badge>;
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { STATUS_LABELS, STATUS_BADGE_VARIANT } = require("@/lib/medicaoStatus");
+  const v = STATUS_BADGE_VARIANT[status] ?? "secondary";
+  const l = STATUS_LABELS[status] ?? status;
+  return <Badge variant={v as any}>{l}</Badge>;
 }
