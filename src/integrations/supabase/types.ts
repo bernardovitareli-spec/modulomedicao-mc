@@ -520,6 +520,48 @@ export type Database = {
         }
         Relationships: []
       }
+      medicao_anexos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          medicao_id: string
+          mime_type: string | null
+          nome_arquivo: string
+          observacoes: string | null
+          storage_path: string
+          tamanho_bytes: number | null
+          tipo: string
+          user_email: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          medicao_id: string
+          mime_type?: string | null
+          nome_arquivo: string
+          observacoes?: string | null
+          storage_path: string
+          tamanho_bytes?: number | null
+          tipo: string
+          user_email?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          medicao_id?: string
+          mime_type?: string | null
+          nome_arquivo?: string
+          observacoes?: string | null
+          storage_path?: string
+          tamanho_bytes?: number | null
+          tipo?: string
+          user_email?: string | null
+        }
+        Relationships: []
+      }
       medicao_item_alteracoes: {
         Row: {
           acao: string
