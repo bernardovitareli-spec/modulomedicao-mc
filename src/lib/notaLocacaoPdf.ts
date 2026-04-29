@@ -316,7 +316,7 @@ export function gerarNotaLocacaoPDF(d: NotaLocacaoData): jsPDF {
   doc.line(rDiv, y, rDiv, y + recH);
   label(doc, "Número da Nota", M + 2, y + 4);
   doc.setFont("helvetica", "bold"); doc.setFontSize(11);
-  doc.text(d.fatura?.numero_nf ?? "—", M + 2, y + 12);
+  doc.text(d.fatura?.numero_nota_formatado ?? d.fatura?.numero_nf ?? "—", M + 2, y + 12);
   doc.setFont("helvetica", "normal"); doc.setFontSize(8);
   const recTxt = `Recebi(emos) de ${d.cliente?.razao_social ?? "-"}, as locações/reembolsos constantes desta nota indicada ao lado.`;
   doc.text(doc.splitTextToSize(recTxt, right - rDiv - 4), rDiv + 2, y + 6);
