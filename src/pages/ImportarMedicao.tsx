@@ -738,7 +738,7 @@ export default function ImportarMedicao() {
           await supabase.from("medicao_itens").delete().eq("medicao_id", conflito.medicaoExistente.id);
           medicaoIdsResolvidos.set(r.chave, conflito.medicaoExistente.id);
         } else if (r.decisao === "nova_versao") {
-          const { data, error } = await supabase.rpc("criar_nova_versao_medicao", {
+          const { data, error } = await supabase.rpc("criar_nova_versao_medicao" as any, {
             _medicao_anterior_id: conflito.medicaoExistente.id,
             _motivo: r.motivo,
           });
