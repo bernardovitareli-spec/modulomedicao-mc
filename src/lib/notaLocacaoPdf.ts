@@ -38,6 +38,7 @@ export interface NotaLocacaoData {
   fatura: {
     id: string;
     numero_nf?: string | null;
+    numero_nota_formatado?: string | null;
     data_emissao?: string | null;
     data_vencimento?: string | null;
     natureza_operacao?: string | null;
