@@ -175,6 +175,8 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   }
 
   const isRascunho = med.status === "rascunho";
+  const isEmRevisao = med.status === "em_revisao_interna" || med.status === "aprovada_internamente";
+  const watermarkText = isRascunho ? "RASCUNHO" : (isEmRevisao ? "EM REVISÃO" : null);
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
