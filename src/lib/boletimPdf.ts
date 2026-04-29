@@ -719,14 +719,15 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     const curW = doc.internal.pageSize.getWidth();
     const curH = doc.internal.pageSize.getHeight();
 
-    if (isRascunho) {
+    if (watermarkText) {
       doc.saveGraphicsState();
       // @ts-ignore
       doc.setGState(new (doc as any).GState({ opacity: 0.06 }));
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(110);
+      const fontSize = watermarkText.length > 9 ? 80 : 110;
+      doc.setFontSize(fontSize);
       doc.setTextColor(220, 38, 38);
-      doc.text("RASCUNHO", curW / 2, curH / 2, { align: "center", angle: 30 });
+      doc.text(watermarkText, curW / 2, curH / 2, { align: "center", angle: 30 });
       doc.restoreGraphicsState();
       doc.setTextColor(0, 0, 0);
     }
