@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Search, Plus, Upload, MoreHorizontal, Eye, Pencil, Trash2, Ban } from "lucide-react";
+import { Search, Plus, Upload, MoreHorizontal, Eye, Pencil, Trash2, Ban, History } from "lucide-react";
 import { fmtBRL, fmtCompetencia } from "@/lib/format";
 import { StatusBadge } from "@/components/contrato/ContratoMedicoesTab";
+import { Badge } from "@/components/ui/badge";
 import { usePermissions } from "@/lib/permissions";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { toast } from "sonner";
@@ -21,6 +22,7 @@ export default function Medicoes() {
   const [list, setList] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("todos");
+  const [versaoFilter, setVersaoFilter] = useState<"ativas" | "todas" | "inativas">("ativas");
   const [delTarget, setDelTarget] = useState<any>(null);
   const [cancelTarget, setCancelTarget] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -28,9 +30,11 @@ export default function Medicoes() {
   const load = () => {
     let q = supabase.from("medicoes").select("*, contratos(numero_dj, clientes(razao_social))").order("competencia", { ascending: false });
     if (status !== "todos") q = q.eq("status", status as any);
+    if (versaoFilter === "ativas") q = q.eq("ativa", true);
+    else if (versaoFilter === "inativas") q = q.eq("ativa", false);
     q.then(({ data }) => setList(data ?? []));
   };
-  useEffect(() => { load(); }, [status]);
+  useEffect(() => { load(); }, [status, versaoFilter]);
 
   const filtered = list.filter((m) =>
     !search || m.contratos?.numero_dj?.toLowerCase().includes(search.toLowerCase()) || m.contratos?.clientes?.razao_social?.toLowerCase().includes(search.toLowerCase()),
@@ -87,6 +91,14 @@ export default function Medicoes() {
               <SelectItem value="cancelada">Cancelada</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={versaoFilter} onValueChange={(v) => setVersaoFilter(v as any)}>
+            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ativas">Apenas versões ativas</SelectItem>
+              <SelectItem value="todas">Todas as versões</SelectItem>
+              <SelectItem value="inativas">Apenas inativas</SelectItem>
+            </SelectContent>
+          </Select>
           <span className="ml-auto text-xs text-muted-foreground">{filtered.length} medição(ões)</span>
         </div>
         <Table>
@@ -108,7 +120,13 @@ export default function Medicoes() {
                   <TableCell className="text-sm">{m.contratos?.clientes?.razao_social}</TableCell>
                   <TableCell className="text-right num">{Number(m.total_horas_pagar).toFixed(2)}</TableCell>
                   <TableCell className="text-right num font-semibold">{fmtBRL(m.valor_final)}</TableCell>
-                  <TableCell><StatusBadge status={m.status} /></TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <StatusBadge status={m.status} />
+                      {Number(m.versao ?? 1) > 1 && <Badge variant="outline" className="text-[10px]"><History className="h-2.5 w-2.5 mr-0.5" />v{m.versao}</Badge>}
+                      {m.ativa === false && <Badge variant="secondary" className="text-[10px]">inativa</Badge>}
+                    </div>
+                  </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

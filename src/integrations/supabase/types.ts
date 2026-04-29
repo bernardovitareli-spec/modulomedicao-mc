@@ -1082,6 +1082,7 @@ export type Database = {
           aprovada_cliente_em: string | null
           aprovada_cliente_por: string | null
           aprovador_cliente_nome: string | null
+          ativa: boolean
           competencia: string
           contrato_id: string
           created_at: string
@@ -1090,6 +1091,9 @@ export type Database = {
           enviada_cliente_por: string | null
           id: string
           importacao_id: string | null
+          medicao_original_id: string | null
+          motivo_reabertura: string | null
+          motivo_substituicao: string | null
           observacoes: string | null
           periodo_fim: string
           periodo_inicio: string
@@ -1104,11 +1108,13 @@ export type Database = {
           valor_descontos: number
           valor_final: number
           valor_glosas: number
+          versao: number
         }
         Insert: {
           aprovada_cliente_em?: string | null
           aprovada_cliente_por?: string | null
           aprovador_cliente_nome?: string | null
+          ativa?: boolean
           competencia: string
           contrato_id: string
           created_at?: string
@@ -1117,6 +1123,9 @@ export type Database = {
           enviada_cliente_por?: string | null
           id?: string
           importacao_id?: string | null
+          medicao_original_id?: string | null
+          motivo_reabertura?: string | null
+          motivo_substituicao?: string | null
           observacoes?: string | null
           periodo_fim: string
           periodo_inicio: string
@@ -1131,11 +1140,13 @@ export type Database = {
           valor_descontos?: number
           valor_final?: number
           valor_glosas?: number
+          versao?: number
         }
         Update: {
           aprovada_cliente_em?: string | null
           aprovada_cliente_por?: string | null
           aprovador_cliente_nome?: string | null
+          ativa?: boolean
           competencia?: string
           contrato_id?: string
           created_at?: string
@@ -1144,6 +1155,9 @@ export type Database = {
           enviada_cliente_por?: string | null
           id?: string
           importacao_id?: string | null
+          medicao_original_id?: string | null
+          motivo_reabertura?: string | null
+          motivo_substituicao?: string | null
           observacoes?: string | null
           periodo_fim?: string
           periodo_inicio?: string
@@ -1158,6 +1172,7 @@ export type Database = {
           valor_descontos?: number
           valor_final?: number
           valor_glosas?: number
+          versao?: number
         }
         Relationships: [
           {
@@ -1340,6 +1355,10 @@ export type Database = {
         Returns: undefined
       }
       criar_faturamento: { Args: { _medicao_id: string }; Returns: string }
+      criar_nova_versao_medicao: {
+        Args: { _medicao_anterior_id: string; _motivo: string }
+        Returns: string
+      }
       delete_medicao_safe: {
         Args: { _medicao_id: string; _motivo: string }
         Returns: Json
@@ -1398,6 +1417,10 @@ export type Database = {
       purge_importacao_teste: {
         Args: { _importacao_id: string; _motivo: string }
         Returns: Json
+      }
+      reabrir_medicao_cancelada: {
+        Args: { _medicao_id: string; _motivo: string }
+        Returns: undefined
       }
       recalcular_medicao: {
         Args: { _medicao_id: string; _motivo: string }

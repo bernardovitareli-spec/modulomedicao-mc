@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileDown, Trash2, Ban, Eye, Download, AlertTriangle } from "lucide-react";
+import { ArrowLeft, FileDown, Trash2, Ban, Eye, Download, AlertTriangle, RotateCcw } from "lucide-react";
+import { AcaoMedicaoDialog } from "@/components/medicao/AcaoMedicaoDialog";
 import { fmtBRL, fmtDate, fmtNum, fmtCompetencia } from "@/lib/format";
 import { StatusBadge } from "@/components/contrato/ContratoMedicoesTab";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -31,6 +32,7 @@ export default function MedicaoDetalhe() {
   const [itens, setItens] = useState<any[]>([]);
   const [delOpen, setDelOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [reabrirOpen, setReabrirOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
@@ -60,6 +62,18 @@ export default function MedicaoDetalhe() {
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Medição cancelada.");
+    load();
+  };
+
+  const onReabrir = async (values: Record<string, string>): Promise<void> => {
+    if (!id) return;
+    const motivo = values._motivo;
+    const { error } = await supabase.rpc("reabrir_medicao_cancelada" as any, {
+      _medicao_id: id,
+      _motivo: motivo,
+    });
+    if (error) { toast.error(error.message); throw error; }
+    toast.success("Medição reaberta como rascunho.");
     load();
   };
 
@@ -131,6 +145,11 @@ export default function MedicaoDetalhe() {
                 <Ban className="mr-1 h-4 w-4" />Cancelar medição
               </Button>
             )}
+            {perms.isAdmin && status === "cancelada" && (
+              <Button size="sm" variant="outline" onClick={() => setReabrirOpen(true)}>
+                <RotateCcw className="mr-1 h-4 w-4" />Reabrir como Rascunho
+              </Button>
+            )}
             {perms.canDeleteMedicao(status) && (
               <Button size="sm" variant="destructive" onClick={() => setDelOpen(true)}>
                 <Trash2 className="mr-1 h-4 w-4" />Excluir medição
@@ -166,7 +185,11 @@ export default function MedicaoDetalhe() {
           <Info l="Período fim" v={fmtDate(med.periodo_fim)} />
           <div>
             <p className="text-xs text-muted-foreground">Status</p>
-            <div className="mt-1"><StatusBadge status={status} /></div>
+            <div className="mt-1 flex items-center gap-1.5">
+              <StatusBadge status={status} />
+              {Number(med.versao ?? 1) > 1 && <span className="text-xs px-1.5 py-0.5 rounded border">v{med.versao}</span>}
+              {med.ativa === false && <span className="text-xs px-1.5 py-0.5 rounded bg-muted">inativa</span>}
+            </div>
           </div>
           {med.enviada_cliente_em && (
             <Info l="Enviada ao cliente em" v={fmtDate(med.enviada_cliente_em)} />
@@ -240,6 +263,16 @@ export default function MedicaoDetalhe() {
         confirmWord="CANCELAR"
         loading={busy}
         onConfirm={onCancel}
+      />
+      <AcaoMedicaoDialog
+        open={reabrirOpen}
+        onOpenChange={setReabrirOpen}
+        title="Reabrir medição cancelada como Rascunho"
+        description="A medição voltará para o status Rascunho e poderá ser editada/recalculada novamente. Outras versões da mesma chave (contrato/competência/período) serão marcadas como inativas."
+        motivoObrigatorio
+        motivoLabel="Motivo da reabertura *"
+        confirmLabel="Reabrir medição"
+        onConfirm={onReabrir}
       />
     </div>
   );
