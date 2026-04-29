@@ -431,48 +431,126 @@ export type Database = {
         }
         Relationships: []
       }
+      faturamento_historico: {
+        Row: {
+          acao: string
+          campo: string | null
+          contexto: Json | null
+          created_at: string
+          fatura_id: string
+          id: string
+          medicao_id: string | null
+          motivo: string | null
+          perfil_usuario: string | null
+          user_email: string | null
+          user_id: string | null
+          valor_anterior: string | null
+          valor_novo: string | null
+        }
+        Insert: {
+          acao: string
+          campo?: string | null
+          contexto?: Json | null
+          created_at?: string
+          fatura_id: string
+          id?: string
+          medicao_id?: string | null
+          motivo?: string | null
+          perfil_usuario?: string | null
+          user_email?: string | null
+          user_id?: string | null
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Update: {
+          acao?: string
+          campo?: string | null
+          contexto?: Json | null
+          created_at?: string
+          fatura_id?: string
+          id?: string
+          medicao_id?: string | null
+          motivo?: string | null
+          perfil_usuario?: string | null
+          user_email?: string | null
+          user_id?: string | null
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Relationships: []
+      }
       faturas: {
         Row: {
+          anexo_nf_nome: string | null
+          anexo_nf_storage_path: string | null
           created_at: string
           created_by: string | null
           data_emissao: string | null
           data_pagamento: string | null
+          data_prevista_recebimento: string | null
           data_vencimento: string | null
           id: string
           medicao_id: string
+          motivo_diferenca: string | null
           numero_nf: string | null
           observacoes: string | null
-          status: Database["public"]["Enums"]["fatura_status"]
+          observacoes_financeiras: string | null
+          observacoes_fiscais: string | null
+          serie_nf: string | null
+          status: Database["public"]["Enums"]["faturamento_status"]
           updated_at: string
           valor: number
+          valor_bruto: number | null
+          valor_liquido: number | null
+          valor_recebido: number | null
         }
         Insert: {
+          anexo_nf_nome?: string | null
+          anexo_nf_storage_path?: string | null
           created_at?: string
           created_by?: string | null
           data_emissao?: string | null
           data_pagamento?: string | null
+          data_prevista_recebimento?: string | null
           data_vencimento?: string | null
           id?: string
           medicao_id: string
+          motivo_diferenca?: string | null
           numero_nf?: string | null
           observacoes?: string | null
-          status?: Database["public"]["Enums"]["fatura_status"]
+          observacoes_financeiras?: string | null
+          observacoes_fiscais?: string | null
+          serie_nf?: string | null
+          status?: Database["public"]["Enums"]["faturamento_status"]
           updated_at?: string
           valor: number
+          valor_bruto?: number | null
+          valor_liquido?: number | null
+          valor_recebido?: number | null
         }
         Update: {
+          anexo_nf_nome?: string | null
+          anexo_nf_storage_path?: string | null
           created_at?: string
           created_by?: string | null
           data_emissao?: string | null
           data_pagamento?: string | null
+          data_prevista_recebimento?: string | null
           data_vencimento?: string | null
           id?: string
           medicao_id?: string
+          motivo_diferenca?: string | null
           numero_nf?: string | null
           observacoes?: string | null
-          status?: Database["public"]["Enums"]["fatura_status"]
+          observacoes_financeiras?: string | null
+          observacoes_fiscais?: string | null
+          serie_nf?: string | null
+          status?: Database["public"]["Enums"]["faturamento_status"]
           updated_at?: string
           valor?: number
+          valor_bruto?: number | null
+          valor_liquido?: number | null
+          valor_recebido?: number | null
         }
         Relationships: [
           {
@@ -949,8 +1027,25 @@ export type Database = {
         }
         Returns: Json
       }
+      _calc_status_faturamento: {
+        Args: { _f: Database["public"]["Tables"]["faturas"]["Row"] }
+        Returns: Database["public"]["Enums"]["faturamento_status"]
+      }
       _exigir_papel: {
         Args: { _papeis: Database["public"]["Enums"]["app_role"][] }
+        Returns: undefined
+      }
+      _log_fatura_change: {
+        Args: {
+          _acao: string
+          _antes: string
+          _campo: string
+          _ctx?: Json
+          _depois: string
+          _fatura_id: string
+          _medicao_id: string
+          _motivo: string
+        }
         Returns: undefined
       }
       _log_item_change: {
@@ -1030,10 +1125,34 @@ export type Database = {
         }
         Returns: undefined
       }
+      atualizar_faturamento: {
+        Args: {
+          _anexo_nf_nome: string
+          _anexo_nf_storage_path: string
+          _data_emissao: string
+          _data_prevista_recebimento: string
+          _data_vencimento: string
+          _fatura_id: string
+          _motivo: string
+          _numero_nf: string
+          _observacoes_financeiras: string
+          _observacoes_fiscais: string
+          _serie_nf: string
+          _valor_bruto: number
+          _valor_liquido: number
+        }
+        Returns: undefined
+      }
+      atualizar_status_atraso: { Args: never; Returns: number }
       cancel_medicao: {
         Args: { _medicao_id: string; _motivo: string }
         Returns: undefined
       }
+      cancelar_faturamento: {
+        Args: { _fatura_id: string; _motivo: string }
+        Returns: undefined
+      }
+      criar_faturamento: { Args: { _medicao_id: string }; Returns: string }
       delete_medicao_safe: {
         Args: { _medicao_id: string; _motivo: string }
         Returns: Json
@@ -1097,6 +1216,16 @@ export type Database = {
         Args: { _medicao_id: string; _motivo: string }
         Returns: Json
       }
+      registrar_pagamento_faturamento: {
+        Args: {
+          _data_pagamento: string
+          _fatura_id: string
+          _motivo: string
+          _motivo_diferenca: string
+          _valor_recebido: number
+        }
+        Returns: undefined
+      }
       reprovar_pelo_cliente: {
         Args: { _medicao_id: string; _motivo: string }
         Returns: undefined
@@ -1151,7 +1280,14 @@ export type Database = {
       cliente_status: "ativo" | "inativo"
       contrato_status: "rascunho" | "ativo" | "suspenso" | "encerrado"
       equipamento_status: "ativo" | "manutencao" | "inativo"
-      fatura_status: "pendente" | "emitida" | "paga" | "cancelada"
+      faturamento_status:
+        | "a_faturar"
+        | "nf_emitida"
+        | "aguardando_pagamento"
+        | "pago"
+        | "pago_parcial"
+        | "em_atraso"
+        | "cancelado"
       medicao_status:
         | "rascunho"
         | "em_revisao_interna"
@@ -1314,7 +1450,15 @@ export const Constants = {
       cliente_status: ["ativo", "inativo"],
       contrato_status: ["rascunho", "ativo", "suspenso", "encerrado"],
       equipamento_status: ["ativo", "manutencao", "inativo"],
-      fatura_status: ["pendente", "emitida", "paga", "cancelada"],
+      faturamento_status: [
+        "a_faturar",
+        "nf_emitida",
+        "aguardando_pagamento",
+        "pago",
+        "pago_parcial",
+        "em_atraso",
+        "cancelado",
+      ],
       medicao_status: [
         "rascunho",
         "em_revisao_interna",

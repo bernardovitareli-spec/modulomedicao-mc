@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, FileText, Wrench, ClipboardList, LogOut, HardHat,
-  ShieldAlert, Eraser, UserCog, ScrollText,
+  ShieldAlert, Eraser, UserCog, ScrollText, Receipt,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -29,6 +29,12 @@ const groups = [
     label: "Operação",
     items: [
       { title: "Medições", url: "/medicoes", icon: ClipboardList },
+    ],
+  },
+  {
+    label: "Financeiro",
+    items: [
+      { title: "Faturamento", url: "/faturamento", icon: Receipt },
     ],
   },
 ];
