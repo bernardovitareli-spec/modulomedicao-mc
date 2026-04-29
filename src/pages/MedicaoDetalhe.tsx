@@ -205,6 +205,10 @@ export default function MedicaoDetalhe() {
         <TabsContent value="fluxo" className="mt-4">
           <FluxoAprovacaoTab medicaoId={med.id} />
         </TabsContent>
+
+        <TabsContent value="anexos" className="mt-4">
+          <MedicaoAnexosTab medicaoId={med.id} />
+        </TabsContent>
       </Tabs>
 
       <DeleteConfirmDialog
