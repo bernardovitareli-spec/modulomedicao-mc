@@ -136,7 +136,7 @@ export default function GerarNotaLocacao() {
     }
     setBusy(true);
     try {
-      const doc = buildPDF();
+      const doc = await buildPDF();
       const blob = doc.output("blob");
       const path = `${id}/nota-${form.numero_nf || Date.now()}.pdf`;
       const up = await supabase.storage.from("medicao-anexos").upload(path, blob, {
