@@ -246,26 +246,33 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   doc.setFontSize(8);
   const gap = 6;
   const colWidth = (pageW - marginX * 2 - gap) / 2;
-  const labelW = 36;
-  const valueW = colWidth - labelW - 1;
 
-  const renderColuna = (rows: [string, string][], xBase: number): number => {
+  const renderColuna = (rows: [string, string][], xBase: number, labelW: number): number => {
+    const valueW = colWidth - labelW - 1;
     let cy = y;
     rows.forEach(([label, valor]) => {
       doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
       doc.setTextColor(100, 116, 139);
       doc.text(`${label}:`, xBase, cy);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(0, 0, 0);
+      // Reduz fonte para nomes longos (ex.: razão social do fornecedor)
+      let fSize = 8;
+      if (String(valor).length > 36) fSize = 7.2;
+      if (String(valor).length > 60) fSize = 6.6;
+      doc.setFontSize(fSize);
       const wrapped = doc.splitTextToSize(String(valor), valueW);
       doc.text(wrapped, xBase + labelW, cy);
-      cy += Math.max(1, wrapped.length) * 4 + 1;
+      const lineH = fSize <= 6.6 ? 3.2 : fSize <= 7.2 ? 3.6 : 4;
+      cy += Math.max(1, wrapped.length) * lineH + 1;
     });
+    doc.setFontSize(8);
     return cy;
   };
 
-  const yEsq = renderColuna(colEsq, marginX);
-  const yDir = renderColuna(colDir, marginX + colWidth + gap);
+  const yEsq = renderColuna(colEsq, marginX, 36);
+  const yDir = renderColuna(colDir, marginX + colWidth + gap, 32);
   y = Math.max(yEsq, yDir) + 3;
 
 
@@ -541,11 +548,12 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     doc.text(String(importacao.arquivo_nome), marginX + 42, y);
     y += 4.5;
   }
+  const isImportObs = (s: string) => /\bimportad[oa]\b/i.test(s) || /\.xlsx?\b/i.test(s) || /\.csv\b/i.test(s);
   const obs: string[] = [];
-  if (med.observacoes) obs.push(`${med.observacoes}`);
+  if (med.observacoes && !(modo === "cliente" && isImportObs(String(med.observacoes)))) obs.push(`${med.observacoes}`);
   if ((med as any).contratos?.observacoes) obs.push(`Observação do contrato: ${(med as any).contratos.observacoes}`);
   itensList.forEach((i: any) => {
-    if (i.observacoes) obs.push(`${i.equipamentos?.tag ?? "-"}: ${i.observacoes}`);
+    if (i.observacoes && !(modo === "cliente" && isImportObs(String(i.observacoes)))) obs.push(`${i.equipamentos?.tag ?? "-"}: ${i.observacoes}`);
     if (i.motivo_proporcionalidade) obs.push(`${i.equipamentos?.tag ?? "-"} (proporcionalidade): ${i.motivo_proporcionalidade}`);
   });
   if (obs.length === 0 && !(modo === "interno" && importacao?.arquivo_nome)) {
@@ -625,7 +633,7 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
         2: { cellWidth: 42, halign: "right" },
         3: { cellWidth: 42, halign: "right", fontStyle: "bold" },
       },
-      head: [["Equipamento", "Item ajustado", "Valor anterior", "Valor final"]],
+      head: [["Equipamento", "Item ajustado", "Anterior", "Atual"]],
       body: histList.map((r: any) => [
         r.equip,
         FIELD_LABEL[r.campo] ?? r.campo,
@@ -728,7 +736,7 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     doc.setTextColor(100, 116, 139);
     doc.setFont("helvetica", "normal");
 
-    const leftText = `Documento gerado automaticamente pelo Módulo de Medição - MC Terraplenagem${modo === "cliente" ? " - Versão Cliente" : ""}`;
+    const leftText = `Gerado pelo MedControl — MC Terraplenagem`;
     const centerText = geradoEm;
     const rightText = `Página ${p} de ${total}`;
 
