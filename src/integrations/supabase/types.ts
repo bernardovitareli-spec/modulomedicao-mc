@@ -728,12 +728,59 @@ export type Database = {
           },
         ]
       }
+      medicao_status_historico: {
+        Row: {
+          contexto: Json | null
+          created_at: string
+          id: string
+          medicao_id: string
+          motivo: string | null
+          observacoes: string | null
+          perfil_usuario: string | null
+          status_anterior: Database["public"]["Enums"]["medicao_status"] | null
+          status_novo: Database["public"]["Enums"]["medicao_status"]
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          contexto?: Json | null
+          created_at?: string
+          id?: string
+          medicao_id: string
+          motivo?: string | null
+          observacoes?: string | null
+          perfil_usuario?: string | null
+          status_anterior?: Database["public"]["Enums"]["medicao_status"] | null
+          status_novo: Database["public"]["Enums"]["medicao_status"]
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          contexto?: Json | null
+          created_at?: string
+          id?: string
+          medicao_id?: string
+          motivo?: string | null
+          observacoes?: string | null
+          perfil_usuario?: string | null
+          status_anterior?: Database["public"]["Enums"]["medicao_status"] | null
+          status_novo?: Database["public"]["Enums"]["medicao_status"]
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       medicoes: {
         Row: {
+          aprovada_cliente_em: string | null
+          aprovada_cliente_por: string | null
+          aprovador_cliente_nome: string | null
           competencia: string
           contrato_id: string
           created_at: string
           created_by: string | null
+          enviada_cliente_em: string | null
+          enviada_cliente_por: string | null
           id: string
           importacao_id: string | null
           observacoes: string | null
@@ -752,10 +799,15 @@ export type Database = {
           valor_glosas: number
         }
         Insert: {
+          aprovada_cliente_em?: string | null
+          aprovada_cliente_por?: string | null
+          aprovador_cliente_nome?: string | null
           competencia: string
           contrato_id: string
           created_at?: string
           created_by?: string | null
+          enviada_cliente_em?: string | null
+          enviada_cliente_por?: string | null
           id?: string
           importacao_id?: string | null
           observacoes?: string | null
@@ -774,10 +826,15 @@ export type Database = {
           valor_glosas?: number
         }
         Update: {
+          aprovada_cliente_em?: string | null
+          aprovada_cliente_por?: string | null
+          aprovador_cliente_nome?: string | null
           competencia?: string
           contrato_id?: string
           created_at?: string
           created_by?: string | null
+          enviada_cliente_em?: string | null
+          enviada_cliente_por?: string | null
           id?: string
           importacao_id?: string | null
           observacoes?: string | null
@@ -850,6 +907,10 @@ export type Database = {
         }
         Returns: Json
       }
+      _exigir_papel: {
+        Args: { _papeis: Database["public"]["Enums"]["app_role"][] }
+        Returns: undefined
+      }
       _log_item_change: {
         Args: {
           _antes: string
@@ -871,6 +932,17 @@ export type Database = {
       _norm_tipo_eq: { Args: { _t: string }; Returns: string }
       _recalc_medicao_totais: {
         Args: { _medicao_id: string }
+        Returns: undefined
+      }
+      _registrar_status_medicao: {
+        Args: {
+          _contexto?: Json
+          _medicao_id: string
+          _motivo?: string
+          _observacoes?: string
+          _status_anterior: Database["public"]["Enums"]["medicao_status"]
+          _status_novo: Database["public"]["Enums"]["medicao_status"]
+        }
         Returns: undefined
       }
       _regra_vigente: {
@@ -904,13 +976,52 @@ export type Database = {
         Args: { _medicao_id: string; _motivo: string }
         Returns: Json
       }
+      aprovar_internamente: {
+        Args: { _medicao_id: string; _observacoes?: string }
+        Returns: undefined
+      }
+      aprovar_pelo_cliente: {
+        Args: {
+          _aprovador_nome?: string
+          _medicao_id: string
+          _observacoes?: string
+        }
+        Returns: undefined
+      }
       cancel_medicao: {
         Args: { _medicao_id: string; _motivo: string }
-        Returns: Json
+        Returns: undefined
       }
       delete_medicao_safe: {
         Args: { _medicao_id: string; _motivo: string }
         Returns: Json
+      }
+      devolver_para_rascunho: {
+        Args: { _medicao_id: string; _motivo: string }
+        Returns: undefined
+      }
+      devolver_para_revisao: {
+        Args: { _medicao_id: string; _motivo: string }
+        Returns: undefined
+      }
+      enviar_ao_cliente: {
+        Args: { _medicao_id: string; _observacoes?: string }
+        Returns: undefined
+      }
+      enviar_para_revisao: {
+        Args: { _medicao_id: string; _observacoes?: string }
+        Returns: undefined
+      }
+      faturar_medicao: {
+        Args: {
+          _data_emissao: string
+          _data_vencimento: string
+          _medicao_id: string
+          _numero_nf: string
+          _observacoes?: string
+          _valor: number
+        }
+        Returns: undefined
       }
       get_primary_role: { Args: { _uid: string }; Returns: string }
       has_any_role: {
@@ -927,6 +1038,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      marcar_como_paga: {
+        Args: {
+          _data_pagamento: string
+          _medicao_id: string
+          _observacoes?: string
+          _valor_pago?: number
+        }
+        Returns: undefined
+      }
       purge_importacao_teste: {
         Args: { _importacao_id: string; _motivo: string }
         Returns: Json
@@ -934,6 +1054,10 @@ export type Database = {
       recalcular_medicao: {
         Args: { _medicao_id: string; _motivo: string }
         Returns: Json
+      }
+      reprovar_pelo_cliente: {
+        Args: { _medicao_id: string; _motivo: string }
+        Returns: undefined
       }
       simular_regras_medicao: { Args: { _medicao_id: string }; Returns: Json }
       update_medicao_item:
@@ -988,13 +1112,14 @@ export type Database = {
       fatura_status: "pendente" | "emitida" | "paga" | "cancelada"
       medicao_status:
         | "rascunho"
-        | "revisao_tecnica"
-        | "aprovada"
+        | "em_revisao_interna"
+        | "aprovada_internamente"
+        | "enviada_cliente"
+        | "aprovada_cliente"
+        | "reprovada_cliente"
         | "faturada"
-        | "rejeitada"
-        | "contestada"
+        | "paga"
         | "cancelada"
-        | "importada"
       regra_tipo:
         | "valor_hora"
         | "garantia_minima"
@@ -1150,13 +1275,14 @@ export const Constants = {
       fatura_status: ["pendente", "emitida", "paga", "cancelada"],
       medicao_status: [
         "rascunho",
-        "revisao_tecnica",
-        "aprovada",
+        "em_revisao_interna",
+        "aprovada_internamente",
+        "enviada_cliente",
+        "aprovada_cliente",
+        "reprovada_cliente",
         "faturada",
-        "rejeitada",
-        "contestada",
+        "paga",
         "cancelada",
-        "importada",
       ],
       regra_tipo: [
         "valor_hora",

@@ -20,7 +20,7 @@ export default function Faturamento() {
 
   const load = async () => {
     const [a, b] = await Promise.all([
-      supabase.from("medicoes").select("*, contratos(numero_dj, clientes(razao_social))").eq("status", "aprovada"),
+      supabase.from("medicoes").select("*, contratos(numero_dj, clientes(razao_social))").eq("status", "aprovada_cliente"),
       supabase.from("faturas").select("*, medicoes(competencia, contratos(numero_dj, clientes(razao_social)))").order("created_at", { ascending: false }),
     ]);
     setParaFaturar(a.data ?? []); setFaturas(b.data ?? []);
