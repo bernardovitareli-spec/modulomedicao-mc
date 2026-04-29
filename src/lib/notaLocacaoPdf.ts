@@ -103,8 +103,15 @@ export function gerarNotaLocacaoPDF(d: NotaLocacaoData): jsPDF {
 
   // Emissora
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text(d.emissora?.razao_social ?? "EMPRESA EMISSORA", textX, y + 6);
+  const maxNomeW = divX - textX - 3;
+  const nome = d.emissora?.razao_social ?? "EMPRESA EMISSORA";
+  let nomeSize = 11;
+  doc.setFontSize(nomeSize);
+  while (doc.getTextWidth(nome) > maxNomeW && nomeSize > 7) {
+    nomeSize -= 0.5;
+    doc.setFontSize(nomeSize);
+  }
+  doc.text(nome, textX, y + 6, { maxWidth: maxNomeW });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   const endL1 = [d.emissora?.endereco, d.emissora?.numero].filter(Boolean).join(", ");
