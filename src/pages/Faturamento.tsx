@@ -1,110 +1,187 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Receipt } from "lucide-react";
-import { fmtBRL, fmtDate } from "@/lib/format";
-import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { fmtBRL, fmtDate, fmtCompetencia } from "@/lib/format";
+import { FATURAMENTO_STATUS_LABELS, FATURAMENTO_STATUS_VARIANT, labelFatStatus, FaturamentoStatus } from "@/lib/faturamentoStatus";
+import { ExternalLink, Filter, X } from "lucide-react";
 
 export default function Faturamento() {
-  const [paraFaturar, setParaFaturar] = useState<any[]>([]);
-  const [faturas, setFaturas] = useState<any[]>([]);
-  const [open, setOpen] = useState<{ open: boolean; medicao?: any }>({ open: false });
-  const [form, setForm] = useState<any>({ numero_nf: "", data_emissao: "", data_vencimento: "" });
+  const navigate = useNavigate();
+  const [list, setList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // filtros
+  const [fStatus, setFStatus] = useState<string>("todos");
+  const [fCliente, setFCliente] = useState<string>("");
+  const [fContrato, setFContrato] = useState<string>("");
+  const [fCompetencia, setFCompetencia] = useState<string>("");
+  const [fEmissaoDe, setFEmissaoDe] = useState<string>("");
+  const [fVencDe, setFVencDe] = useState<string>("");
 
   const load = async () => {
-    const [a, b] = await Promise.all([
-      supabase.from("medicoes").select("*, contratos(numero_dj, clientes(razao_social))").eq("status", "aprovada_cliente"),
-      supabase.from("faturas").select("*, medicoes(competencia, contratos(numero_dj, clientes(razao_social)))").order("created_at", { ascending: false }),
-    ]);
-    setParaFaturar(a.data ?? []); setFaturas(b.data ?? []);
+    setLoading(true);
+    // Atualiza atrasos antes de listar
+    await supabase.rpc("atualizar_status_atraso").catch(() => {});
+    const { data } = await supabase
+      .from("faturas")
+      .select("*, medicoes(competencia, periodo_inicio, periodo_fim, valor_final, contratos(numero_dj, fornecedor_nome, clientes(razao_social)))")
+      .order("created_at", { ascending: false });
+    setList(data ?? []);
+    setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
-  const emitir = async () => {
-    if (!form.numero_nf || !form.data_emissao) { toast.error("NF e data emissão obrigatórios"); return; }
-    const m = open.medicao;
-    const { error } = await supabase.from("faturas").insert({
-      medicao_id: m.id, numero_nf: form.numero_nf, data_emissao: form.data_emissao,
-      data_vencimento: form.data_vencimento || null, valor: m.valor_final, status: "emitida",
-    } as any);
-    if (error) { toast.error(error.message); return; }
-    await supabase.from("medicoes").update({ status: "faturada" } as any).eq("id", m.id);
-    toast.success("Fatura emitida"); setOpen({ open: false }); setForm({ numero_nf: "", data_emissao: "", data_vencimento: "" }); load();
+  const limparFiltros = () => {
+    setFStatus("todos"); setFCliente(""); setFContrato("");
+    setFCompetencia(""); setFEmissaoDe(""); setFVencDe("");
   };
 
-  const setStatus = async (id: string, status: string) => {
-    const update: any = { status }; if (status === "paga") update.data_pagamento = new Date().toISOString().slice(0, 10);
-    await supabase.from("faturas").update(update).eq("id", id); load();
-  };
+  const filtered = list.filter((f) => {
+    const cli = (f.medicoes?.contratos?.clientes?.razao_social ?? "").toLowerCase();
+    const ctr = (f.medicoes?.contratos?.numero_dj ?? "").toLowerCase();
+    const comp = (f.medicoes?.competencia ?? "").slice(0, 7);
+    if (fStatus !== "todos" && f.status !== fStatus) return false;
+    if (fCliente && !cli.includes(fCliente.toLowerCase())) return false;
+    if (fContrato && !ctr.includes(fContrato.toLowerCase())) return false;
+    if (fCompetencia && comp !== fCompetencia) return false;
+    if (fEmissaoDe && (f.data_emissao ?? "") < fEmissaoDe) return false;
+    if (fVencDe && (f.data_vencimento ?? "") < fVencDe) return false;
+    return true;
+  });
+
+  // KPIs
+  const totalAFaturar = filtered.filter(f => f.status === "a_faturar").reduce((s, f) => s + Number(f.valor ?? 0), 0);
+  const totalAReceber = filtered.filter(f => ["nf_emitida","aguardando_pagamento","em_atraso","pago_parcial"].includes(f.status))
+    .reduce((s, f) => s + (Number(f.valor_liquido ?? f.valor ?? 0) - Number(f.valor_recebido ?? 0)), 0);
+  const totalRecebido = filtered.reduce((s, f) => s + Number(f.valor_recebido ?? 0), 0);
+  const totalAtraso = filtered.filter(f => f.status === "em_atraso").reduce((s, f) => s + Number(f.valor_liquido ?? f.valor ?? 0), 0);
 
   return (
     <div>
-      <PageHeader title="Faturamento" description="Medições aprovadas prontas para faturar e histórico de notas" />
-      <Card className="mb-4"><CardContent className="p-4">
-        <h3 className="mb-3 text-sm font-semibold">Aprovadas aguardando emissão</h3>
-        <Table>
-          <TableHeader><TableRow><TableHead>Competência</TableHead><TableHead>Contrato</TableHead><TableHead>Cliente</TableHead><TableHead className="text-right">Valor</TableHead><TableHead></TableHead></TableRow></TableHeader>
-          <TableBody>
-            {paraFaturar.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-6 text-sm text-muted-foreground">Nenhuma medição aprovada.</TableCell></TableRow>}
-            {paraFaturar.map((m) => (
-              <TableRow key={m.id}>
-                <TableCell className="num font-medium">{fmtDate(m.competencia).slice(3)}</TableCell>
-                <TableCell className="font-mono">{m.contratos?.numero_dj}</TableCell>
-                <TableCell className="text-sm">{m.contratos?.clientes?.razao_social}</TableCell>
-                <TableCell className="text-right num font-semibold">{fmtBRL(m.valor_final)}</TableCell>
-                <TableCell><Button size="sm" onClick={() => setOpen({ open: true, medicao: m })}><Receipt className="mr-1 h-4 w-4" />Emitir NF</Button></TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent></Card>
+      <PageHeader title="Faturamento" description="Faturamentos vinculados a medições aprovadas" />
 
-      <Card><CardContent className="p-4">
-        <h3 className="mb-3 text-sm font-semibold">Faturas</h3>
-        <Table>
-          <TableHeader><TableRow><TableHead>NF</TableHead><TableHead>Cliente</TableHead><TableHead>Emissão</TableHead><TableHead>Vencimento</TableHead><TableHead className="text-right">Valor</TableHead><TableHead>Status</TableHead><TableHead></TableHead></TableRow></TableHeader>
-          <TableBody>
-            {faturas.map((f) => (
-              <TableRow key={f.id}>
-                <TableCell className="font-mono">{f.numero_nf}</TableCell>
-                <TableCell className="text-sm">{f.medicoes?.contratos?.clientes?.razao_social}</TableCell>
-                <TableCell className="num text-sm">{fmtDate(f.data_emissao)}</TableCell>
-                <TableCell className="num text-sm">{fmtDate(f.data_vencimento)}</TableCell>
-                <TableCell className="text-right num font-semibold">{fmtBRL(f.valor)}</TableCell>
-                <TableCell>
-                  <Select value={f.status} onValueChange={(v) => setStatus(f.id, v)}>
-                    <SelectTrigger className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pendente">Pendente</SelectItem><SelectItem value="emitida">Emitida</SelectItem>
-                      <SelectItem value="paga">Paga</SelectItem><SelectItem value="cancelada">Cancelada</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell></TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent></Card>
+      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Kpi l="A faturar" v={fmtBRL(totalAFaturar)} />
+        <Kpi l="A receber" v={fmtBRL(totalAReceber)} accent="primary" />
+        <Kpi l="Recebido" v={fmtBRL(totalRecebido)} accent="success" />
+        <Kpi l="Em atraso" v={fmtBRL(totalAtraso)} accent="destructive" />
+      </div>
 
-      <Dialog open={open.open} onOpenChange={(o) => setOpen({ open: o })}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Emitir nota fiscal — {fmtBRL(open.medicao?.valor_final ?? 0)}</DialogTitle></DialogHeader>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="md:col-span-2"><Label>Número NF *</Label><Input value={form.numero_nf} onChange={(e) => setForm({ ...form, numero_nf: e.target.value })} /></div>
-            <div><Label>Data emissão *</Label><Input type="date" value={form.data_emissao} onChange={(e) => setForm({ ...form, data_emissao: e.target.value })} /></div>
-            <div><Label>Data vencimento</Label><Input type="date" value={form.data_vencimento} onChange={(e) => setForm({ ...form, data_vencimento: e.target.value })} /></div>
+      <Card className="mb-4">
+        <CardContent className="p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><Filter className="h-4 w-4" />Filtros</div>
+          <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+            <div>
+              <label className="text-xs text-muted-foreground">Status</label>
+              <Select value={fStatus} onValueChange={setFStatus}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  {Object.entries(FATURAMENTO_STATUS_LABELS).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Cliente</label>
+              <Input value={fCliente} onChange={(e) => setFCliente(e.target.value)} placeholder="Buscar..." className="h-9" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Contrato</label>
+              <Input value={fContrato} onChange={(e) => setFContrato(e.target.value)} placeholder="Nº DJ" className="h-9" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Competência (AAAA-MM)</label>
+              <Input value={fCompetencia} onChange={(e) => setFCompetencia(e.target.value)} placeholder="2026-04" className="h-9" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Emissão a partir de</label>
+              <Input type="date" value={fEmissaoDe} onChange={(e) => setFEmissaoDe(e.target.value)} className="h-9" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Vencimento a partir de</label>
+              <Input type="date" value={fVencDe} onChange={(e) => setFVencDe(e.target.value)} className="h-9" />
+            </div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setOpen({ open: false })}>Cancelar</Button><Button onClick={emitir}>Emitir</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <div className="mt-3 flex justify-end">
+            <Button variant="ghost" size="sm" onClick={limparFiltros}><X className="mr-1 h-4 w-4" />Limpar filtros</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Contrato</TableHead>
+                <TableHead>Competência</TableHead>
+                <TableHead className="text-right">Valor medição</TableHead>
+                <TableHead>NF</TableHead>
+                <TableHead className="text-right">Valor NF</TableHead>
+                <TableHead>Emissão</TableHead>
+                <TableHead>Vencimento</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Recebido</TableHead>
+                <TableHead className="text-right">Saldo</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading && <TableRow><TableCell colSpan={12} className="text-center py-6 text-sm text-muted-foreground">Carregando...</TableCell></TableRow>}
+              {!loading && filtered.length === 0 && <TableRow><TableCell colSpan={12} className="text-center py-6 text-sm text-muted-foreground">Nenhum faturamento.</TableCell></TableRow>}
+              {filtered.map((f) => {
+                const valorNf = Number(f.valor_liquido ?? f.valor ?? 0);
+                const recebido = Number(f.valor_recebido ?? 0);
+                const saldo = Math.max(0, valorNf - recebido);
+                return (
+                  <TableRow key={f.id} className="cursor-pointer" onClick={() => navigate(`/faturamento/${f.id}`)}>
+                    <TableCell className="text-sm">{f.medicoes?.contratos?.clientes?.razao_social ?? "-"}</TableCell>
+                    <TableCell className="font-mono text-xs">{f.medicoes?.contratos?.numero_dj ?? "-"}</TableCell>
+                    <TableCell className="num text-sm">{fmtCompetencia(f.medicoes?.competencia)}</TableCell>
+                    <TableCell className="text-right num">{fmtBRL(f.medicoes?.valor_final)}</TableCell>
+                    <TableCell className="font-mono text-xs">{f.numero_nf ?? "-"}{f.serie_nf ? `/${f.serie_nf}` : ""}</TableCell>
+                    <TableCell className="text-right num">{f.valor_liquido ? fmtBRL(f.valor_liquido) : "-"}</TableCell>
+                    <TableCell className="num text-sm">{fmtDate(f.data_emissao)}</TableCell>
+                    <TableCell className="num text-sm">{fmtDate(f.data_vencimento)}</TableCell>
+                    <TableCell>
+                      <Badge variant={FATURAMENTO_STATUS_VARIANT[f.status as FaturamentoStatus] ?? "secondary"}>
+                        {labelFatStatus(f.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right num">{fmtBRL(recebido)}</TableCell>
+                    <TableCell className="text-right num font-semibold">{fmtBRL(saldo)}</TableCell>
+                    <TableCell>
+                      <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); navigate(`/faturamento/${f.id}`); }}>
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
+  );
+}
+
+function Kpi({ l, v, accent }: { l: string; v: string; accent?: "primary" | "success" | "destructive" }) {
+  const color = accent === "success" ? "text-success" : accent === "destructive" ? "text-destructive" : accent === "primary" ? "text-primary" : "";
+  return (
+    <Card><CardContent className="p-4">
+      <p className="text-xs text-muted-foreground">{l}</p>
+      <p className={`mt-1 text-xl font-bold num ${color}`}>{v}</p>
+    </CardContent></Card>
   );
 }

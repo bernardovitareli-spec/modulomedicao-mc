@@ -33,7 +33,7 @@ export default function Dashboard() {
         supabase.from("medicoes").select("valor_final").in("status", ["aprovada_internamente", "aprovada_cliente", "faturada", "paga"]).gte("competencia", inicioMes),
         supabase.from("medicoes").select("id", { count: "exact", head: true }).in("status", ["em_revisao_interna", "enviada_cliente"]),
         supabase.from("contratos").select("id", { count: "exact", head: true }).lte("termino_contrato", em30).eq("status", "ativo"),
-        supabase.from("faturas").select("valor, data_emissao").eq("status", "emitida").not("data_emissao", "is", null),
+        supabase.from("faturas").select("valor, data_emissao").eq("status", "nf_emitida").not("data_emissao", "is", null),
         supabase.from("medicoes").select("contrato_id, valor_final, contratos(numero_dj)").in("status", ["aprovada_internamente", "aprovada_cliente", "faturada", "paga"]).order("valor_final", { ascending: false }).limit(20),
       ]);
 
