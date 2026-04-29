@@ -209,7 +209,7 @@ export function gerarNotaLocacaoPDF(d: NotaLocacaoData): jsPDF {
   doc.line(c2, y, c2, y + rowH);
   doc.line(c3 + 25, y, c3 + 25, y + rowH);
   label(doc, "Complemento", M + 2, y + 3);
-  value(doc, cli.endereco_complemento ?? "-", M + 2, y + 8);
+  value(doc, cli.endereco_complemento ?? cli.complemento ?? "-", M + 2, y + 8);
   label(doc, "Vencimento", c2 + 2, y + 3);
   value(doc, fmtDate(d.fatura?.data_vencimento), c2 + 2, y + 8);
   label(doc, "Valor", c3 + 27, y + 3);
