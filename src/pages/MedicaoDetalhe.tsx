@@ -181,6 +181,7 @@ export default function MedicaoDetalhe() {
           <TabsTrigger value="itens">Itens</TabsTrigger>
           <TabsTrigger value="historico">Histórico de alterações</TabsTrigger>
           <TabsTrigger value="fluxo">Fluxo de aprovação</TabsTrigger>
+          <TabsTrigger value="anexos">Anexos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="itens" className="mt-4">
