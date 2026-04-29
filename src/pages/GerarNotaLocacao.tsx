@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, FileText, Save, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { fmtBRL, fmtDate, fmtCompetencia } from "@/lib/format";
-import { gerarNotaLocacaoPDF } from "@/lib/notaLocacaoPdf";
+import { gerarNotaLocacaoPDF, getLogoDataUrl } from "@/lib/notaLocacaoPdf";
 import { usePermissions } from "@/lib/permissions";
 
 export default function GerarNotaLocacao() {
@@ -94,16 +94,20 @@ export default function GerarNotaLocacao() {
     // ok — fatura criada a partir de aprovada_cliente
   }
 
-  const buildPDF = () => gerarNotaLocacaoPDF({
-    emissora,
-    cliente: data.cliente,
-    contrato: data.contrato,
-    medicao: data.medicao,
-    fatura: { ...data.fatura, ...form },
-  });
+  const buildPDF = async () => {
+    const logoDataUrl = await getLogoDataUrl();
+    return gerarNotaLocacaoPDF({
+      emissora,
+      cliente: data.cliente,
+      contrato: data.contrato,
+      medicao: data.medicao,
+      logoDataUrl,
+      fatura: { ...data.fatura, ...form },
+    });
+  };
 
-  const previewPDF = () => {
-    const doc = buildPDF();
+  const previewPDF = async () => {
+    const doc = await buildPDF();
     window.open(doc.output("bloburl"), "_blank");
   };
 
