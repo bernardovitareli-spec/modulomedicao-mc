@@ -28,6 +28,7 @@ export default function EmpresaEmissora() {
     endereco: "", numero: "", complemento: "", bairro: "", cep: "",
     municipio: "", uf: "", telefone: "", email: "",
     banco: "", agencia: "", conta_corrente: "", chave_pix: "",
+    numero_nota_digitos: 1, prazo_recebimento_padrao_dias: 30,
     ativa: true, padrao: false,
   });
 
