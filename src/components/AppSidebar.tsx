@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, FileText, Wrench, ClipboardList, LogOut, HardHat,
-  ShieldAlert, Eraser, UserCog, ScrollText, Receipt,
+  ShieldAlert, Eraser, UserCog, ScrollText, Receipt, Building2,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -35,6 +35,7 @@ const groups = [
     label: "Financeiro",
     items: [
       { title: "Faturamento", url: "/faturamento", icon: Receipt },
+      { title: "Empresa Emissora", url: "/empresa-emissora", icon: Building2 },
     ],
   },
 ];
