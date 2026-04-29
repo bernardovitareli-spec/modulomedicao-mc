@@ -10,6 +10,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
+import logoMc from "@/assets/logo-mc.png";
 
 const groups = [
   {
@@ -64,9 +65,11 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
         <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground">
-            <HardHat className="h-5 w-5" />
-          </div>
+          <img
+            src={logoMc}
+            alt="MC Terraplenagem"
+            className="h-9 w-9 shrink-0 rounded-md object-contain bg-white p-0.5"
+          />
           {!collapsed && (
             <div className="flex flex-col leading-tight">
               <span className="text-sm font-bold text-sidebar-foreground">Módulo de Medição</span>
