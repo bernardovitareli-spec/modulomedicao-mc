@@ -23,6 +23,8 @@ import Boletim from "./pages/Boletim";
 import Aprovacao from "./pages/Aprovacao";
 import Faturamento from "./pages/Faturamento";
 import FaturamentoDetalhe from "./pages/FaturamentoDetalhe";
+import EmpresaEmissora from "./pages/EmpresaEmissora";
+import GerarNotaLocacao from "./pages/GerarNotaLocacao";
 import Relatorios from "./pages/Relatorios";
 import Historico from "./pages/Historico";
 import NotFound from "./pages/NotFound";
@@ -60,6 +62,8 @@ const App = () => (
               <Route path="/aprovacao" element={<Aprovacao />} />
               <Route path="/faturamento" element={<Faturamento />} />
               <Route path="/faturamento/:id" element={<FaturamentoDetalhe />} />
+              <Route path="/faturamento/:id/nota-locacao" element={<GerarNotaLocacao />} />
+              <Route path="/empresa-emissora" element={<EmpresaEmissora />} />
               <Route path="/relatorios" element={<Relatorios />} />
               <Route path="/historico" element={<Historico />} />
               <Route path="/auditoria" element={<Auditoria />} />
