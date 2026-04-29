@@ -32,6 +32,7 @@ export default function MedicaoDetalhe() {
   const [itens, setItens] = useState<any[]>([]);
   const [delOpen, setDelOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [reabrirOpen, setReabrirOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
