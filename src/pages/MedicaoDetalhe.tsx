@@ -185,7 +185,11 @@ export default function MedicaoDetalhe() {
           <Info l="Período fim" v={fmtDate(med.periodo_fim)} />
           <div>
             <p className="text-xs text-muted-foreground">Status</p>
-            <div className="mt-1"><StatusBadge status={status} /></div>
+            <div className="mt-1 flex items-center gap-1.5">
+              <StatusBadge status={status} />
+              {Number(med.versao ?? 1) > 1 && <span className="text-xs px-1.5 py-0.5 rounded border">v{med.versao}</span>}
+              {med.ativa === false && <span className="text-xs px-1.5 py-0.5 rounded bg-muted">inativa</span>}
+            </div>
           </div>
           {med.enviada_cliente_em && (
             <Info l="Enviada ao cliente em" v={fmtDate(med.enviada_cliente_em)} />
