@@ -289,6 +289,10 @@ export default function ImportarMedicao() {
   }>>({});
   const [clientesAtivos, setClientesAtivos] = useState<{ id: string; razao_social: string }[]>([]);
   const [confirmDivergencia, setConfirmDivergencia] = useState(false);
+  const [conflitos, setConflitos] = useState<ConflitoMedicao[]>([]);
+  const [conflitoOpen, setConflitoOpen] = useState(false);
+  // contexto preparado p/ executar importação após resolução de conflitos
+  const [pendingCtx, setPendingCtx] = useState<any>(null);
 
   const onFile = async (file: File) => {
     setFilename(file.name);
