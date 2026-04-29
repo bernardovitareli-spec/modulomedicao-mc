@@ -1384,6 +1384,13 @@ export default function ImportarMedicao() {
           )}
         </>
       )}
+
+      <ImportConflitoDialog
+        open={conflitoOpen}
+        conflitos={conflitos}
+        onResolve={onResolveConflitos}
+        onCancel={onCancelConflitos}
+      />
     </div>
   );
 }
