@@ -20,7 +20,7 @@ type Cliente = {
 
 const empty = {
   razao_social: "", nome_fantasia: "", cnpj: "", inscricao_estadual: "",
-  endereco: "", cidade: "", uf: "", cep: "",
+  endereco: "", bairro: "", endereco_complemento: "", cidade: "", uf: "", cep: "",
   contato_nome: "", contato_email: "", contato_telefone: "", observacoes: "", status: "ativo",
 };
 
