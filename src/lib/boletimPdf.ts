@@ -541,11 +541,12 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     doc.text(String(importacao.arquivo_nome), marginX + 42, y);
     y += 4.5;
   }
+  const isImportObs = (s: string) => /\bimportad[oa]\b/i.test(s) || /\.xlsx?\b/i.test(s) || /\.csv\b/i.test(s);
   const obs: string[] = [];
-  if (med.observacoes) obs.push(`${med.observacoes}`);
+  if (med.observacoes && !(modo === "cliente" && isImportObs(String(med.observacoes)))) obs.push(`${med.observacoes}`);
   if ((med as any).contratos?.observacoes) obs.push(`Observação do contrato: ${(med as any).contratos.observacoes}`);
   itensList.forEach((i: any) => {
-    if (i.observacoes) obs.push(`${i.equipamentos?.tag ?? "-"}: ${i.observacoes}`);
+    if (i.observacoes && !(modo === "cliente" && isImportObs(String(i.observacoes)))) obs.push(`${i.equipamentos?.tag ?? "-"}: ${i.observacoes}`);
     if (i.motivo_proporcionalidade) obs.push(`${i.equipamentos?.tag ?? "-"} (proporcionalidade): ${i.motivo_proporcionalidade}`);
   });
   if (obs.length === 0 && !(modo === "interno" && importacao?.arquivo_nome)) {
