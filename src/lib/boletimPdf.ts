@@ -729,7 +729,7 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     doc.setTextColor(100, 116, 139);
     doc.setFont("helvetica", "normal");
 
-    const leftText = `Documento gerado automaticamente pelo Módulo de Medição - MC Terraplenagem${modo === "cliente" ? " - Versão Cliente" : ""}`;
+    const leftText = `Gerado pelo MedControl — MC Terraplenagem`;
     const centerText = geradoEm;
     const rightText = `Página ${p} de ${total}`;
 
