@@ -22,6 +22,7 @@ export default function Medicoes() {
   const [list, setList] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("todos");
+  const [versaoFilter, setVersaoFilter] = useState<"ativas" | "todas" | "inativas">("ativas");
   const [delTarget, setDelTarget] = useState<any>(null);
   const [cancelTarget, setCancelTarget] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -29,9 +30,11 @@ export default function Medicoes() {
   const load = () => {
     let q = supabase.from("medicoes").select("*, contratos(numero_dj, clientes(razao_social))").order("competencia", { ascending: false });
     if (status !== "todos") q = q.eq("status", status as any);
+    if (versaoFilter === "ativas") q = q.eq("ativa", true);
+    else if (versaoFilter === "inativas") q = q.eq("ativa", false);
     q.then(({ data }) => setList(data ?? []));
   };
-  useEffect(() => { load(); }, [status]);
+  useEffect(() => { load(); }, [status, versaoFilter]);
 
   const filtered = list.filter((m) =>
     !search || m.contratos?.numero_dj?.toLowerCase().includes(search.toLowerCase()) || m.contratos?.clientes?.razao_social?.toLowerCase().includes(search.toLowerCase()),
