@@ -28,7 +28,7 @@ export default function Faturamento() {
   const load = async () => {
     setLoading(true);
     // Atualiza atrasos antes de listar
-    await supabase.rpc("atualizar_status_atraso").catch(() => {});
+    try { await supabase.rpc("atualizar_status_atraso"); } catch {}
     const { data } = await supabase
       .from("faturas")
       .select("*, medicoes(competencia, periodo_inicio, periodo_fim, valor_final, contratos(numero_dj, fornecedor_nome, clientes(razao_social)))")
