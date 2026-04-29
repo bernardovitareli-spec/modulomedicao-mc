@@ -260,6 +260,16 @@ export default function MedicaoDetalhe() {
         loading={busy}
         onConfirm={onCancel}
       />
+      <AcaoMedicaoDialog
+        open={reabrirOpen}
+        onOpenChange={setReabrirOpen}
+        title="Reabrir medição cancelada como Rascunho"
+        description="A medição voltará para o status Rascunho e poderá ser editada/recalculada novamente. Outras versões da mesma chave (contrato/competência/período) serão marcadas como inativas."
+        motivoObrigatorio
+        motivoLabel="Motivo da reabertura *"
+        confirmLabel="Reabrir medição"
+        onConfirm={onReabrir}
+      />
     </div>
   );
 }
