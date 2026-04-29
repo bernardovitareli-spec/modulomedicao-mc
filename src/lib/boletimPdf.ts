@@ -758,7 +758,8 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   }
 
   const sufixo = modo === "cliente" ? "-CLIENTE" : "";
-  const fileName = `boletim-${(med as any).contratos?.numero_dj ?? "medicao"}-${String(med.competencia).slice(0, 7)}${isRascunho ? "-RASCUNHO" : ""}${sufixo}.pdf`;
+  const wmSuffix = isRascunho ? "-RASCUNHO" : (isEmRevisao ? "-EM-REVISAO" : "");
+  const fileName = `boletim-${(med as any).contratos?.numero_dj ?? "medicao"}-${String(med.competencia).slice(0, 7)}${wmSuffix}${sufixo}.pdf`;
 
   if (opts.preview) {
     const blob = doc.output("blob");
