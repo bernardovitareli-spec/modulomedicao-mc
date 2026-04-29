@@ -96,6 +96,7 @@ export type Database = {
       }
       clientes: {
         Row: {
+          bairro: string | null
           cep: string | null
           cidade: string | null
           cnpj: string | null
@@ -106,6 +107,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           endereco: string | null
+          endereco_complemento: string | null
           id: string
           inscricao_estadual: string | null
           nome_fantasia: string | null
@@ -116,6 +118,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bairro?: string | null
           cep?: string | null
           cidade?: string | null
           cnpj?: string | null
@@ -126,6 +129,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           endereco?: string | null
+          endereco_complemento?: string | null
           id?: string
           inscricao_estadual?: string | null
           nome_fantasia?: string | null
@@ -136,6 +140,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bairro?: string | null
           cep?: string | null
           cidade?: string | null
           cnpj?: string | null
@@ -146,6 +151,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           endereco?: string | null
+          endereco_complemento?: string | null
           id?: string
           inscricao_estadual?: string | null
           nome_fantasia?: string | null
@@ -331,6 +337,7 @@ export type Database = {
           garantia_minima_horas: number | null
           id: string
           inicio_operacao: string
+          local_servico: string | null
           numero_dj: string
           observacoes: string | null
           status: Database["public"]["Enums"]["contrato_status"]
@@ -352,6 +359,7 @@ export type Database = {
           garantia_minima_horas?: number | null
           id?: string
           inicio_operacao: string
+          local_servico?: string | null
           numero_dj: string
           observacoes?: string | null
           status?: Database["public"]["Enums"]["contrato_status"]
@@ -373,6 +381,7 @@ export type Database = {
           garantia_minima_horas?: number | null
           id?: string
           inicio_operacao?: string
+          local_servico?: string | null
           numero_dj?: string
           observacoes?: string | null
           status?: Database["public"]["Enums"]["contrato_status"]
@@ -414,7 +423,9 @@ export type Database = {
           municipio: string | null
           nome_fantasia: string | null
           numero: string | null
+          numero_nota_digitos: number
           padrao: boolean
+          prazo_recebimento_padrao_dias: number
           razao_social: string
           telefone: string | null
           uf: string | null
@@ -441,7 +452,9 @@ export type Database = {
           municipio?: string | null
           nome_fantasia?: string | null
           numero?: string | null
+          numero_nota_digitos?: number
           padrao?: boolean
+          prazo_recebimento_padrao_dias?: number
           razao_social: string
           telefone?: string | null
           uf?: string | null
@@ -468,7 +481,9 @@ export type Database = {
           municipio?: string | null
           nome_fantasia?: string | null
           numero?: string | null
+          numero_nota_digitos?: number
           padrao?: boolean
+          prazo_recebimento_padrao_dias?: number
           razao_social?: string
           telefone?: string | null
           uf?: string | null
@@ -593,12 +608,14 @@ export type Database = {
           numero_contrato_cliente: string | null
           numero_frs: string | null
           numero_nf: string | null
+          numero_nota_formatado: string | null
           numero_pedido_item: string | null
           numero_rf: string | null
           observacoes: string | null
           observacoes_financeiras: string | null
           observacoes_fiscais: string | null
           observacoes_nota: string | null
+          prazo_recebimento_dias: number | null
           protocolo_emissao: string | null
           provedor_fiscal: string | null
           quantidade: number | null
@@ -642,12 +659,14 @@ export type Database = {
           numero_contrato_cliente?: string | null
           numero_frs?: string | null
           numero_nf?: string | null
+          numero_nota_formatado?: string | null
           numero_pedido_item?: string | null
           numero_rf?: string | null
           observacoes?: string | null
           observacoes_financeiras?: string | null
           observacoes_fiscais?: string | null
           observacoes_nota?: string | null
+          prazo_recebimento_dias?: number | null
           protocolo_emissao?: string | null
           provedor_fiscal?: string | null
           quantidade?: number | null
@@ -691,12 +710,14 @@ export type Database = {
           numero_contrato_cliente?: string | null
           numero_frs?: string | null
           numero_nf?: string | null
+          numero_nota_formatado?: string | null
           numero_pedido_item?: string | null
           numero_rf?: string | null
           observacoes?: string | null
           observacoes_financeiras?: string | null
           observacoes_fiscais?: string | null
           observacoes_nota?: string | null
+          prazo_recebimento_dias?: number | null
           protocolo_emissao?: string | null
           provedor_fiscal?: string | null
           quantidade?: number | null
