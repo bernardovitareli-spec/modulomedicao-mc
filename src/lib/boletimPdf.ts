@@ -175,6 +175,8 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   }
 
   const isRascunho = med.status === "rascunho";
+  const isEmRevisao = med.status === "em_revisao_interna" || med.status === "aprovada_internamente";
+  const watermarkText = isRascunho ? "RASCUNHO" : (isEmRevisao ? "EM REVISÃO" : null);
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -717,14 +719,15 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     const curW = doc.internal.pageSize.getWidth();
     const curH = doc.internal.pageSize.getHeight();
 
-    if (isRascunho) {
+    if (watermarkText) {
       doc.saveGraphicsState();
       // @ts-ignore
       doc.setGState(new (doc as any).GState({ opacity: 0.06 }));
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(110);
+      const fontSize = watermarkText.length > 9 ? 80 : 110;
+      doc.setFontSize(fontSize);
       doc.setTextColor(220, 38, 38);
-      doc.text("RASCUNHO", curW / 2, curH / 2, { align: "center", angle: 30 });
+      doc.text(watermarkText, curW / 2, curH / 2, { align: "center", angle: 30 });
       doc.restoreGraphicsState();
       doc.setTextColor(0, 0, 0);
     }
@@ -755,7 +758,8 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   }
 
   const sufixo = modo === "cliente" ? "-CLIENTE" : "";
-  const fileName = `boletim-${(med as any).contratos?.numero_dj ?? "medicao"}-${String(med.competencia).slice(0, 7)}${isRascunho ? "-RASCUNHO" : ""}${sufixo}.pdf`;
+  const wmSuffix = isRascunho ? "-RASCUNHO" : (isEmRevisao ? "-EM-REVISAO" : "");
+  const fileName = `boletim-${(med as any).contratos?.numero_dj ?? "medicao"}-${String(med.competencia).slice(0, 7)}${wmSuffix}${sufixo}.pdf`;
 
   if (opts.preview) {
     const blob = doc.output("blob");

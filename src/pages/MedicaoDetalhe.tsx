@@ -18,6 +18,7 @@ import { MedicaoHistoricoTab } from "@/components/medicao/MedicaoHistoricoTab";
 import MedicaoRegrasActions from "@/components/medicao/MedicaoRegrasActions";
 import { FluxoAprovacaoTab } from "@/components/medicao/FluxoAprovacaoTab";
 import { FluxoAcoes } from "@/components/medicao/FluxoAcoes";
+import { MedicaoAnexosTab } from "@/components/medicao/MedicaoAnexosTab";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { labelStatus } from "@/lib/medicaoStatus";
 
@@ -180,6 +181,7 @@ export default function MedicaoDetalhe() {
           <TabsTrigger value="itens">Itens</TabsTrigger>
           <TabsTrigger value="historico">Histórico de alterações</TabsTrigger>
           <TabsTrigger value="fluxo">Fluxo de aprovação</TabsTrigger>
+          <TabsTrigger value="anexos">Anexos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="itens" className="mt-4">
@@ -202,6 +204,10 @@ export default function MedicaoDetalhe() {
 
         <TabsContent value="fluxo" className="mt-4">
           <FluxoAprovacaoTab medicaoId={med.id} />
+        </TabsContent>
+
+        <TabsContent value="anexos" className="mt-4">
+          <MedicaoAnexosTab medicaoId={med.id} />
         </TabsContent>
       </Tabs>
 
