@@ -217,12 +217,12 @@ export function gerarNotaLocacaoPDF(d: NotaLocacaoData): jsPDF {
   doc.text(fmtBRL(d.fatura?.valor_liquido ?? d.fatura?.valor_unitario ?? 0), c3 + 27, y + 8);
   y += rowH;
 
-  // ==== Dados do Equipamento / Item ====
+  // ==== Dados da Locação / Serviço ====
   box(doc, M, y, right - M, 7);
   doc.setFillColor(235, 235, 235);
   doc.rect(M, y, right - M, 7, "F");
   doc.setFont("helvetica", "bold"); doc.setFontSize(9);
-  doc.text("Dados do Equipamento", M + 2, y + 5);
+  doc.text("Dados da Locação / Serviço", M + 2, y + 5);
   y += 7;
 
   // header item
