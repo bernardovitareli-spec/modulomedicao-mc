@@ -392,6 +392,90 @@ export type Database = {
           },
         ]
       }
+      empresa_emissora: {
+        Row: {
+          agencia: string | null
+          ativa: boolean
+          bairro: string | null
+          banco: string | null
+          cep: string | null
+          chave_pix: string | null
+          cnpj: string
+          complemento: string | null
+          conta_corrente: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          endereco: string | null
+          id: string
+          inscricao_estadual: string | null
+          inscricao_municipal: string | null
+          logo_storage_path: string | null
+          municipio: string | null
+          nome_fantasia: string | null
+          numero: string | null
+          padrao: boolean
+          razao_social: string
+          telefone: string | null
+          uf: string | null
+          updated_at: string
+        }
+        Insert: {
+          agencia?: string | null
+          ativa?: boolean
+          bairro?: string | null
+          banco?: string | null
+          cep?: string | null
+          chave_pix?: string | null
+          cnpj: string
+          complemento?: string | null
+          conta_corrente?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          endereco?: string | null
+          id?: string
+          inscricao_estadual?: string | null
+          inscricao_municipal?: string | null
+          logo_storage_path?: string | null
+          municipio?: string | null
+          nome_fantasia?: string | null
+          numero?: string | null
+          padrao?: boolean
+          razao_social: string
+          telefone?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agencia?: string | null
+          ativa?: boolean
+          bairro?: string | null
+          banco?: string | null
+          cep?: string | null
+          chave_pix?: string | null
+          cnpj?: string
+          complemento?: string | null
+          conta_corrente?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          endereco?: string | null
+          id?: string
+          inscricao_estadual?: string | null
+          inscricao_municipal?: string | null
+          logo_storage_path?: string | null
+          municipio?: string | null
+          nome_fantasia?: string | null
+          numero?: string | null
+          padrao?: boolean
+          razao_social?: string
+          telefone?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       equipamentos: {
         Row: {
           ano: number | null
@@ -483,76 +567,158 @@ export type Database = {
         Row: {
           anexo_nf_nome: string | null
           anexo_nf_storage_path: string | null
+          anexo_nota_nome: string | null
+          anexo_nota_storage_path: string | null
+          chave_verificacao: string | null
+          codigo_item: string | null
           created_at: string
           created_by: string | null
+          dados_bancarios: string | null
           data_emissao: string | null
           data_pagamento: string | null
           data_prevista_recebimento: string | null
           data_vencimento: string | null
+          descricao_item: string | null
+          empresa_emissora_id: string | null
+          erro_emissao: string | null
           id: string
+          local_servico: string | null
           medicao_id: string
           motivo_diferenca: string | null
+          motivo_valor_diferente: string | null
+          natureza_operacao: string | null
+          nota_emitida_em: string | null
+          nota_emitida_por: string | null
+          numero_bm: string | null
+          numero_contrato_cliente: string | null
+          numero_frs: string | null
           numero_nf: string | null
+          numero_pedido_item: string | null
+          numero_rf: string | null
           observacoes: string | null
           observacoes_financeiras: string | null
           observacoes_fiscais: string | null
+          observacoes_nota: string | null
+          protocolo_emissao: string | null
+          provedor_fiscal: string | null
+          quantidade: number | null
           serie_nf: string | null
           status: Database["public"]["Enums"]["faturamento_status"]
+          status_emissao_fiscal: string | null
           updated_at: string
           valor: number
           valor_bruto: number | null
           valor_liquido: number | null
           valor_recebido: number | null
+          valor_unitario: number | null
+          xml_nota: string | null
         }
         Insert: {
           anexo_nf_nome?: string | null
           anexo_nf_storage_path?: string | null
+          anexo_nota_nome?: string | null
+          anexo_nota_storage_path?: string | null
+          chave_verificacao?: string | null
+          codigo_item?: string | null
           created_at?: string
           created_by?: string | null
+          dados_bancarios?: string | null
           data_emissao?: string | null
           data_pagamento?: string | null
           data_prevista_recebimento?: string | null
           data_vencimento?: string | null
+          descricao_item?: string | null
+          empresa_emissora_id?: string | null
+          erro_emissao?: string | null
           id?: string
+          local_servico?: string | null
           medicao_id: string
           motivo_diferenca?: string | null
+          motivo_valor_diferente?: string | null
+          natureza_operacao?: string | null
+          nota_emitida_em?: string | null
+          nota_emitida_por?: string | null
+          numero_bm?: string | null
+          numero_contrato_cliente?: string | null
+          numero_frs?: string | null
           numero_nf?: string | null
+          numero_pedido_item?: string | null
+          numero_rf?: string | null
           observacoes?: string | null
           observacoes_financeiras?: string | null
           observacoes_fiscais?: string | null
+          observacoes_nota?: string | null
+          protocolo_emissao?: string | null
+          provedor_fiscal?: string | null
+          quantidade?: number | null
           serie_nf?: string | null
           status?: Database["public"]["Enums"]["faturamento_status"]
+          status_emissao_fiscal?: string | null
           updated_at?: string
           valor: number
           valor_bruto?: number | null
           valor_liquido?: number | null
           valor_recebido?: number | null
+          valor_unitario?: number | null
+          xml_nota?: string | null
         }
         Update: {
           anexo_nf_nome?: string | null
           anexo_nf_storage_path?: string | null
+          anexo_nota_nome?: string | null
+          anexo_nota_storage_path?: string | null
+          chave_verificacao?: string | null
+          codigo_item?: string | null
           created_at?: string
           created_by?: string | null
+          dados_bancarios?: string | null
           data_emissao?: string | null
           data_pagamento?: string | null
           data_prevista_recebimento?: string | null
           data_vencimento?: string | null
+          descricao_item?: string | null
+          empresa_emissora_id?: string | null
+          erro_emissao?: string | null
           id?: string
+          local_servico?: string | null
           medicao_id?: string
           motivo_diferenca?: string | null
+          motivo_valor_diferente?: string | null
+          natureza_operacao?: string | null
+          nota_emitida_em?: string | null
+          nota_emitida_por?: string | null
+          numero_bm?: string | null
+          numero_contrato_cliente?: string | null
+          numero_frs?: string | null
           numero_nf?: string | null
+          numero_pedido_item?: string | null
+          numero_rf?: string | null
           observacoes?: string | null
           observacoes_financeiras?: string | null
           observacoes_fiscais?: string | null
+          observacoes_nota?: string | null
+          protocolo_emissao?: string | null
+          provedor_fiscal?: string | null
+          quantidade?: number | null
           serie_nf?: string | null
           status?: Database["public"]["Enums"]["faturamento_status"]
+          status_emissao_fiscal?: string | null
           updated_at?: string
           valor?: number
           valor_bruto?: number | null
           valor_liquido?: number | null
           valor_recebido?: number | null
+          valor_unitario?: number | null
+          xml_nota?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "faturas_empresa_emissora_id_fkey"
+            columns: ["empresa_emissora_id"]
+            isOneToOne: false
+            referencedRelation: "empresa_emissora"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "faturas_medicao_id_fkey"
             columns: ["medicao_id"]
