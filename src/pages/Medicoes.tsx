@@ -120,7 +120,13 @@ export default function Medicoes() {
                   <TableCell className="text-sm">{m.contratos?.clientes?.razao_social}</TableCell>
                   <TableCell className="text-right num">{Number(m.total_horas_pagar).toFixed(2)}</TableCell>
                   <TableCell className="text-right num font-semibold">{fmtBRL(m.valor_final)}</TableCell>
-                  <TableCell><StatusBadge status={m.status} /></TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <StatusBadge status={m.status} />
+                      {Number(m.versao ?? 1) > 1 && <Badge variant="outline" className="text-[10px]"><History className="h-2.5 w-2.5 mr-0.5" />v{m.versao}</Badge>}
+                      {m.ativa === false && <Badge variant="secondary" className="text-[10px]">inativa</Badge>}
+                    </div>
+                  </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
