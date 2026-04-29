@@ -291,85 +291,129 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   });
   y = (doc as any).lastAutoTable.finalY + 5;
 
-  // === Itens (página em paisagem) ===
-  doc.addPage("a4", "landscape");
-  const lpW = doc.internal.pageSize.getWidth();
-  // título da seção em paisagem
-  doc.setFillColor(30, 41, 59);
-  doc.rect(10, 10, lpW - 20, 6.5, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.text("ITENS DA MEDIÇÃO", 12, 14.6);
-  doc.setTextColor(0, 0, 0);
-
   const itensList = itens ?? [];
-  const body = itensList.map((i: any) => {
-    const htCalc = Number(i.horimetro_final ?? 0) - Number(i.horimetro_inicial ?? 0);
-    return [
+
+  if (modo === "cliente") {
+    // Versão Cliente: tabela RESUMIDA em retrato (mesma orientação do resto do PDF)
+    ensureSpace(15);
+    sectionTitle("ITENS DA MEDIÇÃO");
+    const bodyCli = itensList.map((i: any) => [
       i.equipamentos?.serie ?? "-",
       i.equipamentos?.tag ?? "-",
       i.equipamentos?.tipo ?? "-",
       i.equipamentos?.modelo ?? "-",
-      fmtNum(i.horimetro_inicial),
-      fmtNum(i.horimetro_final),
-      fmtNum(htCalc),
       fmtNum(i.horas_informadas),
-      fmtNum(i.horas_liquidas),
-      fmtNum(i.garantia_mensal_horas ?? i.garantia_minima),
       String(i.dias_considerados ?? "-"),
       fmtNum(i.garantia_proporcional_horas),
-      i.aplicar_garantia_proporcional ? "Sim" : "Não",
       fmtNum(i.horas_a_pagar),
       fmtBRL(i.valor_hora),
-      fmtBRL(i.valor_complementares),
-      fmtBRL(i.valor_descontos),
       fmtBRL(i.valor_final),
-    ];
-  });
-  // Total usable width landscape A4 with 8mm margins ~ 281mm
-  autoTable(doc, {
-    startY: 20,
-    margin: { left: 8, right: 8 },
-    theme: "grid",
-    tableWidth: lpW - 16,
-    styles: { fontSize: 6.5, cellPadding: 1.2, overflow: "linebreak", valign: "middle" },
-    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 6.5, halign: "center" },
-    columnStyles: {
-      0: { cellWidth: 16 },                                  // Série
-      1: { cellWidth: 13 },                                  // Tag
-      2: { cellWidth: 26 },                                  // Tipo
-      3: { cellWidth: 26 },                                  // Modelo
-      4: { cellWidth: 14, halign: "right" },                 // Hor. Ini
-      5: { cellWidth: 14, halign: "right" },                 // Hor. Fim
-      6: { cellWidth: 12, halign: "right" },                 // HT calc
-      7: { cellWidth: 12, halign: "right" },                 // HT inf
-      8: { cellWidth: 12, halign: "right" },                 // H. líq
-      9: { cellWidth: 14, halign: "right" },                 // Gar. mensal
-      10: { cellWidth: 9, halign: "center" },                // Dias
-      11: { cellWidth: 14, halign: "right" },                // Gar. prop
-      12: { cellWidth: 11, halign: "center" },               // Prop?
-      13: { cellWidth: 14, halign: "right" },                // H. pagar
-      14: { cellWidth: 18, halign: "right" },                // Valor/h
-      15: { cellWidth: 14, halign: "right" },                // Compl
-      16: { cellWidth: 14, halign: "right" },                // Desc
-      17: { cellWidth: 24, halign: "right", fontStyle: "bold" }, // Valor final
-    },
-    head: [[
-      "Série", "Tag", "Tipo", "Modelo",
-      "Horím.\nInicial", "Horím.\nFinal", "HT\ncalc.", "HT\ninf.",
-      "Horas\nlíq.", "Gar.\nmensal", "Dias", "Gar.\nprop.",
-      "Prop.?", "Horas\na pagar", "Valor/hora", "Compl.", "Desc.", "Valor final",
-    ]],
-    body,
-    rowPageBreak: "avoid",
-    showHead: "everyPage",
-  });
+    ]);
+    autoTable(doc, {
+      startY: y,
+      margin: { left: marginX, right: marginX },
+      theme: "grid",
+      styles: { fontSize: 7.5, cellPadding: 1.5, overflow: "linebreak", valign: "middle" },
+      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 7.5, halign: "center" },
+      columnStyles: {
+        0: { cellWidth: 20 },                                  // Série
+        1: { cellWidth: 16 },                                  // Tag
+        2: { cellWidth: 26 },                                  // Tipo
+        3: { cellWidth: 26 },                                  // Modelo
+        4: { cellWidth: 16, halign: "right" },                 // HT inf
+        5: { cellWidth: 11, halign: "center" },                // Dias
+        6: { cellWidth: 18, halign: "right" },                 // Gar. prop
+        7: { cellWidth: 18, halign: "right" },                 // H. pagar
+        8: { cellWidth: 22, halign: "right" },                 // Valor/h
+        9: { cellWidth: 23, halign: "right", fontStyle: "bold" }, // Valor final
+      },
+      head: [[
+        "Série", "Tag", "Tipo", "Modelo",
+        "HT\ninformado", "Dias", "Gar.\nprop.",
+        "Horas\na pagar", "Valor/hora", "Valor final",
+      ]],
+      body: bodyCli,
+      rowPageBreak: "avoid",
+      showHead: "everyPage",
+    });
+    y = (doc as any).lastAutoTable.finalY + 5;
+  } else {
+    // Versão Interna: tabela COMPLETA em página paisagem
+    doc.addPage("a4", "landscape");
+    const lpW = doc.internal.pageSize.getWidth();
+    doc.setFillColor(30, 41, 59);
+    doc.rect(10, 10, lpW - 20, 6.5, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("ITENS DA MEDIÇÃO", 12, 14.6);
+    doc.setTextColor(0, 0, 0);
 
+    const body = itensList.map((i: any) => {
+      const htCalc = Number(i.horimetro_final ?? 0) - Number(i.horimetro_inicial ?? 0);
+      return [
+        i.equipamentos?.serie ?? "-",
+        i.equipamentos?.tag ?? "-",
+        i.equipamentos?.tipo ?? "-",
+        i.equipamentos?.modelo ?? "-",
+        fmtNum(i.horimetro_inicial),
+        fmtNum(i.horimetro_final),
+        fmtNum(htCalc),
+        fmtNum(i.horas_informadas),
+        fmtNum(i.horas_liquidas),
+        fmtNum(i.garantia_mensal_horas ?? i.garantia_minima),
+        String(i.dias_considerados ?? "-"),
+        fmtNum(i.garantia_proporcional_horas),
+        i.aplicar_garantia_proporcional ? "Sim" : "Não",
+        fmtNum(i.horas_a_pagar),
+        fmtBRL(i.valor_hora),
+        fmtBRL(i.valor_complementares),
+        fmtBRL(i.valor_descontos),
+        fmtBRL(i.valor_final),
+      ];
+    });
+    autoTable(doc, {
+      startY: 20,
+      margin: { left: 8, right: 8 },
+      theme: "grid",
+      tableWidth: lpW - 16,
+      styles: { fontSize: 6.5, cellPadding: 1.2, overflow: "linebreak", valign: "middle" },
+      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 6.5, halign: "center" },
+      columnStyles: {
+        0: { cellWidth: 16 },
+        1: { cellWidth: 13 },
+        2: { cellWidth: 26 },
+        3: { cellWidth: 26 },
+        4: { cellWidth: 14, halign: "right" },
+        5: { cellWidth: 14, halign: "right" },
+        6: { cellWidth: 12, halign: "right" },
+        7: { cellWidth: 12, halign: "right" },
+        8: { cellWidth: 12, halign: "right" },
+        9: { cellWidth: 14, halign: "right" },
+        10: { cellWidth: 9, halign: "center" },
+        11: { cellWidth: 14, halign: "right" },
+        12: { cellWidth: 11, halign: "center" },
+        13: { cellWidth: 14, halign: "right" },
+        14: { cellWidth: 18, halign: "right" },
+        15: { cellWidth: 14, halign: "right" },
+        16: { cellWidth: 14, halign: "right" },
+        17: { cellWidth: 24, halign: "right", fontStyle: "bold" },
+      },
+      head: [[
+        "Série", "Tag", "Tipo", "Modelo",
+        "Horím.\nInicial", "Horím.\nFinal", "HT\ncalc.", "HT\ninf.",
+        "Horas\nlíq.", "Gar.\nmensal", "Dias", "Gar.\nprop.",
+        "Prop.?", "Horas\na pagar", "Valor/hora", "Compl.", "Desc.", "Valor final",
+      ]],
+      body,
+      rowPageBreak: "avoid",
+      showHead: "everyPage",
+    });
 
-  // Volta para retrato nas demais seções
-  doc.addPage("a4", "portrait");
-  y = 14;
+    // Volta para retrato nas demais seções
+    doc.addPage("a4", "portrait");
+    y = 14;
+  }
 
   // === Memória de Cálculo ===
   sectionTitle("MEMÓRIA DE CÁLCULO POR EQUIPAMENTO");
@@ -677,15 +721,28 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
       doc.setTextColor(0, 0, 0);
     }
 
-    // Rodapé
+    // Rodapé — três áreas (esquerda / centro / direita) sem sobreposição
     doc.setDrawColor(200, 200, 200);
     doc.line(10, curH - 11, curW - 10, curH - 11);
     doc.setFontSize(7);
     doc.setTextColor(100, 116, 139);
     doc.setFont("helvetica", "normal");
-    doc.text(`Documento gerado automaticamente pelo Módulo de Medição - MC Terraplenagem${modo === "cliente" ? " - Versão Cliente" : ""}`, 10, curH - 7);
-    doc.text(geradoEm, curW / 2, curH - 7, { align: "center" });
-    doc.text(`Página ${p} de ${total}`, curW - 10, curH - 7, { align: "right" });
+
+    const leftText = `Documento gerado automaticamente pelo Módulo de Medição - MC Terraplenagem${modo === "cliente" ? " - Versão Cliente" : ""}`;
+    const centerText = geradoEm;
+    const rightText = `Página ${p} de ${total}`;
+
+    // Reserva espaços fixos para centro e direita; trunca a esquerda se preciso
+    const rightW = doc.getTextWidth(rightText);
+    const centerW = doc.getTextWidth(centerText);
+    const safeGap = 6;
+    const leftMaxW = (curW / 2) - centerW / 2 - 10 - safeGap;
+    const leftWrapped = doc.splitTextToSize(leftText, Math.max(40, leftMaxW));
+    const leftLine = Array.isArray(leftWrapped) ? leftWrapped[0] : String(leftWrapped);
+
+    doc.text(leftLine, 10, curH - 7);
+    doc.text(centerText, curW / 2, curH - 7, { align: "center" });
+    doc.text(rightText, curW - 10, curH - 7, { align: "right" });
     doc.setTextColor(0, 0, 0);
   }
 
