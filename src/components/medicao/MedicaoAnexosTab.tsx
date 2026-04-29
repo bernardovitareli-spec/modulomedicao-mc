@@ -49,7 +49,7 @@ const fmtSize = (b?: number | null) => {
 
 export function MedicaoAnexosTab({ medicaoId }: { medicaoId: string }) {
   const perms = usePermissions();
-  const podeEnviar = perms.isAdmin || perms.isGestor || perms.isOperacional || perms.isFaturamento;
+  const podeEnviar = perms.isAdmin || perms.isGestor || perms.isOperacional || perms.isFinanceiro;
 
   const [anexos, setAnexos] = useState<Anexo[]>([]);
   const [tipo, setTipo] = useState("comprovante_envio");
