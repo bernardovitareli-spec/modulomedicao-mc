@@ -21,6 +21,7 @@ import { FluxoAcoes } from "@/components/medicao/FluxoAcoes";
 import { MedicaoAnexosTab } from "@/components/medicao/MedicaoAnexosTab";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { labelStatus } from "@/lib/medicaoStatus";
+import { CriarFaturamentoButton } from "@/components/faturamento/CriarFaturamentoButton";
 
 export default function MedicaoDetalhe() {
   const { id } = useParams<{ id: string }>();
@@ -113,6 +114,17 @@ export default function MedicaoDetalhe() {
             )}
 
             <FluxoAcoes medicaoId={med.id} status={status} onChanged={load} />
+
+            <CriarFaturamentoButton
+              medicaoId={med.id}
+              status={status}
+              valorFinal={Number(med.valor_final ?? 0)}
+              competencia={med.competencia}
+              contratoNumero={med.contratos?.numero_dj}
+              cliente={med.contratos?.clientes?.razao_social}
+              canCreate={perms.canFaturar(status)}
+              onCreated={load}
+            />
 
             {perms.canCancelMedicao(status) && (
               <Button size="sm" variant="outline" onClick={() => setCancelOpen(true)}>
