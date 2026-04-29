@@ -65,6 +65,18 @@ export default function MedicaoDetalhe() {
     load();
   };
 
+  const onReabrir = async (values: Record<string, string>): Promise<void> => {
+    if (!id) return;
+    const motivo = values._motivo;
+    const { error } = await supabase.rpc("reabrir_medicao_cancelada" as any, {
+      _medicao_id: id,
+      _motivo: motivo,
+    });
+    if (error) { toast.error(error.message); throw error; }
+    toast.success("Medição reaberta como rascunho.");
+    load();
+  };
+
   const exportarPDF = async (preview = false, modo: "interno" | "cliente" = "interno") => {
     if (!id) return;
     if (med?.status === "cancelada") {
