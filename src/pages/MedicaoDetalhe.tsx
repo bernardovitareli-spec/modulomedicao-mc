@@ -18,6 +18,7 @@ import { MedicaoHistoricoTab } from "@/components/medicao/MedicaoHistoricoTab";
 import MedicaoRegrasActions from "@/components/medicao/MedicaoRegrasActions";
 import { FluxoAprovacaoTab } from "@/components/medicao/FluxoAprovacaoTab";
 import { FluxoAcoes } from "@/components/medicao/FluxoAcoes";
+import { MedicaoAnexosTab } from "@/components/medicao/MedicaoAnexosTab";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { labelStatus } from "@/lib/medicaoStatus";
 
