@@ -145,6 +145,11 @@ export default function MedicaoDetalhe() {
                 <Ban className="mr-1 h-4 w-4" />Cancelar medição
               </Button>
             )}
+            {perms.isAdmin && status === "cancelada" && (
+              <Button size="sm" variant="outline" onClick={() => setReabrirOpen(true)}>
+                <RotateCcw className="mr-1 h-4 w-4" />Reabrir como Rascunho
+              </Button>
+            )}
             {perms.canDeleteMedicao(status) && (
               <Button size="sm" variant="destructive" onClick={() => setDelOpen(true)}>
                 <Trash2 className="mr-1 h-4 w-4" />Excluir medição
