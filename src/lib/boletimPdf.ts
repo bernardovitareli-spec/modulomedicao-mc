@@ -626,7 +626,7 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
         2: { cellWidth: 42, halign: "right" },
         3: { cellWidth: 42, halign: "right", fontStyle: "bold" },
       },
-      head: [["Equipamento", "Item ajustado", "Valor anterior", "Valor final"]],
+      head: [["Equipamento", "Item ajustado", "Anterior", "Atual"]],
       body: histList.map((r: any) => [
         r.equip,
         FIELD_LABEL[r.campo] ?? r.campo,
