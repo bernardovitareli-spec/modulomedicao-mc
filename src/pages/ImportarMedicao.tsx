@@ -585,15 +585,19 @@ export default function ImportarMedicao() {
     m1Pendencias.length === 0 &&
     (!precisaConfirmarDivergencia || confirmDivergencia);
 
+  // Helper: chave canônica de medição (contrato + competência + período)
+  const buildMedKey = (contratoId: string, competencia: string, ini: string, fim: string) =>
+    `${contratoId}|${competencia}|${ini}|${fim}`;
+
   const confirmar = async () => {
     if (!podeImportar) { toast.error("Não é possível importar"); return; }
     setImporting(true);
     try {
+      // Etapa 1: preparar caches e resolver cliente/contrato (sem gravar itens ainda)
       const clientesCache = new Map<string, string>();
       const contratosCache = new Map<string, { id: string; valor_hora: number; garantia: number }>();
       const equipsCache = new Map<string, string>();
       const contratoEquipCache = new Map<string, string>();
-      const medicoesCache = new Map<string, string>();
 
       const [{ data: cli }, { data: ctr }, { data: eqp }] = await Promise.all([
         supabase.from("clientes").select("id, razao_social"),
@@ -604,8 +608,173 @@ export default function ImportarMedicao() {
       ctr?.forEach((c: any) => contratosCache.set(c.numero_dj, { id: c.id, valor_hora: Number(c.valor_hora_padrao ?? 0), garantia: Number(c.garantia_minima_horas ?? 0) }));
       eqp?.forEach((e: any) => equipsCache.set(`${e.serie ?? ""}|${e.tag ?? ""}`, e.id));
 
-      let createdCli = 0, createdCtr = 0, createdEqp = 0, createdMed = 0, createdItens = 0;
+      // Calcular períodos por medKey provisória (numero_dj+mes_ref) para checar conflitos
       const periodoPorMedicao = new Map<string, { inicio: string; fim: string }>();
+      for (const l of validas) {
+        const ov = overrides[l.numero_dj] ?? {};
+        const periodoIniEfetivo = ov.periodo_inicio || l.periodo_inicio || null;
+        const periodoFimEfetivo = ov.periodo_fim || l.periodo_fim || null;
+        const provKey = `${l.numero_dj}|${l.mes_ref}`;
+        if (!periodoPorMedicao.has(provKey)) {
+          const mesmas = validas.filter((x) => x.numero_dj === l.numero_dj && x.mes_ref === l.mes_ref);
+          const inicios = mesmas.map((x) => x.periodo_inicio).filter(Boolean).sort() as string[];
+          const fins = mesmas.map((x) => x.periodo_fim).filter(Boolean).sort() as string[];
+          periodoPorMedicao.set(provKey, {
+            inicio: periodoIniEfetivo ?? inicios[0] ?? l.mes_ref!,
+            fim: periodoFimEfetivo ?? fins[fins.length - 1] ?? lastDayOfMonth(l.mes_ref!),
+          });
+        }
+      }
+
+      // Verificar conflitos somente para contratos já existentes
+      const conflitosDetectados: ConflitoMedicao[] = [];
+      const valorPorChave = new Map<string, number>();
+      for (const l of validas) {
+        const provKey = `${l.numero_dj}|${l.mes_ref}`;
+        const periodo = periodoPorMedicao.get(provKey)!;
+        const ctrInfo = contratosCache.get(l.numero_dj);
+        if (!ctrInfo) continue; // contrato novo, nunca tem conflito
+        const chave = buildMedKey(ctrInfo.id, l.mes_ref!, periodo.inicio, periodo.fim);
+        valorPorChave.set(chave, (valorPorChave.get(chave) ?? 0) + l.valor_final);
+      }
+
+      const provKeysCheck = new Set<string>();
+      for (const l of validas) {
+        const ctrInfo = contratosCache.get(l.numero_dj);
+        if (!ctrInfo) continue;
+        const provKey = `${l.numero_dj}|${l.mes_ref}`;
+        if (provKeysCheck.has(provKey)) continue;
+        provKeysCheck.add(provKey);
+        const periodo = periodoPorMedicao.get(provKey)!;
+        const chave = buildMedKey(ctrInfo.id, l.mes_ref!, periodo.inicio, periodo.fim);
+
+        const { data: existentes } = await supabase
+          .from("medicoes")
+          .select("id, status, valor_final, versao, ativa, updated_at, created_by, contratos(numero_dj, clientes(razao_social))")
+          .eq("contrato_id", ctrInfo.id)
+          .eq("competencia", l.mes_ref!)
+          .eq("periodo_inicio", periodo.inicio)
+          .eq("periodo_fim", periodo.fim)
+          .eq("ativa", true)
+          .order("versao", { ascending: false })
+          .limit(1);
+
+        const ex = existentes?.[0];
+        if (!ex) continue;
+
+        // buscar email do último alterador
+        let userEmail: string | null = null;
+        if (ex.created_by) {
+          const { data: prof } = await supabase
+            .from("medicao_status_historico")
+            .select("user_email")
+            .eq("medicao_id", ex.id)
+            .order("created_at", { ascending: false })
+            .limit(1);
+          userEmail = prof?.[0]?.user_email ?? null;
+        }
+
+        conflitosDetectados.push({
+          chave,
+          cliente: (ex as any).contratos?.clientes?.razao_social ?? "—",
+          contratoNumero: (ex as any).contratos?.numero_dj ?? l.numero_dj,
+          competencia: l.mes_ref!,
+          periodoInicio: periodo.inicio,
+          periodoFim: periodo.fim,
+          medicaoExistente: {
+            id: ex.id,
+            status: ex.status as string,
+            valor_final: Number(ex.valor_final ?? 0),
+            versao: Number(ex.versao ?? 1),
+            updated_at: ex.updated_at,
+            user_email: userEmail,
+          },
+          valorNovo: valorPorChave.get(chave) ?? 0,
+        });
+      }
+
+      if (conflitosDetectados.length > 0) {
+        // Pausar e abrir diálogo. Persistir contexto para retomar depois.
+        setConflitos(conflitosDetectados);
+        setPendingCtx({ clientesCache, contratosCache, equipsCache, contratoEquipCache, periodoPorMedicao });
+        setConflitoOpen(true);
+        setImporting(false);
+        return;
+      }
+
+      // Sem conflitos → executa direto
+      await executarImportacao(
+        { clientesCache, contratosCache, equipsCache, contratoEquipCache, periodoPorMedicao },
+        new Map(),
+        new Set(),
+      );
+    } catch (e: any) {
+      toast.error("Erro: " + e.message);
+      setImporting(false);
+    }
+  };
+
+  const onResolveConflitos = async (resolucoes: ConflitoResolucao[]) => {
+    if (!pendingCtx) return;
+    setConflitoOpen(false);
+    setImporting(true);
+    try {
+      const medicaoIdsResolvidos = new Map<string, string>();
+      const skipChaves = new Set<string>();
+
+      for (const r of resolucoes) {
+        const conflito = conflitos.find((c) => c.chave === r.chave)!;
+        if (r.decisao === "cancelar") {
+          skipChaves.add(r.chave);
+          continue;
+        }
+        if (r.decisao === "reabrir") {
+          const { error } = await supabase.rpc("reabrir_medicao_cancelada", {
+            _medicao_id: conflito.medicaoExistente.id,
+            _motivo: r.motivo,
+          });
+          if (error) throw new Error(`Reabrir medição ${conflito.contratoNumero}: ${error.message}`);
+          // Limpa itens e usa a medição reaberta
+          await supabase.from("medicao_itens").delete().eq("medicao_id", conflito.medicaoExistente.id);
+          medicaoIdsResolvidos.set(r.chave, conflito.medicaoExistente.id);
+        } else if (r.decisao === "nova_versao") {
+          const { data, error } = await supabase.rpc("criar_nova_versao_medicao", {
+            _medicao_anterior_id: conflito.medicaoExistente.id,
+            _motivo: r.motivo,
+          });
+          if (error) throw new Error(`Nova versão ${conflito.contratoNumero}: ${error.message}`);
+          medicaoIdsResolvidos.set(r.chave, data as unknown as string);
+        }
+      }
+
+      await executarImportacao(pendingCtx, medicaoIdsResolvidos, skipChaves);
+    } catch (e: any) {
+      toast.error("Erro: " + e.message);
+      setImporting(false);
+    } finally {
+      setPendingCtx(null);
+      setConflitos([]);
+    }
+  };
+
+  const onCancelConflitos = () => {
+    setConflitoOpen(false);
+    setConflitos([]);
+    setPendingCtx(null);
+    setImporting(false);
+    toast.info("Importação cancelada pelo usuário.");
+  };
+
+  const executarImportacao = async (
+    ctx: any,
+    medicaoIdsResolvidos: Map<string, string>,
+    skipChaves: Set<string>,
+  ) => {
+    const { clientesCache, contratosCache, equipsCache, contratoEquipCache, periodoPorMedicao } = ctx;
+    try {
+      const medicoesCache = new Map<string, string>();
+      let createdCli = 0, createdCtr = 0, createdEqp = 0, createdMed = 0, createdItens = 0;
+      let skippedItens = 0;
 
       for (const l of validas) {
         const ov = overrides[l.numero_dj] ?? {};
@@ -614,8 +783,6 @@ export default function ImportarMedicao() {
         const periodoIniEfetivo = ov.periodo_inicio || l.periodo_inicio || null;
         const periodoFimEfetivo = ov.periodo_fim || l.periodo_fim || null;
 
-        // No M1, "Contratado" da planilha = FORNECEDOR/LOCADORA
-        // O CLIENTE/CONTRATANTE vem do override (ov.cliente_id)
         const isM1 = modelo === "M1";
         const fornecedorNome = isM1 ? l.contratado : "";
         const fornecedorCodigo = isM1 ? l.codigo_cliente : "";
@@ -623,11 +790,9 @@ export default function ImportarMedicao() {
 
         let clienteId: string | undefined;
         if (isM1) {
-          // Cliente/Contratante selecionado pelo usuário (validado em m1Pendencias)
           clienteId = ov.cliente_id;
           if (!clienteId) throw new Error(`Selecione o Cliente/Contratante para o contrato ${l.numero_dj}`);
         } else {
-          // M2: lógica original — "Contratante" da planilha = cliente
           const cliKey = l.contratado.toUpperCase();
           clienteId = clientesCache.get(cliKey);
           if (!clienteId) {
@@ -681,10 +846,7 @@ export default function ImportarMedicao() {
           equipId = data.id; equipsCache.set(eqpKey, equipId); createdEqp++;
         } else {
           await supabase.from("equipamentos").update({
-            tag: l.tag,
-            serie: l.serie,
-            modelo: l.modelo || "—",
-            tipo: l.tipo_equip || "—",
+            tag: l.tag, serie: l.serie, modelo: l.modelo || "—", tipo: l.tipo_equip || "—",
           } as any).eq("id", equipId);
         }
 
@@ -706,41 +868,69 @@ export default function ImportarMedicao() {
           contratoEquipCache.set(ceKey, ceId);
         }
 
-        const medKey = `${contrato.id}|${l.mes_ref}`;
-        if (!periodoPorMedicao.has(medKey)) {
-          const mesmasMedicao = validas.filter((x) => x.numero_dj === l.numero_dj && x.mes_ref === l.mes_ref);
-          const inicios = mesmasMedicao.map((x) => x.periodo_inicio).filter(Boolean).sort() as string[];
-          const fins = mesmasMedicao.map((x) => x.periodo_fim).filter(Boolean).sort() as string[];
-          // Override M1 prevalece (período real informado pelo usuário)
-          periodoPorMedicao.set(medKey, {
-            inicio: periodoIniEfetivo ?? inicios[0] ?? l.mes_ref!,
-            fim: periodoFimEfetivo ?? fins[fins.length - 1] ?? lastDayOfMonth(l.mes_ref!),
-          });
+        const provKey = `${l.numero_dj}|${l.mes_ref}`;
+        const periodo = periodoPorMedicao.get(provKey)!;
+        const periodoIniMed = periodo.inicio;
+        const periodoFimMed = periodo.fim;
+        const chaveCanonica = buildMedKey(contrato.id, l.mes_ref!, periodoIniMed, periodoFimMed);
+
+        // Pular linhas cuja chave foi marcada como "cancelar importação"
+        if (skipChaves.has(chaveCanonica)) {
+          skippedItens++;
+          continue;
         }
-        const periodoMed = periodoPorMedicao.get(medKey)!;
-        const periodoIniMed = periodoMed.inicio;
-        const periodoFimMed = periodoMed.fim;
-        let medicaoId = medicoesCache.get(medKey);
+
+        let medicaoId = medicoesCache.get(chaveCanonica);
         if (!medicaoId) {
-          const { data: existing } = await supabase.from("medicoes")
-            .select("id").eq("contrato_id", contrato.id).eq("competencia", l.mes_ref!).maybeSingle();
-          if (existing) {
-            medicaoId = existing.id;
-            await supabase.from("medicao_itens").delete().eq("medicao_id", medicaoId);
+          const resolvido = medicaoIdsResolvidos.get(chaveCanonica);
+          if (resolvido) {
+            medicaoId = resolvido;
             await supabase.from("medicoes").update({
               periodo_inicio: periodoIniMed, periodo_fim: periodoFimMed,
+              observacoes: `Importado de ${filename}`,
             } as any).eq("id", medicaoId);
           } else {
-            const { data, error } = await supabase.from("medicoes").insert({
-              contrato_id: contrato.id, competencia: l.mes_ref!,
-              periodo_inicio: periodoIniMed, periodo_fim: periodoFimMed,
-              status: "rascunho",
-              observacoes: `Importado de ${filename}`,
-            } as any).select("id").single();
-            if (error) throw error;
-            medicaoId = data.id; createdMed++;
+            // Sem conflito → pode existir uma medição ATIVA não-cancelada (caso raro: criada entre etapas).
+            // Garantir que NUNCA atualizamos uma cancelada silenciosamente.
+            const { data: existing } = await supabase.from("medicoes")
+              .select("id, status, ativa")
+              .eq("contrato_id", contrato.id)
+              .eq("competencia", l.mes_ref!)
+              .eq("periodo_inicio", periodoIniMed)
+              .eq("periodo_fim", periodoFimMed)
+              .eq("ativa", true)
+              .maybeSingle();
+
+            if (existing) {
+              if (existing.status === "cancelada") {
+                throw new Error(
+                  `Medição ${l.numero_dj} (${l.mes_ref}) está cancelada. Reabra-a ou crie uma nova versão antes de importar.`,
+                );
+              }
+              if (existing.status !== "rascunho") {
+                throw new Error(
+                  `Medição ${l.numero_dj} (${l.mes_ref}) está em status ${existing.status} e não pode ser substituída diretamente.`,
+                );
+              }
+              medicaoId = existing.id;
+              await supabase.from("medicao_itens").delete().eq("medicao_id", medicaoId);
+              await supabase.from("medicoes").update({
+                periodo_inicio: periodoIniMed, periodo_fim: periodoFimMed,
+              } as any).eq("id", medicaoId);
+            } else {
+              const { data, error } = await supabase.from("medicoes").insert({
+                contrato_id: contrato.id, competencia: l.mes_ref!,
+                periodo_inicio: periodoIniMed, periodo_fim: periodoFimMed,
+                status: "rascunho",
+                observacoes: `Importado de ${filename}`,
+                versao: 1,
+                ativa: true,
+              } as any).select("id").single();
+              if (error) throw error;
+              medicaoId = data.id; createdMed++;
+            }
           }
-          medicoesCache.set(medKey, medicaoId);
+          medicoesCache.set(chaveCanonica, medicaoId);
         }
 
         const calc = calcularItem({
@@ -796,12 +986,14 @@ export default function ImportarMedicao() {
         } as any).eq("id", medicaoId);
       }
 
-      toast.success(`Importação concluída: ${createdItens} itens em ${medicoesCache.size} medição(ões). ${createdCli} clientes, ${createdCtr} contratos, ${createdEqp} equipamentos novos.`);
+      const skipMsg = skippedItens > 0 ? ` (${skippedItens} linha(s) puladas por escolha do usuário)` : "";
+      toast.success(`Importação concluída: ${createdItens} itens em ${medicoesCache.size} medição(ões)${skipMsg}. ${createdCli} clientes, ${createdCtr} contratos, ${createdEqp} equipamentos novos.`);
       navigate("/medicoes");
     } catch (e: any) {
       toast.error("Erro: " + e.message);
     } finally { setImporting(false); }
   };
+
 
   return (
     <div>
