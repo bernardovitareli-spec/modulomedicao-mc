@@ -109,6 +109,9 @@ export default function Clientes() {
             <Field label="CNPJ *" v={form.cnpj} on={(v) => setForm({ ...form, cnpj: v })} />
             <Field label="Inscrição Estadual" v={form.inscricao_estadual} on={(v) => setForm({ ...form, inscricao_estadual: v })} />
             <Field label="Endereço" v={form.endereco} on={(v) => setForm({ ...form, endereco: v })} className="md:col-span-2" />
+            <Field label="Bairro" v={form.bairro} on={(v) => setForm({ ...form, bairro: v })} />
+            <Field label="Complemento" v={form.endereco_complemento} on={(v) => setForm({ ...form, endereco_complemento: v })} />
+            <Field label="CEP" v={form.cep} on={(v) => setForm({ ...form, cep: v })} />
             <Field label="Cidade" v={form.cidade} on={(v) => setForm({ ...form, cidade: v })} />
             <Field label="UF" v={form.uf} on={(v) => setForm({ ...form, uf: v })} />
             <Field label="Contato" v={form.contato_nome} on={(v) => setForm({ ...form, contato_nome: v })} />
