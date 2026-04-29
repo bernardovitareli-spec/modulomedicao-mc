@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { labelTipo } from "@/lib/regras";
 
-const STATUS_BLOQUEIA_APLICACAO = ["revisao_tecnica", "aprovacao_gerencial", "aprovada", "faturada", "paga"];
+const STATUS_BLOQUEIA_APLICACAO = ["em_revisao_interna", "aprovada_internamente", "enviada_cliente", "aprovada_cliente", "reprovada_cliente", "faturada", "paga", "cancelada"];
 
 interface Props {
   medicaoId: string;

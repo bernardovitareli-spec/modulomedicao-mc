@@ -92,7 +92,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<ItemForm>(empty());
   const [saving, setSaving] = useState(false);
-  const podeRecalcular = ["rascunho", "importada", "rejeitada"].includes(status ?? "");
+  const podeRecalcular = (status ?? "") === "rascunho";
   
 
   const load = async () => {
