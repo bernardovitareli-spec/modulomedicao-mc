@@ -91,6 +91,14 @@ export default function Medicoes() {
               <SelectItem value="cancelada">Cancelada</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={versaoFilter} onValueChange={(v) => setVersaoFilter(v as any)}>
+            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ativas">Apenas versões ativas</SelectItem>
+              <SelectItem value="todas">Todas as versões</SelectItem>
+              <SelectItem value="inativas">Apenas inativas</SelectItem>
+            </SelectContent>
+          </Select>
           <span className="ml-auto text-xs text-muted-foreground">{filtered.length} medição(ões)</span>
         </div>
         <Table>
