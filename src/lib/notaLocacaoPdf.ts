@@ -38,6 +38,7 @@ export interface NotaLocacaoData {
   fatura: {
     id: string;
     numero_nf?: string | null;
+    numero_nota_formatado?: string | null;
     data_emissao?: string | null;
     data_vencimento?: string | null;
     natureza_operacao?: string | null;
@@ -128,7 +129,7 @@ export function gerarNotaLocacaoPDF(d: NotaLocacaoData): jsPDF {
   // Número da nota
   label(doc, "Número da Nota", divX + 3, y + 4);
   doc.setFont("helvetica", "bold"); doc.setFontSize(13);
-  doc.text(d.fatura?.numero_nf ?? "—", divX + 3, y + 10);
+  doc.text(d.fatura?.numero_nota_formatado ?? d.fatura?.numero_nf ?? "—", divX + 3, y + 10);
   doc.line(divX, y + cellH, right, y + cellH);
   // Data emissão
   label(doc, "Data de Emissão", divX + 3, y + cellH + 4);
@@ -209,7 +210,7 @@ export function gerarNotaLocacaoPDF(d: NotaLocacaoData): jsPDF {
   doc.line(c2, y, c2, y + rowH);
   doc.line(c3 + 25, y, c3 + 25, y + rowH);
   label(doc, "Complemento", M + 2, y + 3);
-  value(doc, cli.endereco_complemento ?? "-", M + 2, y + 8);
+  value(doc, cli.endereco_complemento ?? cli.complemento ?? "-", M + 2, y + 8);
   label(doc, "Vencimento", c2 + 2, y + 3);
   value(doc, fmtDate(d.fatura?.data_vencimento), c2 + 2, y + 8);
   label(doc, "Valor", c3 + 27, y + 3);
@@ -217,12 +218,12 @@ export function gerarNotaLocacaoPDF(d: NotaLocacaoData): jsPDF {
   doc.text(fmtBRL(d.fatura?.valor_liquido ?? d.fatura?.valor_unitario ?? 0), c3 + 27, y + 8);
   y += rowH;
 
-  // ==== Dados do Equipamento / Item ====
+  // ==== Dados da Locação / Serviço ====
   box(doc, M, y, right - M, 7);
   doc.setFillColor(235, 235, 235);
   doc.rect(M, y, right - M, 7, "F");
   doc.setFont("helvetica", "bold"); doc.setFontSize(9);
-  doc.text("Dados do Equipamento", M + 2, y + 5);
+  doc.text("Dados da Locação / Serviço", M + 2, y + 5);
   y += 7;
 
   // header item
@@ -315,7 +316,7 @@ export function gerarNotaLocacaoPDF(d: NotaLocacaoData): jsPDF {
   doc.line(rDiv, y, rDiv, y + recH);
   label(doc, "Número da Nota", M + 2, y + 4);
   doc.setFont("helvetica", "bold"); doc.setFontSize(11);
-  doc.text(d.fatura?.numero_nf ?? "—", M + 2, y + 12);
+  doc.text(d.fatura?.numero_nota_formatado ?? d.fatura?.numero_nf ?? "—", M + 2, y + 12);
   doc.setFont("helvetica", "normal"); doc.setFontSize(8);
   const recTxt = `Recebi(emos) de ${d.cliente?.razao_social ?? "-"}, as locações/reembolsos constantes desta nota indicada ao lado.`;
   doc.text(doc.splitTextToSize(recTxt, right - rDiv - 4), rDiv + 2, y + 6);

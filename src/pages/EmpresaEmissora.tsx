@@ -28,6 +28,7 @@ export default function EmpresaEmissora() {
     endereco: "", numero: "", complemento: "", bairro: "", cep: "",
     municipio: "", uf: "", telefone: "", email: "",
     banco: "", agencia: "", conta_corrente: "", chave_pix: "",
+    numero_nota_digitos: 1, prazo_recebimento_padrao_dias: 30,
     ativa: true, padrao: false,
   });
 
@@ -105,6 +106,31 @@ export default function EmpresaEmissora() {
                 <F l="Agência" v={sel.agencia} on={(v) => setSel({ ...sel, agencia: v })} disabled={!isAdmin} />
                 <F l="Conta corrente" v={sel.conta_corrente} on={(v) => setSel({ ...sel, conta_corrente: v })} disabled={!isAdmin} />
                 <F l="Chave PIX" v={sel.chave_pix} on={(v) => setSel({ ...sel, chave_pix: v })} disabled={!isAdmin} />
+              </div>
+            </div>
+            <div className="border-t pt-3">
+              <h3 className="text-sm font-semibold mb-2">Configuração da Nota de Locação</h3>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <Label className="text-xs">Formato do número da nota (dígitos)</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={sel.numero_nota_digitos ?? 1}
+                    disabled={!isAdmin}
+                    onChange={(e) => setSel({ ...sel, numero_nota_digitos: Number(e.target.value) })}
+                  >
+                    <option value={1}>Simples (ex: 1)</option>
+                    <option value={6}>6 dígitos (ex: 000001)</option>
+                    <option value={8}>8 dígitos (ex: 00000001)</option>
+                    <option value={11}>11 dígitos (ex: 00000000001)</option>
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-xs">Prazo padrão de recebimento (dias)</Label>
+                  <Input type="number" min={0} value={sel.prazo_recebimento_padrao_dias ?? 30}
+                    disabled={!isAdmin}
+                    onChange={(e) => setSel({ ...sel, prazo_recebimento_padrao_dias: Number(e.target.value) || 0 })} />
+                </div>
               </div>
             </div>
             {isAdmin && (
