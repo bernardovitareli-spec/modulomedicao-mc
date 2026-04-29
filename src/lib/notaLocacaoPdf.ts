@@ -1,6 +1,24 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { fmtBRL, fmtDate } from "@/lib/format";
+import logoMcUrl from "@/assets/logo-mc.png";
+
+let _logoDataUrl: string | null = null;
+async function loadLogoDataUrl(): Promise<string | null> {
+  if (_logoDataUrl) return _logoDataUrl;
+  try {
+    const res = await fetch(logoMcUrl);
+    const blob = await res.blob();
+    _logoDataUrl = await new Promise<string>((resolve, reject) => {
+      const r = new FileReader();
+      r.onloadend = () => resolve(r.result as string);
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+    return _logoDataUrl;
+  } catch { return null; }
+}
+export async function getLogoDataUrl() { return loadLogoDataUrl(); }
 
 export interface NotaLocacaoData {
   emissora: any;
