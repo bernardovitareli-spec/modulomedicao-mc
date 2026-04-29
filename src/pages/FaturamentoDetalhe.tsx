@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Save, Ban, DollarSign, Upload, Download } from "lucide-react";
+import { ArrowLeft, Save, Ban, DollarSign, Upload, Download, FileText } from "lucide-react";
 import { fmtBRL, fmtDate, fmtCompetencia } from "@/lib/format";
 import { FATURAMENTO_STATUS_LABELS, FATURAMENTO_STATUS_VARIANT, labelFatStatus, FaturamentoStatus } from "@/lib/faturamentoStatus";
 import { usePermissions } from "@/lib/permissions";
@@ -161,6 +161,11 @@ export default function FaturamentoDetalhe() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={FATURAMENTO_STATUS_VARIANT[status]}>{labelFatStatus(status)}</Badge>
+            {podeEditar && !cancelled && (
+              <Button size="sm" variant="default" onClick={() => navigate(`/faturamento/${id}/nota-locacao`)}>
+                <FileText className="mr-1 h-4 w-4" />Gerar Nota de Locação
+              </Button>
+            )}
             {podeEditar && !cancelled && status !== "pago" && (
               <Button size="sm" variant="outline" onClick={() => setPagOpen(true)}>
                 <DollarSign className="mr-1 h-4 w-4" />Registrar pagamento
