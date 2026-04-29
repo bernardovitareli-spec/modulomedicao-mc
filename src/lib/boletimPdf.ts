@@ -246,26 +246,33 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   doc.setFontSize(8);
   const gap = 6;
   const colWidth = (pageW - marginX * 2 - gap) / 2;
-  const labelW = 36;
-  const valueW = colWidth - labelW - 1;
 
-  const renderColuna = (rows: [string, string][], xBase: number): number => {
+  const renderColuna = (rows: [string, string][], xBase: number, labelW: number): number => {
+    const valueW = colWidth - labelW - 1;
     let cy = y;
     rows.forEach(([label, valor]) => {
       doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
       doc.setTextColor(100, 116, 139);
       doc.text(`${label}:`, xBase, cy);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(0, 0, 0);
+      // Reduz fonte para nomes longos (ex.: razão social do fornecedor)
+      let fSize = 8;
+      if (String(valor).length > 36) fSize = 7.2;
+      if (String(valor).length > 60) fSize = 6.6;
+      doc.setFontSize(fSize);
       const wrapped = doc.splitTextToSize(String(valor), valueW);
       doc.text(wrapped, xBase + labelW, cy);
-      cy += Math.max(1, wrapped.length) * 4 + 1;
+      const lineH = fSize <= 6.6 ? 3.2 : fSize <= 7.2 ? 3.6 : 4;
+      cy += Math.max(1, wrapped.length) * lineH + 1;
     });
+    doc.setFontSize(8);
     return cy;
   };
 
-  const yEsq = renderColuna(colEsq, marginX);
-  const yDir = renderColuna(colDir, marginX + colWidth + gap);
+  const yEsq = renderColuna(colEsq, marginX, 36);
+  const yDir = renderColuna(colDir, marginX + colWidth + gap, 32);
   y = Math.max(yEsq, yDir) + 3;
 
 
