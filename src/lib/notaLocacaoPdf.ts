@@ -25,6 +25,7 @@ export interface NotaLocacaoData {
   cliente: any;
   contrato: any;
   medicao: any;
+  logoDataUrl?: string | null;
   fatura: {
     id: string;
     numero_nf?: string | null;
@@ -80,20 +81,29 @@ export function gerarNotaLocacaoPDF(d: NotaLocacaoData): jsPDF {
   const divX = M + 120;
   doc.line(divX, y, divX, y + headerH);
 
+  // Logo (se disponível)
+  let textX = M + 3;
+  if (d.logoDataUrl) {
+    try {
+      doc.addImage(d.logoDataUrl, "PNG", M + 2, y + 3, 28, 12);
+      textX = M + 33;
+    } catch { /* ignora se falhar */ }
+  }
+
   // Emissora
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text(d.emissora?.razao_social ?? "EMPRESA EMISSORA", M + 3, y + 6);
+  doc.text(d.emissora?.razao_social ?? "EMPRESA EMISSORA", textX, y + 6);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   const endL1 = [d.emissora?.endereco, d.emissora?.numero].filter(Boolean).join(", ");
   const endL2 = [d.emissora?.bairro, d.emissora?.complemento].filter(Boolean).join(" - ");
   const endL3 = `CEP: ${d.emissora?.cep ?? "-"} - ${d.emissora?.municipio ?? ""} - ${d.emissora?.uf ?? ""}`;
-  doc.text(endL1, M + 3, y + 12);
-  if (endL2) doc.text(endL2, M + 3, y + 17);
-  doc.text(endL3, M + 3, y + 22);
-  if (d.emissora?.telefone) doc.text(`TEL.: ${d.emissora.telefone}`, M + 3, y + 27);
-  if (d.emissora?.email) doc.text(`E-mail: ${d.emissora.email}`, M + 3, y + 32);
+  doc.text(endL1, textX, y + 12);
+  if (endL2) doc.text(endL2, textX, y + 17);
+  doc.text(endL3, textX, y + 22);
+  if (d.emissora?.telefone) doc.text(`TEL.: ${d.emissora.telefone}`, textX, y + 27);
+  if (d.emissora?.email) doc.text(`E-mail: ${d.emissora.email}`, textX, y + 32);
 
   // Bloco direito (número/data/CNPJ/IE/IM)
   const cellH = headerH / 4;
