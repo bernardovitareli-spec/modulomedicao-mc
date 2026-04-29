@@ -94,9 +94,11 @@ export function gerarNotaLocacaoPDF(d: NotaLocacaoData): jsPDF {
   let textX = M + 3;
   if (d.logoDataUrl) {
     try {
-      doc.addImage(d.logoDataUrl, "PNG", M + 2, y + 3, 28, 12);
-      textX = M + 33;
-    } catch { /* ignora se falhar */ }
+      doc.addImage(d.logoDataUrl, "PNG", M + 2, y + 2, 32, 14, undefined, "FAST");
+      textX = M + 38;
+    } catch (e) {
+      console.error("[notaLocacaoPdf] addImage falhou:", e);
+    }
   }
 
   // Emissora
