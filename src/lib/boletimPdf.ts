@@ -721,15 +721,28 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
       doc.setTextColor(0, 0, 0);
     }
 
-    // Rodapé
+    // Rodapé — três áreas (esquerda / centro / direita) sem sobreposição
     doc.setDrawColor(200, 200, 200);
     doc.line(10, curH - 11, curW - 10, curH - 11);
     doc.setFontSize(7);
     doc.setTextColor(100, 116, 139);
     doc.setFont("helvetica", "normal");
-    doc.text(`Documento gerado automaticamente pelo Módulo de Medição - MC Terraplenagem${modo === "cliente" ? " - Versão Cliente" : ""}`, 10, curH - 7);
-    doc.text(geradoEm, curW / 2, curH - 7, { align: "center" });
-    doc.text(`Página ${p} de ${total}`, curW - 10, curH - 7, { align: "right" });
+
+    const leftText = `Documento gerado automaticamente pelo Módulo de Medição - MC Terraplenagem${modo === "cliente" ? " - Versão Cliente" : ""}`;
+    const centerText = geradoEm;
+    const rightText = `Página ${p} de ${total}`;
+
+    // Reserva espaços fixos para centro e direita; trunca a esquerda se preciso
+    const rightW = doc.getTextWidth(rightText);
+    const centerW = doc.getTextWidth(centerText);
+    const safeGap = 6;
+    const leftMaxW = (curW / 2) - centerW / 2 - 10 - safeGap;
+    const leftWrapped = doc.splitTextToSize(leftText, Math.max(40, leftMaxW));
+    const leftLine = Array.isArray(leftWrapped) ? leftWrapped[0] : String(leftWrapped);
+
+    doc.text(leftLine, 10, curH - 7);
+    doc.text(centerText, curW / 2, curH - 7, { align: "center" });
+    doc.text(rightText, curW - 10, curH - 7, { align: "right" });
     doc.setTextColor(0, 0, 0);
   }
 
