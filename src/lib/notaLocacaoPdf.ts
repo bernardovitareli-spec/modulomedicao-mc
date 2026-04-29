@@ -129,7 +129,7 @@ export function gerarNotaLocacaoPDF(d: NotaLocacaoData): jsPDF {
   // Número da nota
   label(doc, "Número da Nota", divX + 3, y + 4);
   doc.setFont("helvetica", "bold"); doc.setFontSize(13);
-  doc.text(d.fatura?.numero_nf ?? "—", divX + 3, y + 10);
+  doc.text(d.fatura?.numero_nota_formatado ?? d.fatura?.numero_nf ?? "—", divX + 3, y + 10);
   doc.line(divX, y + cellH, right, y + cellH);
   // Data emissão
   label(doc, "Data de Emissão", divX + 3, y + cellH + 4);
