@@ -298,6 +298,20 @@ export default function ImportarMedicao() {
   // contexto preparado p/ executar importação após resolução de conflitos
   const [pendingCtx, setPendingCtx] = useState<any>(null);
 
+  // ----- M3 (Obras Ápia) -----
+  // Configurações por número DJ — definidas no card de pré-visualização do M3.
+  const [m3Settings, setM3Settings] = useState<Record<string, {
+    cliente_id?: string;
+    fornecedor_nome?: string;
+    fornecedor_codigo?: string;
+    centro_custo?: string;
+    competencia?: string;     // YYYY-MM-01
+    periodo_inicio?: string;  // YYYY-MM-DD
+    periodo_fim?: string;
+    tipo_servico?: string;
+  }>>({});
+  const [m3Result, setM3Result] = useState<M3ParseResult | null>(null);
+
   const onFile = async (file: File) => {
     setFilename(file.name);
     setLinhas([]); setIgnoradas([]); setHeaderError(""); setHeaderInfo(null); setModelo(null); setSheetUsed(""); setOverrides({}); setConfirmDivergencia(false);
