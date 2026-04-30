@@ -369,7 +369,7 @@ export default function ImportarMedicao() {
     }
     setModelo("M3");
     setSheetUsed(sheetName);
-    setHeaderInfo({ rowIndex: result.headerRowIndex, colMap: {}, missingRequired: [] });
+    setHeaderInfo({ rowIndex: result.headerRowIndex, colMap: result.colMap, missingRequired: [] });
     setM3Result(result);
 
     // Carrega clientes ativos e tenta sugerir Construtora Ápia.
