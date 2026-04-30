@@ -1284,7 +1284,17 @@ export default function ImportarMedicao() {
                 </AlertDescription>
               </Alert>
             )}
-            {precisaConfirmarDivergencia && (
+            {m3Pendencias.length > 0 && (
+              <Alert variant="destructive" className="mt-3">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  <strong>Preencha os campos obrigatórios do Modelo M3 antes de confirmar:</strong>
+                  <ul className="mt-1 ml-4 list-disc">
+                    {m3Pendencias.map((p, i) => <li key={i}>{p}</li>)}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
               <Alert variant="destructive" className="mt-3">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="text-xs">
