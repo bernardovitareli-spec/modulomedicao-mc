@@ -13,6 +13,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, ArrowLeft } from "lucide-react";
 import { ImportConflitoDialog, ConflitoMedicao, ConflitoResolucao } from "@/components/medicao/ImportConflitoDialog";
+import {
+  findM3Sheet, parseM3, periodoApiaPorCompetencia, M3_LABEL,
+  type M3ParseResult, type M3Linha,
+} from "@/lib/m3Parser";
 
 const TIPOS_SERVICO_M1 = [
   "Locação de equipamentos",
@@ -210,7 +214,7 @@ function detectHeaderM2(matrix: any[][], maxRows = 5): HeaderInfo {
 }
 
 // ---------- Modelo ----------
-type ModeloLayout = "M1" | "M2";
+type ModeloLayout = "M1" | "M2" | "M3";
 
 const parseSN = (v: any): boolean => {
   const s = normalize(v);
@@ -294,15 +298,140 @@ export default function ImportarMedicao() {
   // contexto preparado p/ executar importação após resolução de conflitos
   const [pendingCtx, setPendingCtx] = useState<any>(null);
 
+  // ----- M3 (Obras Ápia) -----
+  // Configurações por número DJ — definidas no card de pré-visualização do M3.
+  const [m3Settings, setM3Settings] = useState<Record<string, {
+    cliente_id?: string;
+    fornecedor_nome?: string;
+    fornecedor_codigo?: string;
+    centro_custo?: string;
+    competencia?: string;     // YYYY-MM-01
+    periodo_inicio?: string;  // YYYY-MM-DD
+    periodo_fim?: string;
+    tipo_servico?: string;
+  }>>({});
+  const [m3Result, setM3Result] = useState<M3ParseResult | null>(null);
+
+  // Converte uma linha M3 para o formato LinhaLida usado pelo restante do fluxo.
+  const m3LinhaToLinhaLida = (l: M3Linha, opts: {
+    competencia: string;
+    centro_custo: string;
+  }): LinhaLida => {
+    return {
+      rowExcel: l.rowExcel,
+      raw: [],
+      mes_ref: opts.competencia || l.mes_ref,
+      numero_dj: l.numero_dj,
+      contratado: l.fornecedor_nome,        // No M3, "Contratado" é o fornecedor.
+      codigo_cliente: l.fornecedor_codigo,  // Código do fornecedor (reaproveitado).
+      cnpj: "",
+      tipo_servico: "Locação de equipamentos",
+      tipo_equip: l.tipo_equip,
+      modelo: l.modelo,
+      serie: l.serie,
+      tag: l.tag,
+      centro_custo: opts.centro_custo || l.centro_custo,
+      periodo_inicio: null,                  // Período é fixado em m3Settings (override).
+      periodo_fim: null,
+      inicio_op: l.inicio_op,
+      termino_contrato: l.termino_contrato,
+      hor_inicial: l.hor_inicial,
+      hor_final: l.hor_final,
+      ht_calculado: l.ht_calculado,
+      ht_informado: l.ht_informado,
+      divergencia_ht: l.divergencia_ht,
+      garantia: l.garantia_aplicada,         // Usa garantia já aplicada (proporcional/real).
+      horas_disp: 0,
+      horas_mec: l.horas_mec,
+      complementares: 0,
+      valor_hora: l.valor_hora,
+      desc_manutencao: 0,
+      periodo_chuvoso: l.periodo_chuvoso,
+      excecao_chuvoso: l.excecao_chuvoso ? 1 : 0,
+      observacoes: l.observacoes,
+      tipo_pagamento: l.tipo_pagamento,
+      horas_liquidas: l.horas_pagar_liquido,
+      horas_a_pagar: l.horas_pagar_bruto,
+      valor_final: l.valor_final,
+      valor_planilha: l.valor_planilha,
+      diferenca_calc: l.diferenca_calc,
+      erros: l.erros.slice(),
+      alertas: l.alertas.slice(),
+    };
+  };
+
+  const processarM3 = async (wb: XLSX.WorkBook, sheetName: string) => {
+    const result = parseM3(wb, sheetName);
+    if (!result.ok) {
+      setHeaderError(result.motivo ?? "Não foi possível ler M3");
+      toast.error(result.motivo ?? "Não foi possível ler M3");
+      return;
+    }
+    setModelo("M3");
+    setSheetUsed(sheetName);
+    setHeaderInfo({ rowIndex: result.headerRowIndex, colMap: {}, missingRequired: [] });
+    setM3Result(result);
+
+    // Carrega clientes ativos e tenta sugerir Construtora Ápia.
+    const { data: cliAtivos } = await supabase
+      .from("clientes").select("id, razao_social").eq("status", "ativo").order("razao_social");
+    setClientesAtivos(cliAtivos ?? []);
+    const apia = (cliAtivos ?? []).find((c: any) =>
+      ["CONSTRUTORA ÁPIA", "CONSTRUTORA APIA"].includes(String(c.razao_social).toUpperCase()));
+
+    const competencia = result.competenciaSugerida ?? "";
+    const periodo = competencia ? periodoApiaPorCompetencia(competencia) : null;
+
+    const settings: typeof m3Settings = {};
+    const djs = Array.from(new Set(result.linhas.map((l) => l.numero_dj).filter(Boolean)));
+    for (const dj of djs) {
+      const linhaRef = result.linhas.find((l) => l.numero_dj === dj);
+      settings[dj] = {
+        cliente_id: apia?.id || "",
+        fornecedor_nome: linhaRef?.fornecedor_nome || result.fornecedorNome,
+        fornecedor_codigo: linhaRef?.fornecedor_codigo || result.fornecedorCodigo,
+        centro_custo: linhaRef?.centro_custo || result.centroCustoSugerido,
+        competencia,
+        periodo_inicio: periodo?.ini ?? "",
+        periodo_fim: periodo?.fim ?? "",
+        tipo_servico: "Locação de equipamentos",
+      };
+    }
+    setM3Settings(settings);
+
+    // Converte para LinhaLida e mantém o restante do fluxo (resumos / conflito / executar).
+    const lidas: LinhaLida[] = result.linhas.map((l) =>
+      m3LinhaToLinhaLida(l, {
+        competencia: settings[l.numero_dj]?.competencia || competencia,
+        centro_custo: settings[l.numero_dj]?.centro_custo || result.centroCustoSugerido,
+      }),
+    );
+
+    setLinhas(lidas);
+    setIgnoradas(result.ignoradas.map((i) => ({ rowExcel: i.rowExcel, motivo: i.motivo, preview: i.preview })));
+    toast.success(`Modelo M3 • ${lidas.length} linha(s) lidas, ${result.ignoradas.length} ignorada(s).`);
+  };
+
   const onFile = async (file: File) => {
     setFilename(file.name);
     setLinhas([]); setIgnoradas([]); setHeaderError(""); setHeaderInfo(null); setModelo(null); setSheetUsed(""); setOverrides({}); setConfirmDivergencia(false);
+    setM3Settings({}); setM3Result(null);
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { cellDates: true });
 
       const sheetM1 = wb.SheetNames.find((n) => normalize(n) === normalize(SHEET_MODELO_1));
       const sheetM2 = wb.SheetNames.find((n) => normalize(n) === normalize(SHEET_MODELO_2));
+
+      // M3 — Obras Ápia: só é considerado quando NÃO há aba M1/M2.
+      // Isso garante que M1/M2 nunca sejam afetados.
+      if (!sheetM1 && !sheetM2) {
+        const sheetM3 = findM3Sheet(wb);
+        if (sheetM3) {
+          await processarM3(wb, sheetM3);
+          return;
+        }
+      }
 
       let modeloDetectado: ModeloLayout | null = null;
       let sheetName = "";
@@ -525,12 +654,26 @@ export default function ImportarMedicao() {
 
   // Helpers para aplicar overrides M1 (preenchidos manualmente pelo usuário)
   const ovOf = (dj: string) => overrides[dj] ?? {};
-  const cnpjEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).cnpj || l.cnpj) : l.cnpj);
-  // No M1 o "código" extraído da planilha é o CÓDIGO DO FORNECEDOR (não cliente)
-  const codFornecedorEf = (l: LinhaLida) => (modelo === "M1" ? l.codigo_cliente : "");
-  const tipoServicoEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).tipo_servico || l.tipo_servico) : l.tipo_servico);
-  const periodoIniEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).periodo_inicio || l.periodo_inicio || "") : (l.periodo_inicio || ""));
-  const periodoFimEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).periodo_fim || l.periodo_fim || "") : (l.periodo_fim || ""));
+  // Helper unificado: para M1 lê de "overrides", para M3 lê de "m3Settings".
+  const cfgOf = (dj: string): {
+    cnpj?: string; tipo_servico?: string; periodo_inicio?: string;
+    periodo_fim?: string; cliente_id?: string; centro_custo?: string;
+    competencia?: string; fornecedor_nome?: string; fornecedor_codigo?: string;
+  } => {
+    if (modelo === "M3") return m3Settings[dj] ?? {};
+    return overrides[dj] ?? {};
+  };
+  const usaConfig = modelo === "M1" || modelo === "M3";
+  const cnpjEf = (l: LinhaLida) => (usaConfig ? (cfgOf(l.numero_dj).cnpj || l.cnpj) : l.cnpj);
+  // No M1/M3 o "código" extraído da planilha é o CÓDIGO DO FORNECEDOR (não cliente)
+  const codFornecedorEf = (l: LinhaLida) => (usaConfig ? l.codigo_cliente : "");
+  const tipoServicoEf = (l: LinhaLida) => (usaConfig ? (cfgOf(l.numero_dj).tipo_servico || l.tipo_servico) : l.tipo_servico);
+  const periodoIniEf = (l: LinhaLida) => (usaConfig ? (cfgOf(l.numero_dj).periodo_inicio || l.periodo_inicio || "") : (l.periodo_inicio || ""));
+  const periodoFimEf = (l: LinhaLida) => (usaConfig ? (cfgOf(l.numero_dj).periodo_fim || l.periodo_fim || "") : (l.periodo_fim || ""));
+  const competenciaEf = (l: LinhaLida) =>
+    (modelo === "M3" ? (cfgOf(l.numero_dj).competencia || l.mes_ref) : l.mes_ref);
+  const centroCustoEf = (l: LinhaLida) =>
+    (modelo === "M3" ? (cfgOf(l.numero_dj).centro_custo || l.centro_custo) : l.centro_custo);
 
   // Resumo agregado
   const clientes = Array.from(new Set(validas.map((l) => l.contratado)));
@@ -538,8 +681,8 @@ export default function ImportarMedicao() {
   const codigosFornecedor = Array.from(new Set(validas.map(codFornecedorEf).filter(Boolean)));
   const contratos = Array.from(new Set(validas.map((l) => l.numero_dj)));
   const tiposServico = Array.from(new Set(validas.map(tipoServicoEf).filter(Boolean)));
-  const centrosCusto = Array.from(new Set(validas.map((l) => l.centro_custo).filter(Boolean)));
-  const competencias = Array.from(new Set(validas.map((l) => l.mes_ref).filter(Boolean) as string[]));
+  const centrosCusto = Array.from(new Set(validas.map(centroCustoEf).filter(Boolean) as string[]));
+  const competencias = Array.from(new Set(validas.map((l) => competenciaEf(l)).filter(Boolean) as string[]));
   const periodosIni = validas.map(periodoIniEf).filter(Boolean) as string[];
   const periodosFim = validas.map(periodoFimEf).filter(Boolean) as string[];
   const periodoIniMin = periodosIni.length ? periodosIni.sort()[0] : "";
@@ -553,6 +696,10 @@ export default function ImportarMedicao() {
   const totalHorasMec = validas.reduce((s, l) => s + l.horas_mec, 0);
   const totalComplementares = validas.reduce((s, l) => s + l.complementares, 0);
   const totalDesc = validas.reduce((s, l) => s + l.desc_manutencao, 0);
+  // Totais específicos do M3
+  const totalHtCalc = validas.reduce((s, l) => s + l.ht_calculado, 0);
+  const totalHorasPagarBruto = validas.reduce((s, l) => s + l.horas_a_pagar, 0);
+  const totalHorasPagarLiquido = validas.reduce((s, l) => s + l.horas_liquidas, 0);
 
   // Validação: tipo_equip == tipo_servico em todos os itens (provável mapeamento errado)
   const itensComTipoEquip = validas.filter((l) => l.tipo_equip);
@@ -561,7 +708,7 @@ export default function ImportarMedicao() {
     itensComTipoEquip.every((l) => normalize(l.tipo_equip) === normalize(l.tipo_servico));
   const erroMapeamentoTipoEquip = modelo === "M2" && tipoEquipIgualServico;
 
-  // Validação dos overrides obrigatórios M1
+  // Validação dos overrides obrigatórios M1/M3
   const m1Pendencias: string[] = [];
   if (modelo === "M1") {
     const djs = Array.from(new Set(validas.map((l) => l.numero_dj)));
@@ -576,13 +723,29 @@ export default function ImportarMedicao() {
       }
     }
   }
+  const m3Pendencias: string[] = [];
+  if (modelo === "M3") {
+    const djs = Array.from(new Set(validas.map((l) => l.numero_dj)));
+    for (const dj of djs) {
+      const s = m3Settings[dj] ?? {};
+      if (!s.cliente_id) m3Pendencias.push(`Contrato ${dj}: selecione o Cliente/Contratante`);
+      if (!s.competencia) m3Pendencias.push(`Contrato ${dj}: competência obrigatória`);
+      if (!s.periodo_inicio) m3Pendencias.push(`Contrato ${dj}: período início obrigatório`);
+      if (!s.periodo_fim) m3Pendencias.push(`Contrato ${dj}: período fim obrigatório`);
+      if (s.periodo_inicio && s.periodo_fim && s.periodo_fim < s.periodo_inicio) {
+        m3Pendencias.push(`Contrato ${dj}: período fim não pode ser anterior ao início`);
+      }
+      if (!s.centro_custo) m3Pendencias.push(`Contrato ${dj}: centro de custo obrigatório`);
+    }
+  }
 
-  const precisaConfirmarDivergencia = modelo === "M1" && linhasComDivergencia > 0;
+  const precisaConfirmarDivergencia = (modelo === "M1" || modelo === "M3") && linhasComDivergencia > 0;
   const podeImportar =
     !headerError &&
     validas.length > 0 &&
     !erroMapeamentoTipoEquip &&
     m1Pendencias.length === 0 &&
+    m3Pendencias.length === 0 &&
     (!precisaConfirmarDivergencia || confirmDivergencia);
 
   // Helper: chave canônica de medição (contrato + competência + período)
@@ -608,10 +771,14 @@ export default function ImportarMedicao() {
       ctr?.forEach((c: any) => contratosCache.set(c.numero_dj, { id: c.id, valor_hora: Number(c.valor_hora_padrao ?? 0), garantia: Number(c.garantia_minima_horas ?? 0) }));
       eqp?.forEach((e: any) => equipsCache.set(`${e.serie ?? ""}|${e.tag ?? ""}`, e.id));
 
+      // Resolver config (M1: overrides, M3: m3Settings) para um único objeto.
+      const cfgFor = (dj: string): any =>
+        modelo === "M3" ? (m3Settings[dj] ?? {}) : (overrides[dj] ?? {});
+
       // Calcular períodos por medKey provisória (numero_dj+mes_ref) para checar conflitos
       const periodoPorMedicao = new Map<string, { inicio: string; fim: string }>();
       for (const l of validas) {
-        const ov = overrides[l.numero_dj] ?? {};
+        const ov = cfgFor(l.numero_dj);
         const periodoIniEfetivo = ov.periodo_inicio || l.periodo_inicio || null;
         const periodoFimEfetivo = ov.periodo_fim || l.periodo_fim || null;
         const provKey = `${l.numero_dj}|${l.mes_ref}`;
@@ -625,6 +792,7 @@ export default function ImportarMedicao() {
           });
         }
       }
+
 
       // Verificar conflitos somente para contratos já existentes
       const conflitosDetectados: ConflitoMedicao[] = [];
@@ -788,20 +956,22 @@ export default function ImportarMedicao() {
       let skippedItens = 0;
 
       for (const l of validas) {
-        const ov = overrides[l.numero_dj] ?? {};
-        const cnpjEfetivo = (ov.cnpj || l.cnpj || "").trim();
-        const tipoServicoEfetivo = (ov.tipo_servico || l.tipo_servico || "Locação").trim();
-        const periodoIniEfetivo = ov.periodo_inicio || l.periodo_inicio || null;
-        const periodoFimEfetivo = ov.periodo_fim || l.periodo_fim || null;
-
         const isM1 = modelo === "M1";
-        const fornecedorNome = isM1 ? l.contratado : "";
-        const fornecedorCodigo = isM1 ? l.codigo_cliente : "";
+        const isM3 = modelo === "M3";
+        const cfg: any = isM3 ? (m3Settings[l.numero_dj] ?? {}) : (overrides[l.numero_dj] ?? {});
+        const cnpjEfetivo = (cfg.cnpj || l.cnpj || "").trim();
+        const tipoServicoEfetivo = (cfg.tipo_servico || l.tipo_servico || "Locação").trim();
+        const periodoIniEfetivo = cfg.periodo_inicio || l.periodo_inicio || null;
+        const periodoFimEfetivo = cfg.periodo_fim || l.periodo_fim || null;
+        const centroCustoEfetivo = (isM3 ? (cfg.centro_custo || l.centro_custo) : l.centro_custo) || null;
+
+        const fornecedorNome = isM1 ? l.contratado : (isM3 ? (cfg.fornecedor_nome || l.contratado) : "");
+        const fornecedorCodigo = isM1 ? l.codigo_cliente : (isM3 ? (cfg.fornecedor_codigo || l.codigo_cliente) : "");
         const fornecedorCnpj = isM1 ? cnpjEfetivo : "";
 
         let clienteId: string | undefined;
-        if (isM1) {
-          clienteId = ov.cliente_id;
+        if (isM1 || isM3) {
+          clienteId = cfg.cliente_id;
           if (!clienteId) throw new Error(`Selecione o Cliente/Contratante para o contrato ${l.numero_dj}`);
         } else {
           const cliKey = l.contratado.toUpperCase();
@@ -825,7 +995,7 @@ export default function ImportarMedicao() {
           const { data, error } = await supabase.from("contratos").insert({
             numero_dj: l.numero_dj, cliente_id: clienteId,
             tipo_servico: tipoServicoEfetivo,
-            centro_custo: l.centro_custo || null,
+            centro_custo: centroCustoEfetivo,
             inicio_operacao: inicio, termino_contrato: termino,
             valor_hora_padrao: l.valor_hora, garantia_minima_horas: l.garantia,
             status: "ativo",
@@ -837,8 +1007,8 @@ export default function ImportarMedicao() {
           contrato = { id: data.id, valor_hora: Number(data.valor_hora_padrao ?? 0), garantia: Number(data.garantia_minima_horas ?? 0) };
           contratosCache.set(l.numero_dj, contrato); createdCtr++;
         } else {
-          const patch: any = { tipo_servico: tipoServicoEfetivo || undefined, centro_custo: l.centro_custo || null };
-          if (isM1) {
+          const patch: any = { tipo_servico: tipoServicoEfetivo || undefined, centro_custo: centroCustoEfetivo };
+          if (isM1 || isM3) {
             patch.cliente_id = clienteId;
             if (fornecedorNome) patch.fornecedor_nome = fornecedorNome;
             if (fornecedorCodigo) patch.fornecedor_codigo = fornecedorCodigo;
@@ -1010,7 +1180,7 @@ export default function ImportarMedicao() {
     <div>
       <PageHeader
         title="Importar planilha de medição"
-        description='Suporta layouts "BASE DE DADOS" (Modelo 1) e "Template Medição" (Modelo 2)'
+        description='Suporta os layouts M1 "BASE DE DADOS", M2 "Template Medição" e M3 "Controle de Horímetros Obras Ápia"'
         actions={<Button variant="outline" onClick={() => navigate("/medicoes")}><ArrowLeft className="mr-1 h-4 w-4" />Voltar</Button>}
       />
 
@@ -1018,7 +1188,7 @@ export default function ImportarMedicao() {
         <Label>Arquivo Excel (.xlsx) *</Label>
         <Input type="file" accept=".xlsx,.xls" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
         <p className="mt-2 text-xs text-muted-foreground">
-          O sistema identifica automaticamente o modelo: aba <strong>"BASE DE DADOS"</strong> = Modelo 1, aba <strong>"Template Medição"</strong> = Modelo 2. Caso nenhuma exista, tenta localizar o cabeçalho automaticamente.
+          Identificação automática: aba <strong>"BASE DE DADOS"</strong> = M1, aba <strong>"Template Medição"</strong> = M2, aba começando com <strong>"Obra"</strong> + cabeçalhos compatíveis = M3 (Obras Ápia).
         </p>
       </CardContent></Card>
 
@@ -1096,7 +1266,7 @@ export default function ImportarMedicao() {
               {ignoradas.length > 0 && <Badge variant="secondary">{ignoradas.length} ignoradas</Badge>}
               {linhasComDivergencia > 0 && <Badge variant="destructive">{linhasComDivergencia} com divergência de cálculo</Badge>}
               <div className="ml-auto flex gap-2">
-                <Button variant="outline" onClick={() => { setLinhas([]); setIgnoradas([]); setFilename(""); setHeaderInfo(null); setHeaderError(""); setOverrides({}); setConfirmDivergencia(false); }}>Cancelar</Button>
+                <Button variant="outline" onClick={() => { setLinhas([]); setIgnoradas([]); setFilename(""); setHeaderInfo(null); setHeaderError(""); setOverrides({}); setM3Settings({}); setM3Result(null); setModelo(null); setConfirmDivergencia(false); }}>Cancelar</Button>
                 <Button onClick={confirmar} disabled={importing || !podeImportar}>
                   {importing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Upload className="mr-1 h-4 w-4" />}
                   Confirmar importação ({validas.length})
@@ -1110,6 +1280,17 @@ export default function ImportarMedicao() {
                   <strong>Preencha os campos obrigatórios antes de confirmar:</strong>
                   <ul className="mt-1 ml-4 list-disc">
                     {m1Pendencias.map((p, i) => <li key={i}>{p}</li>)}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
+            {m3Pendencias.length > 0 && (
+              <Alert variant="destructive" className="mt-3">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  <strong>Preencha os campos obrigatórios do Modelo M3 antes de confirmar:</strong>
+                  <ul className="mt-1 ml-4 list-disc">
+                    {m3Pendencias.map((p, i) => <li key={i}>{p}</li>)}
                   </ul>
                 </AlertDescription>
               </Alert>
@@ -1193,10 +1374,103 @@ export default function ImportarMedicao() {
             </CardContent></Card>
           )}
 
-          {validas.length > 0 && modelo === "M1" && (
+          {modelo === "M3" && validas.length > 0 && (
             <Card className="mb-4"><CardContent className="p-4">
               <h3 className="mb-2 text-sm font-semibold">
-                Amostra do mapeamento — Modelo M1 (aba "{sheetUsed}") — primeiras 5 linhas válidas
+                Configurações do Modelo M3 — Obras Ápia (aba "{sheetUsed}")
+              </h3>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Confirme cliente/contratante, fornecedor, centro de custo, competência e período antes de importar.
+                Sugestões automáticas: cliente <strong>Construtora Ápia</strong>, período <strong>dia 16 do mês anterior até dia 15 do mês da competência</strong>.
+              </p>
+              <div className="space-y-4">
+                {Array.from(new Set(validas.map((l) => l.numero_dj))).map((dj) => {
+                  const s = m3Settings[dj] ?? {};
+                  const setS = (patch: Partial<typeof s>) => {
+                    setM3Settings((prev) => {
+                      const next = { ...prev, [dj]: { ...(prev[dj] ?? {}), ...patch } };
+                      // Reflete competência/centro custo nas linhas convertidas (mes_ref e centro_custo)
+                      if ("competencia" in patch || "centro_custo" in patch) {
+                        const novaComp = next[dj]?.competencia;
+                        const novoCC = next[dj]?.centro_custo;
+                        setLinhas((linhasPrev) => linhasPrev.map((l) => l.numero_dj === dj ? {
+                          ...l,
+                          mes_ref: novaComp || l.mes_ref,
+                          centro_custo: novoCC || l.centro_custo,
+                        } : l));
+                      }
+                      return next;
+                    });
+                  };
+                  return (
+                    <div key={dj} className="rounded-md border p-3">
+                      <div className="mb-2 text-xs">
+                        <span className="font-medium">Contrato/Nº DJ <span className="font-mono">{dj}</span></span>
+                        <span className="ml-2 text-muted-foreground">
+                          Fornecedor: <span className="font-medium text-foreground">{s.fornecedor_nome || "—"}</span>
+                          {s.fornecedor_codigo && <> · cód. <span className="font-mono">{s.fornecedor_codigo}</span></>}
+                        </span>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                        <div className="lg:col-span-2">
+                          <Label className="text-xs">Cliente / Contratante *</Label>
+                          <Select value={s.cliente_id ?? ""} onValueChange={(v) => setS({ cliente_id: v })}>
+                            <SelectTrigger><SelectValue placeholder="Selecione o cliente" /></SelectTrigger>
+                            <SelectContent>
+                              {clientesAtivos.map((c) => <SelectItem key={c.id} value={c.id}>{c.razao_social}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Centro de custo *</Label>
+                          <Input value={s.centro_custo ?? ""} onChange={(e) => setS({ centro_custo: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Competência *</Label>
+                          <Input type="month" value={(s.competencia ?? "").slice(0, 7)} onChange={(e) => setS({ competencia: e.target.value ? `${e.target.value}-01` : "" })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Período início *</Label>
+                          <Input type="date" value={s.periodo_inicio ?? ""} onChange={(e) => setS({ periodo_inicio: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Período fim *</Label>
+                          <Input type="date" value={s.periodo_fim ?? ""} onChange={(e) => setS({ periodo_fim: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Fornecedor / Locadora</Label>
+                          <Input value={s.fornecedor_nome ?? ""} onChange={(e) => setS({ fornecedor_nome: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Código do fornecedor</Label>
+                          <Input value={s.fornecedor_codigo ?? ""} onChange={(e) => setS({ fornecedor_codigo: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Tipo de serviço</Label>
+                          <Select value={s.tipo_servico ?? ""} onValueChange={(v) => setS({ tipo_servico: v })}>
+                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              {TIPOS_SERVICO_M1.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-3 grid gap-2 md:grid-cols-3 text-xs">
+                <Stat label="Total HT calculado" value={fmtNum(totalHtCalc)} />
+                <Stat label="Total horas pagar bruto" value={fmtNum(totalHorasPagarBruto)} />
+                <Stat label="Total horas pagar líquido" value={fmtNum(totalHorasPagarLiquido)} />
+              </div>
+            </CardContent></Card>
+          )}
+
+          {validas.length > 0 && (modelo === "M1" || modelo === "M3") && (
+            <Card className="mb-4"><CardContent className="p-4">
+              <h3 className="mb-2 text-sm font-semibold">
+                Amostra do mapeamento — Modelo {modelo} (aba "{sheetUsed}") — primeiras 5 linhas válidas
               </h3>
               <div className="overflow-x-auto border rounded-md">
                 <Table className="min-w-max text-xs">
@@ -1275,7 +1549,7 @@ export default function ImportarMedicao() {
             </CardContent></Card>
           )}
 
-          {validas.length > 0 && modelo !== "M1" && (
+          {validas.length > 0 && modelo !== "M1" && modelo !== "M3" && (
             <Card className="mb-4"><CardContent className="p-4">
               <h3 className="mb-2 text-sm font-semibold">Amostra do mapeamento — primeiras 5 linhas válidas</h3>
               <div className="overflow-x-auto">
