@@ -771,10 +771,14 @@ export default function ImportarMedicao() {
       ctr?.forEach((c: any) => contratosCache.set(c.numero_dj, { id: c.id, valor_hora: Number(c.valor_hora_padrao ?? 0), garantia: Number(c.garantia_minima_horas ?? 0) }));
       eqp?.forEach((e: any) => equipsCache.set(`${e.serie ?? ""}|${e.tag ?? ""}`, e.id));
 
+      // Resolver config (M1: overrides, M3: m3Settings) para um único objeto.
+      const cfgFor = (dj: string): any =>
+        modelo === "M3" ? (m3Settings[dj] ?? {}) : (overrides[dj] ?? {});
+
       // Calcular períodos por medKey provisória (numero_dj+mes_ref) para checar conflitos
       const periodoPorMedicao = new Map<string, { inicio: string; fim: string }>();
       for (const l of validas) {
-        const ov = overrides[l.numero_dj] ?? {};
+        const ov = cfgFor(l.numero_dj);
         const periodoIniEfetivo = ov.periodo_inicio || l.periodo_inicio || null;
         const periodoFimEfetivo = ov.periodo_fim || l.periodo_fim || null;
         const provKey = `${l.numero_dj}|${l.mes_ref}`;
@@ -788,6 +792,7 @@ export default function ImportarMedicao() {
           });
         }
       }
+
 
       // Verificar conflitos somente para contratos já existentes
       const conflitosDetectados: ConflitoMedicao[] = [];
