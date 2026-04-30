@@ -20,6 +20,7 @@ import MedicaoRegrasActions from "@/components/medicao/MedicaoRegrasActions";
 import { FluxoAprovacaoTab } from "@/components/medicao/FluxoAprovacaoTab";
 import { FluxoAcoes } from "@/components/medicao/FluxoAcoes";
 import { MedicaoAnexosTab } from "@/components/medicao/MedicaoAnexosTab";
+import { MedicaoVersoesTab } from "@/components/medicao/MedicaoVersoesTab";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { labelStatus } from "@/lib/medicaoStatus";
 import { CriarFaturamentoButton } from "@/components/faturamento/CriarFaturamentoButton";
