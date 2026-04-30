@@ -1470,7 +1470,7 @@ export default function ImportarMedicao() {
           {validas.length > 0 && (modelo === "M1" || modelo === "M3") && (
             <Card className="mb-4"><CardContent className="p-4">
               <h3 className="mb-2 text-sm font-semibold">
-                Amostra do mapeamento — Modelo M1 (aba "{sheetUsed}") — primeiras 5 linhas válidas
+                Amostra do mapeamento — Modelo {modelo} (aba "{sheetUsed}") — primeiras 5 linhas válidas
               </h3>
               <div className="overflow-x-auto border rounded-md">
                 <Table className="min-w-max text-xs">
