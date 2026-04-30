@@ -30,6 +30,7 @@ export default function MedicaoDetalhe() {
   const perms = usePermissions();
   const [med, setMed] = useState<any>(null);
   const [itens, setItens] = useState<any[]>([]);
+  const [versoes, setVersoes] = useState<any[]>([]);
   const [delOpen, setDelOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reabrirOpen, setReabrirOpen] = useState(false);
@@ -42,6 +43,16 @@ export default function MedicaoDetalhe() {
       supabase.from("medicao_itens").select("*, equipamentos(tag, tipo, modelo)").eq("medicao_id", id).order("created_at"),
     ]);
     setMed(m.data); setItens(i.data ?? []);
+    // Carrega outras versões da mesma cadeia
+    if (m.data) {
+      const original = (m.data as any).medicao_original_id ?? m.data.id;
+      const { data: vs } = await supabase
+        .from("medicoes")
+        .select("id, versao, status, ativa, valor_final, created_at, arquivo_origem, motivo_reimportacao")
+        .or(`id.eq.${original},medicao_original_id.eq.${original}`)
+        .order("versao", { ascending: false });
+      setVersoes(vs ?? []);
+    }
   };
   useEffect(() => { load(); }, [id]);
 
