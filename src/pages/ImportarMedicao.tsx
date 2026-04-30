@@ -1126,6 +1126,26 @@ export default function ImportarMedicao() {
 
         const valor_final_real = calc.valor_final - l.desc_manutencao;
 
+        // M3: marca o item com metadados da planilha para PDF/memória de cálculo específicos
+        const regrasFinal: any[] = Array.isArray(calc.regras_aplicadas) ? [...calc.regras_aplicadas] : [];
+        if (isM3) {
+          const tp = String((l as any).tipo_pagamento ?? "").toUpperCase().replace(/\s+/g, "");
+          const tipoPagamentoNorm = tp.includes("HG") ? "H.G." : tp.includes("HT") ? "H.T." : (l as any).tipo_pagamento || "";
+          regrasFinal.push({
+            tipo: "m3_importacao",
+            origem: "importacao",
+            descricao: "Valores calculados pela planilha M3 (Controle de Horímetros Obras Ápia)",
+            tipo_pagamento: tipoPagamentoNorm,
+            garantia_aplicada: Number(l.garantia ?? 0),
+            ht_informado: Number(l.ht_informado ?? 0),
+            horas_mecanicas: Number(l.horas_mec ?? 0),
+            horas_pagar_bruto: Number((l as any).horas_a_pagar ?? calc.horas_a_pagar ?? 0),
+            horas_pagar_liquido: Number((l as any).horas_liquidas ?? calc.horas_liquidas ?? 0),
+            valor_hora: Number(l.valor_hora ?? 0),
+            valor_final_planilha: Number((l as any).valor_final ?? 0),
+          });
+        }
+
         const { error: errIt } = await supabase.from("medicao_itens").insert({
           medicao_id: medicaoId, equipamento_id: equipId, contrato_equipamento_id: ceId,
           periodo_inicio: l.periodo_inicio ?? periodoIniMed, periodo_fim: l.periodo_fim ?? periodoFimMed,
@@ -1144,7 +1164,7 @@ export default function ImportarMedicao() {
           valor_complementares: l.complementares,
           valor_descontos: l.desc_manutencao,
           valor_final: valor_final_real,
-          regras_aplicadas: calc.regras_aplicadas as any,
+          regras_aplicadas: regrasFinal as any,
           memoria_calculo: calc.memoria_calculo as any,
           observacoes: l.observacoes || null,
         } as any);
