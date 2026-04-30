@@ -369,7 +369,7 @@ export default function ImportarMedicao() {
     }
     setModelo("M3");
     setSheetUsed(sheetName);
-    setHeaderInfo({ rowIndex: result.headerRowIndex, colMap: {}, missingRequired: [] });
+    setHeaderInfo({ rowIndex: result.headerRowIndex, colMap: result.colMap, missingRequired: [] });
     setM3Result(result);
 
     // Carrega clientes ativos e tenta sugerir Construtora Ápia.
@@ -1233,6 +1233,22 @@ export default function ImportarMedicao() {
                   <Stat label="Fornecedor / Locadora" value={clientes.length === 1 ? clientes[0] : String(clientes.length)} />
                   <Stat label="Código fornecedor" value={codigosFornecedor.length === 1 ? codigosFornecedor[0] : (codigosFornecedor.length ? `${codigosFornecedor.length}` : "—")} />
                 </>
+              ) : modelo === "M3" ? (
+                <>
+                  {(() => {
+                    const cliIds = Array.from(new Set(Object.values(m3Settings).map((s) => s?.cliente_id).filter(Boolean) as string[]));
+                    const cliNomes = cliIds.map((id) => clientesAtivos.find((c) => c.id === id)?.razao_social).filter(Boolean) as string[];
+                    const fornNomes = Array.from(new Set(Object.values(m3Settings).map((s) => s?.fornecedor_nome).filter(Boolean) as string[]));
+                    const fornCods = Array.from(new Set(Object.values(m3Settings).map((s) => s?.fornecedor_codigo).filter(Boolean) as string[]));
+                    return (
+                      <>
+                        <Stat label="Cliente / Contratante" value={cliNomes.length === 1 ? cliNomes[0] : (cliNomes.length ? `${cliNomes.length}` : "— (selecione)")} />
+                        <Stat label="Fornecedor / Locadora" value={fornNomes.length === 1 ? fornNomes[0] : (fornNomes.length ? `${fornNomes.length}` : (clientes[0] ?? "—"))} />
+                        <Stat label="Código fornecedor" value={fornCods.length === 1 ? fornCods[0] : (fornCods.length ? `${fornCods.length}` : "—")} />
+                      </>
+                    );
+                  })()}
+                </>
               ) : (
                 <>
                   <Stat label="Cliente(s)" value={clientes.length === 1 ? clientes[0] : String(clientes.length)} />
@@ -1308,6 +1324,11 @@ export default function ImportarMedicao() {
                   </label>
                 </AlertDescription>
               </Alert>
+            )}
+            {ignoradas.length > 0 && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                <strong>Atenção:</strong> Revise as linhas ignoradas ({ignoradas.length}) antes de confirmar a importação.
+              </p>
             )}
           </CardContent></Card>
 

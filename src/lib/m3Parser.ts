@@ -188,6 +188,7 @@ export interface M3ParseResult {
   motivo?: string; // se !ok
   sheetName: string;
   headerRowIndex: number;
+  colMap: Record<string, number>;    // colunas mapeadas (logical → index)
   abaNomeSemSufixo: string;          // "Obra 937 - CKS"
   competenciaSugerida: string | null; // YYYY-MM-01
   centroCustoSugerido: string;
@@ -250,6 +251,7 @@ export function parseM3(wb: XLSX.WorkBook, sheetName: string): M3ParseResult {
       ok: false,
       motivo: `Cabeçalho M3 não localizado. Faltam: ${hdr.missing.join(", ")}`,
       sheetName, headerRowIndex: hdr.rowIndex,
+      colMap: hdr.colMap,
       abaNomeSemSufixo: base, competenciaSugerida: null,
       centroCustoSugerido: base, fornecedorNome: "", fornecedorCodigo: "", numeroDjUnico: "",
       linhas: [], ignoradas: [],
@@ -289,7 +291,7 @@ export function parseM3(wb: XLSX.WorkBook, sheetName: string): M3ParseResult {
 
     // Parar ao encontrar TOTAL
     if (firstNorm.startsWith("total") || firstNorm === "subtotal") {
-      ignoradas.push({ rowExcel, motivo: "Linha TOTAL — leitura interrompida", preview: str(firstNonEmpty) });
+      ignoradas.push({ rowExcel, motivo: "Linha de TOTAL", preview: str(firstNonEmpty) });
       break;
     }
 
@@ -301,10 +303,30 @@ export function parseM3(wb: XLSX.WorkBook, sheetName: string): M3ParseResult {
     const hor_inicial = num(get(row, "hor_inicial"));
     const hor_final = num(get(row, "hor_final"));
 
-    // Ignora linhas claramente não-dado (legenda/instrução, sem séries/tags/horímetros e sem DJ)
-    const semCamposChave = !serie && !tag && hor_inicial === 0 && hor_final === 0 && !valor_hora;
+    // Ignora linhas claramente não-dado (legenda/instrução, sem nenhum campo-chave)
+    const semCamposChave = !serie && !tag && hor_inicial === 0 && hor_final === 0 && !valor_hora && !numero_dj;
     if (semCamposChave) {
-      ignoradas.push({ rowExcel, motivo: "Linha sem dados de equipamento", preview: str(firstNonEmpty).slice(0, 80) });
+      ignoradas.push({
+        rowExcel,
+        motivo: "Linha sem dados de equipamento (legenda ou linha em branco)",
+        preview: str(firstNonEmpty).slice(0, 120),
+      });
+      continue;
+    }
+
+    // Linha parcial — tem algum sinal de equipamento mas falta campo essencial.
+    // Não é "linha de dado" válida; lista o motivo específico.
+    const faltas: string[] = [];
+    if (!serie) faltas.push("Série ausente");
+    if (!tag) faltas.push("Tag ausente");
+    if (!valor_hora) faltas.push("Valor/hora ausente");
+    if (hor_inicial === 0 && hor_final === 0) faltas.push("Horímetro inicial/final ausente");
+    if (faltas.length >= 2) {
+      ignoradas.push({
+        rowExcel,
+        motivo: faltas.join(" · "),
+        preview: [contratadoRaw, serie, tag].filter(Boolean).join(" | ").slice(0, 120),
+      });
       continue;
     }
 
@@ -421,6 +443,7 @@ export function parseM3(wb: XLSX.WorkBook, sheetName: string): M3ParseResult {
     ok: true,
     sheetName,
     headerRowIndex: hdr.rowIndex,
+    colMap: hdr.colMap,
     abaNomeSemSufixo: base,
     competenciaSugerida,
     centroCustoSugerido,
