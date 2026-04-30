@@ -520,6 +520,22 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     y += 2;
   });
 
+  // === Critérios de cálculo importados (apenas M3) ===
+  const isAnyM3Med = itensList.some((i: any) =>
+    (Array.isArray(i.regras_aplicadas) ? i.regras_aplicadas : []).some((r: any) => r?.tipo === "m3_importacao")
+  );
+  if (isAnyM3Med) {
+    ensureSpace(20);
+    sectionTitle("CRITÉRIOS DE CÁLCULO IMPORTADOS");
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    const txt = "Esta medição foi importada pelo Modelo M3 — Controle de Horímetros Obras Ápia. As garantias aplicadas, tipo de pagamento, horas a pagar e valores finais foram importados da planilha base e conferidos pelo sistema.";
+    const wrapped = doc.splitTextToSize(txt, pageW - marginX * 2 - 2);
+    ensureSpace(wrapped.length * 3.8 + 2);
+    doc.text(wrapped, marginX, y);
+    y += wrapped.length * 3.8 + 3;
+  }
+
   // === Regras Contratuais Aplicadas ===
   ensureSpace(15);
   sectionTitle("REGRAS CONTRATUAIS APLICADAS");
