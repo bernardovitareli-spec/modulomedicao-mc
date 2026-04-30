@@ -1324,6 +1324,7 @@ export default function ImportarMedicao() {
                   </label>
                 </AlertDescription>
               </Alert>
+            )}
             {ignoradas.length > 0 && (
               <p className="mt-3 text-xs text-muted-foreground">
                 <strong>Atenção:</strong> Revise as linhas ignoradas ({ignoradas.length}) antes de confirmar a importação.
