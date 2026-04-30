@@ -188,6 +188,7 @@ export interface M3ParseResult {
   motivo?: string; // se !ok
   sheetName: string;
   headerRowIndex: number;
+  colMap: Record<string, number>;    // colunas mapeadas (logical → index)
   abaNomeSemSufixo: string;          // "Obra 937 - CKS"
   competenciaSugerida: string | null; // YYYY-MM-01
   centroCustoSugerido: string;
