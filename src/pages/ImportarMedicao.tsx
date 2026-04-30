@@ -956,20 +956,22 @@ export default function ImportarMedicao() {
       let skippedItens = 0;
 
       for (const l of validas) {
-        const ov = overrides[l.numero_dj] ?? {};
-        const cnpjEfetivo = (ov.cnpj || l.cnpj || "").trim();
-        const tipoServicoEfetivo = (ov.tipo_servico || l.tipo_servico || "Locação").trim();
-        const periodoIniEfetivo = ov.periodo_inicio || l.periodo_inicio || null;
-        const periodoFimEfetivo = ov.periodo_fim || l.periodo_fim || null;
-
         const isM1 = modelo === "M1";
-        const fornecedorNome = isM1 ? l.contratado : "";
-        const fornecedorCodigo = isM1 ? l.codigo_cliente : "";
+        const isM3 = modelo === "M3";
+        const cfg: any = isM3 ? (m3Settings[l.numero_dj] ?? {}) : (overrides[l.numero_dj] ?? {});
+        const cnpjEfetivo = (cfg.cnpj || l.cnpj || "").trim();
+        const tipoServicoEfetivo = (cfg.tipo_servico || l.tipo_servico || "Locação").trim();
+        const periodoIniEfetivo = cfg.periodo_inicio || l.periodo_inicio || null;
+        const periodoFimEfetivo = cfg.periodo_fim || l.periodo_fim || null;
+        const centroCustoEfetivo = (isM3 ? (cfg.centro_custo || l.centro_custo) : l.centro_custo) || null;
+
+        const fornecedorNome = isM1 ? l.contratado : (isM3 ? (cfg.fornecedor_nome || l.contratado) : "");
+        const fornecedorCodigo = isM1 ? l.codigo_cliente : (isM3 ? (cfg.fornecedor_codigo || l.codigo_cliente) : "");
         const fornecedorCnpj = isM1 ? cnpjEfetivo : "";
 
         let clienteId: string | undefined;
-        if (isM1) {
-          clienteId = ov.cliente_id;
+        if (isM1 || isM3) {
+          clienteId = cfg.cliente_id;
           if (!clienteId) throw new Error(`Selecione o Cliente/Contratante para o contrato ${l.numero_dj}`);
         } else {
           const cliKey = l.contratado.toUpperCase();
@@ -993,7 +995,7 @@ export default function ImportarMedicao() {
           const { data, error } = await supabase.from("contratos").insert({
             numero_dj: l.numero_dj, cliente_id: clienteId,
             tipo_servico: tipoServicoEfetivo,
-            centro_custo: l.centro_custo || null,
+            centro_custo: centroCustoEfetivo,
             inicio_operacao: inicio, termino_contrato: termino,
             valor_hora_padrao: l.valor_hora, garantia_minima_horas: l.garantia,
             status: "ativo",
@@ -1005,8 +1007,8 @@ export default function ImportarMedicao() {
           contrato = { id: data.id, valor_hora: Number(data.valor_hora_padrao ?? 0), garantia: Number(data.garantia_minima_horas ?? 0) };
           contratosCache.set(l.numero_dj, contrato); createdCtr++;
         } else {
-          const patch: any = { tipo_servico: tipoServicoEfetivo || undefined, centro_custo: l.centro_custo || null };
-          if (isM1) {
+          const patch: any = { tipo_servico: tipoServicoEfetivo || undefined, centro_custo: centroCustoEfetivo };
+          if (isM1 || isM3) {
             patch.cliente_id = clienteId;
             if (fornecedorNome) patch.fornecedor_nome = fornecedorNome;
             if (fornecedorCodigo) patch.fornecedor_codigo = fornecedorCodigo;
