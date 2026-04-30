@@ -750,6 +750,8 @@ export default function ImportarMedicao() {
           const { data, error } = await supabase.rpc("criar_nova_versao_medicao" as any, {
             _medicao_anterior_id: conflito.medicaoExistente.id,
             _motivo: r.motivo,
+            _arquivo_origem: r.arquivoOrigem ?? filename ?? null,
+            _origem: "reimportacao",
           });
           if (error) throw new Error(`Nova versão ${conflito.contratoNumero}: ${error.message}`);
           medicaoIdsResolvidos.set(r.chave, data as unknown as string);
