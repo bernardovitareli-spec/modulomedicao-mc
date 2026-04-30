@@ -323,6 +323,16 @@ export default function ImportarMedicao() {
       const sheetM1 = wb.SheetNames.find((n) => normalize(n) === normalize(SHEET_MODELO_1));
       const sheetM2 = wb.SheetNames.find((n) => normalize(n) === normalize(SHEET_MODELO_2));
 
+      // M3 — Obras Ápia: só é considerado quando NÃO há aba M1/M2.
+      // Isso garante que M1/M2 nunca sejam afetados.
+      if (!sheetM1 && !sheetM2) {
+        const sheetM3 = findM3Sheet(wb);
+        if (sheetM3) {
+          await processarM3(wb, sheetM3);
+          return;
+        }
+      }
+
       let modeloDetectado: ModeloLayout | null = null;
       let sheetName = "";
       let headerSearchRows = 30;
