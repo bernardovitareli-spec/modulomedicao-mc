@@ -423,6 +423,7 @@ export function parseM3(wb: XLSX.WorkBook, sheetName: string): M3ParseResult {
     ok: true,
     sheetName,
     headerRowIndex: hdr.rowIndex,
+    colMap: hdr.colMap,
     abaNomeSemSufixo: base,
     competenciaSugerida,
     centroCustoSugerido,
