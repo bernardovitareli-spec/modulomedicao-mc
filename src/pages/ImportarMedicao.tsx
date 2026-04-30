@@ -1233,6 +1233,22 @@ export default function ImportarMedicao() {
                   <Stat label="Fornecedor / Locadora" value={clientes.length === 1 ? clientes[0] : String(clientes.length)} />
                   <Stat label="Código fornecedor" value={codigosFornecedor.length === 1 ? codigosFornecedor[0] : (codigosFornecedor.length ? `${codigosFornecedor.length}` : "—")} />
                 </>
+              ) : modelo === "M3" ? (
+                <>
+                  {(() => {
+                    const cliIds = Array.from(new Set(Object.values(m3Settings).map((s) => s?.cliente_id).filter(Boolean) as string[]));
+                    const cliNomes = cliIds.map((id) => clientesAtivos.find((c) => c.id === id)?.razao_social).filter(Boolean) as string[];
+                    const fornNomes = Array.from(new Set(Object.values(m3Settings).map((s) => s?.fornecedor_nome).filter(Boolean) as string[]));
+                    const fornCods = Array.from(new Set(Object.values(m3Settings).map((s) => s?.fornecedor_codigo).filter(Boolean) as string[]));
+                    return (
+                      <>
+                        <Stat label="Cliente / Contratante" value={cliNomes.length === 1 ? cliNomes[0] : (cliNomes.length ? `${cliNomes.length}` : "— (selecione)")} />
+                        <Stat label="Fornecedor / Locadora" value={fornNomes.length === 1 ? fornNomes[0] : (fornNomes.length ? `${fornNomes.length}` : (clientes[0] ?? "—"))} />
+                        <Stat label="Código fornecedor" value={fornCods.length === 1 ? fornCods[0] : (fornCods.length ? `${fornCods.length}` : "—")} />
+                      </>
+                    );
+                  })()}
+                </>
               ) : (
                 <>
                   <Stat label="Cliente(s)" value={clientes.length === 1 ? clientes[0] : String(clientes.length)} />
