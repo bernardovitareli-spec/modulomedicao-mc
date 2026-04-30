@@ -27,13 +27,25 @@ export default function Medicoes() {
   const [cancelTarget, setCancelTarget] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  const load = () => {
+  const [versionCounts, setVersionCounts] = useState<Record<string, number>>({});
+
+  const load = async () => {
     let q = supabase.from("medicoes").select("*, contratos(numero_dj, clientes(razao_social))").order("competencia", { ascending: false });
     if (status !== "todos") q = q.eq("status", status as any);
     if (versaoFilter === "ativas") q = q.eq("ativa", true);
     else if (versaoFilter === "inativas") q = q.eq("ativa", false);
     else if (versaoFilter === "canceladas") q = q.eq("status", "cancelada" as any);
-    q.then(({ data }) => setList(data ?? []));
+    const { data } = await q;
+    setList(data ?? []);
+
+    // Calcula contagem de versões por cadeia (medicao_original_id ou id)
+    const { data: all } = await supabase.from("medicoes").select("id, medicao_original_id");
+    const counts: Record<string, number> = {};
+    (all ?? []).forEach((m: any) => {
+      const k = m.medicao_original_id ?? m.id;
+      counts[k] = (counts[k] ?? 0) + 1;
+    });
+    setVersionCounts(counts);
   };
   useEffect(() => { load(); }, [status, versaoFilter]);
 
@@ -127,6 +139,16 @@ export default function Medicoes() {
                       <StatusBadge status={m.status} />
                       {Number(m.versao ?? 1) > 1 && <Badge variant="outline" className="text-[10px]"><History className="h-2.5 w-2.5 mr-0.5" />v{m.versao}</Badge>}
                       {m.ativa === false && <Badge variant="secondary" className="text-[10px]">inativa</Badge>}
+                      {(versionCounts[m.medicao_original_id ?? m.id] ?? 1) > 1 && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] cursor-pointer border-primary text-primary hover:bg-primary/10"
+                          onClick={(e) => { e.stopPropagation(); navigate(`/medicoes/${m.id}?tab=versoes`); }}
+                          title="Possui versões — clique para ver histórico"
+                        >
+                          <History className="h-2.5 w-2.5 mr-0.5" />Possui versões ({versionCounts[m.medicao_original_id ?? m.id]})
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
