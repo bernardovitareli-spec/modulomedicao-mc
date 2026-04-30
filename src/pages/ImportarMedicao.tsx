@@ -315,6 +315,7 @@ export default function ImportarMedicao() {
   const onFile = async (file: File) => {
     setFilename(file.name);
     setLinhas([]); setIgnoradas([]); setHeaderError(""); setHeaderInfo(null); setModelo(null); setSheetUsed(""); setOverrides({}); setConfirmDivergencia(false);
+    setM3Settings({}); setM3Result(null);
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { cellDates: true });
