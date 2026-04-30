@@ -544,6 +544,9 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     const regras = Array.isArray(i.regras_aplicadas) ? i.regras_aplicadas : [];
     const equipLabel = `${i.equipamentos?.tag ?? "-"}${i.equipamentos?.serie ? ` / ${i.equipamentos.serie}` : ""}`;
     regras.forEach((r: any) => {
+      // Não tratar marcadores de importação como regras contratuais
+      const tipoStr = String(r?.tipo ?? "").toLowerCase();
+      if (tipoStr === "m3_importacao" || tipoStr === "importacao" || tipoStr.includes("importac")) return;
       const isProp = r.tipo === "garantia_proporcional";
       const detalhe = isProp
         ? `Dias: ${r.dias_considerados ?? "-"}/${r.base_dias ?? "-"}  -  Gar. mensal: ${fmtNum(r.garantia_mensal)} h  -  Gar. prop.: ${fmtNum(r.garantia_proporcional)} h`
