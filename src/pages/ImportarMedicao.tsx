@@ -1180,7 +1180,7 @@ export default function ImportarMedicao() {
     <div>
       <PageHeader
         title="Importar planilha de medição"
-        description='Suporta layouts "BASE DE DADOS" (Modelo 1) e "Template Medição" (Modelo 2)'
+        description='Suporta os layouts M1 "BASE DE DADOS", M2 "Template Medição" e M3 "Controle de Horímetros Obras Ápia"'
         actions={<Button variant="outline" onClick={() => navigate("/medicoes")}><ArrowLeft className="mr-1 h-4 w-4" />Voltar</Button>}
       />
 
@@ -1188,7 +1188,7 @@ export default function ImportarMedicao() {
         <Label>Arquivo Excel (.xlsx) *</Label>
         <Input type="file" accept=".xlsx,.xls" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
         <p className="mt-2 text-xs text-muted-foreground">
-          O sistema identifica automaticamente o modelo: aba <strong>"BASE DE DADOS"</strong> = Modelo 1, aba <strong>"Template Medição"</strong> = Modelo 2. Caso nenhuma exista, tenta localizar o cabeçalho automaticamente.
+          Identificação automática: aba <strong>"BASE DE DADOS"</strong> = M1, aba <strong>"Template Medição"</strong> = M2, aba começando com <strong>"Obra"</strong> + cabeçalhos compatíveis = M3 (Obras Ápia).
         </p>
       </CardContent></Card>
 
