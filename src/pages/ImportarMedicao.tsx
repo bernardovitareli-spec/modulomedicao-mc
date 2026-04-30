@@ -312,6 +312,106 @@ export default function ImportarMedicao() {
   }>>({});
   const [m3Result, setM3Result] = useState<M3ParseResult | null>(null);
 
+  // Converte uma linha M3 para o formato LinhaLida usado pelo restante do fluxo.
+  const m3LinhaToLinhaLida = (l: M3Linha, opts: {
+    competencia: string;
+    centro_custo: string;
+  }): LinhaLida => {
+    return {
+      rowExcel: l.rowExcel,
+      raw: [],
+      mes_ref: opts.competencia || l.mes_ref,
+      numero_dj: l.numero_dj,
+      contratado: l.fornecedor_nome,        // No M3, "Contratado" é o fornecedor.
+      codigo_cliente: l.fornecedor_codigo,  // Código do fornecedor (reaproveitado).
+      cnpj: "",
+      tipo_servico: "Locação de equipamentos",
+      tipo_equip: l.tipo_equip,
+      modelo: l.modelo,
+      serie: l.serie,
+      tag: l.tag,
+      centro_custo: opts.centro_custo || l.centro_custo,
+      periodo_inicio: null,                  // Período é fixado em m3Settings (override).
+      periodo_fim: null,
+      inicio_op: l.inicio_op,
+      termino_contrato: l.termino_contrato,
+      hor_inicial: l.hor_inicial,
+      hor_final: l.hor_final,
+      ht_calculado: l.ht_calculado,
+      ht_informado: l.ht_informado,
+      divergencia_ht: l.divergencia_ht,
+      garantia: l.garantia_aplicada,         // Usa garantia já aplicada (proporcional/real).
+      horas_disp: 0,
+      horas_mec: l.horas_mec,
+      complementares: 0,
+      valor_hora: l.valor_hora,
+      desc_manutencao: 0,
+      periodo_chuvoso: l.periodo_chuvoso,
+      excecao_chuvoso: l.excecao_chuvoso ? 1 : 0,
+      observacoes: l.observacoes,
+      tipo_pagamento: l.tipo_pagamento,
+      horas_liquidas: l.horas_pagar_liquido,
+      horas_a_pagar: l.horas_pagar_bruto,
+      valor_final: l.valor_final,
+      valor_planilha: l.valor_planilha,
+      diferenca_calc: l.diferenca_calc,
+      erros: l.erros.slice(),
+      alertas: l.alertas.slice(),
+    };
+  };
+
+  const processarM3 = async (wb: XLSX.WorkBook, sheetName: string) => {
+    const result = parseM3(wb, sheetName);
+    if (!result.ok) {
+      setHeaderError(result.motivo ?? "Não foi possível ler M3");
+      toast.error(result.motivo ?? "Não foi possível ler M3");
+      return;
+    }
+    setModelo("M3");
+    setSheetUsed(sheetName);
+    setHeaderInfo({ rowIndex: result.headerRowIndex, colMap: {}, missingRequired: [] });
+    setM3Result(result);
+
+    // Carrega clientes ativos e tenta sugerir Construtora Ápia.
+    const { data: cliAtivos } = await supabase
+      .from("clientes").select("id, razao_social").eq("status", "ativo").order("razao_social");
+    setClientesAtivos(cliAtivos ?? []);
+    const apia = (cliAtivos ?? []).find((c: any) =>
+      ["CONSTRUTORA ÁPIA", "CONSTRUTORA APIA"].includes(String(c.razao_social).toUpperCase()));
+
+    const competencia = result.competenciaSugerida ?? "";
+    const periodo = competencia ? periodoApiaPorCompetencia(competencia) : null;
+
+    const settings: typeof m3Settings = {};
+    const djs = Array.from(new Set(result.linhas.map((l) => l.numero_dj).filter(Boolean)));
+    for (const dj of djs) {
+      const linhaRef = result.linhas.find((l) => l.numero_dj === dj);
+      settings[dj] = {
+        cliente_id: apia?.id || "",
+        fornecedor_nome: linhaRef?.fornecedor_nome || result.fornecedorNome,
+        fornecedor_codigo: linhaRef?.fornecedor_codigo || result.fornecedorCodigo,
+        centro_custo: linhaRef?.centro_custo || result.centroCustoSugerido,
+        competencia,
+        periodo_inicio: periodo?.ini ?? "",
+        periodo_fim: periodo?.fim ?? "",
+        tipo_servico: "Locação de equipamentos",
+      };
+    }
+    setM3Settings(settings);
+
+    // Converte para LinhaLida e mantém o restante do fluxo (resumos / conflito / executar).
+    const lidas: LinhaLida[] = result.linhas.map((l) =>
+      m3LinhaToLinhaLida(l, {
+        competencia: settings[l.numero_dj]?.competencia || competencia,
+        centro_custo: settings[l.numero_dj]?.centro_custo || result.centroCustoSugerido,
+      }),
+    );
+
+    setLinhas(lidas);
+    setIgnoradas(result.ignoradas.map((i) => ({ rowExcel: i.rowExcel, motivo: i.motivo, preview: i.preview })));
+    toast.success(`Modelo M3 • ${lidas.length} linha(s) lidas, ${result.ignoradas.length} ignorada(s).`);
+  };
+
   const onFile = async (file: File) => {
     setFilename(file.name);
     setLinhas([]); setIgnoradas([]); setHeaderError(""); setHeaderInfo(null); setModelo(null); setSheetUsed(""); setOverrides({}); setConfirmDivergencia(false);
