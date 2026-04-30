@@ -306,18 +306,25 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     // Versão Cliente: tabela RESUMIDA em retrato (mesma orientação do resto do PDF)
     ensureSpace(15);
     sectionTitle("ITENS DA MEDIÇÃO");
-    const bodyCli = itensList.map((i: any) => [
-      i.equipamentos?.serie ?? "-",
-      i.equipamentos?.tag ?? "-",
-      i.equipamentos?.tipo ?? "-",
-      i.equipamentos?.modelo ?? "-",
-      fmtNum(i.horas_informadas),
-      String(i.dias_considerados ?? "-"),
-      fmtNum(i.garantia_proporcional_horas),
-      fmtNum(i.horas_a_pagar),
-      fmtBRL(i.valor_hora),
-      fmtBRL(i.valor_final),
-    ]);
+    const bodyCli = itensList.map((i: any) => {
+      const m3 = (Array.isArray(i.regras_aplicadas) ? i.regras_aplicadas : []).find((r: any) => r?.tipo === "m3_importacao");
+      const garantiaCol = m3
+        ? fmtNum(m3.garantia_aplicada ?? i.garantia_minima)
+        : fmtNum(i.garantia_proporcional_horas);
+      return [
+        i.equipamentos?.serie ?? "-",
+        i.equipamentos?.tag ?? "-",
+        i.equipamentos?.tipo ?? "-",
+        i.equipamentos?.modelo ?? "-",
+        fmtNum(i.horas_informadas),
+        m3 ? (m3.tipo_pagamento || "-") : String(i.dias_considerados ?? "-"),
+        garantiaCol,
+        fmtNum(i.horas_a_pagar),
+        fmtBRL(i.valor_hora),
+        fmtBRL(i.valor_final),
+      ];
+    });
+    const isAnyM3 = itensList.some((i: any) => (Array.isArray(i.regras_aplicadas) ? i.regras_aplicadas : []).some((r: any) => r?.tipo === "m3_importacao"));
     autoTable(doc, {
       startY: y,
       margin: { left: marginX, right: marginX },
@@ -330,15 +337,17 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
         2: { cellWidth: 26 },                                  // Tipo
         3: { cellWidth: 26 },                                  // Modelo
         4: { cellWidth: 16, halign: "right" },                 // HT inf
-        5: { cellWidth: 11, halign: "center" },                // Dias
-        6: { cellWidth: 18, halign: "right" },                 // Gar. prop
+        5: { cellWidth: 13, halign: "center" },                // Dias / Tipo pgto
+        6: { cellWidth: 18, halign: "right" },                 // Gar. prop / Garantia aplicada
         7: { cellWidth: 18, halign: "right" },                 // H. pagar
         8: { cellWidth: 22, halign: "right" },                 // Valor/h
         9: { cellWidth: 23, halign: "right", fontStyle: "bold" }, // Valor final
       },
       head: [[
         "Série", "Tag", "Tipo", "Modelo",
-        "HT\ninformado", "Dias", "Gar.\nprop.",
+        "HT\ninformado",
+        isAnyM3 ? "Tipo\npagto" : "Dias",
+        isAnyM3 ? "Garantia\naplicada" : "Gar.\nprop.",
         "Horas\na pagar", "Valor/hora", "Valor final",
       ]],
       body: bodyCli,
