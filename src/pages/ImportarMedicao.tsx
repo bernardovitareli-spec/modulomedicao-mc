@@ -1295,6 +1295,7 @@ export default function ImportarMedicao() {
                 </AlertDescription>
               </Alert>
             )}
+            {precisaConfirmarDivergencia && (
               <Alert variant="destructive" className="mt-3">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="text-xs">
