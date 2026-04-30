@@ -22,7 +22,7 @@ export default function Medicoes() {
   const [list, setList] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("todos");
-  const [versaoFilter, setVersaoFilter] = useState<"ativas" | "todas" | "inativas">("ativas");
+  const [versaoFilter, setVersaoFilter] = useState<"ativas" | "todas" | "inativas" | "canceladas">("ativas");
   const [delTarget, setDelTarget] = useState<any>(null);
   const [cancelTarget, setCancelTarget] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -32,6 +32,7 @@ export default function Medicoes() {
     if (status !== "todos") q = q.eq("status", status as any);
     if (versaoFilter === "ativas") q = q.eq("ativa", true);
     else if (versaoFilter === "inativas") q = q.eq("ativa", false);
+    else if (versaoFilter === "canceladas") q = q.eq("status", "cancelada" as any);
     q.then(({ data }) => setList(data ?? []));
   };
   useEffect(() => { load(); }, [status, versaoFilter]);
