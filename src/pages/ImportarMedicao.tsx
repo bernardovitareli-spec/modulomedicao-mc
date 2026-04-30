@@ -13,6 +13,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, ArrowLeft } from "lucide-react";
 import { ImportConflitoDialog, ConflitoMedicao, ConflitoResolucao } from "@/components/medicao/ImportConflitoDialog";
+import {
+  findM3Sheet, parseM3, periodoApiaPorCompetencia, M3_LABEL,
+  type M3ParseResult, type M3Linha,
+} from "@/lib/m3Parser";
 
 const TIPOS_SERVICO_M1 = [
   "Locação de equipamentos",
