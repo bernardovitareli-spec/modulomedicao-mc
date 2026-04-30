@@ -139,6 +139,16 @@ export default function Medicoes() {
                       <StatusBadge status={m.status} />
                       {Number(m.versao ?? 1) > 1 && <Badge variant="outline" className="text-[10px]"><History className="h-2.5 w-2.5 mr-0.5" />v{m.versao}</Badge>}
                       {m.ativa === false && <Badge variant="secondary" className="text-[10px]">inativa</Badge>}
+                      {(versionCounts[m.medicao_original_id ?? m.id] ?? 1) > 1 && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] cursor-pointer border-primary text-primary hover:bg-primary/10"
+                          onClick={(e) => { e.stopPropagation(); navigate(`/medicoes/${m.id}?tab=versoes`); }}
+                          title="Possui versões — clique para ver histórico"
+                        >
+                          <History className="h-2.5 w-2.5 mr-0.5" />Possui versões ({versionCounts[m.medicao_original_id ?? m.id]})
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
