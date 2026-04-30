@@ -469,30 +469,32 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
 
     if (m3Marker) {
       // Memória de cálculo do Modelo M3 — respeita os valores importados da planilha
-      const tipoPgto = String(m3Marker.tipo_pagamento || "").toUpperCase().replace(/\s+/g, "");
+      const tipoPgto = String(m3Marker.tipo_pagamento || "").toUpperCase().replace(/\s+/g, "").replace(/\./g, "");
       const isHG = tipoPgto.includes("HG");
       const isHT = tipoPgto.includes("HT");
       const garAplic = Number(m3Marker.garantia_aplicada ?? i.garantia_minima ?? 0);
       const htInf = Number(m3Marker.ht_informado ?? ht);
       const hMecM3 = Number(m3Marker.horas_mecanicas ?? hMec);
-      const hPagarBruto = Number(m3Marker.horas_pagar_bruto ?? Math.max(hLiq, garAplic));
+      const hPagarBruto = Number(m3Marker.horas_pagar_bruto ?? (isHG ? garAplic : htInf));
       const hPagarLiq = Number(m3Marker.horas_pagar_liquido ?? hPagar);
-      const tipoLabel = isHG ? "H.G. (Hora Garantia)" : isHT ? "H.T. (Hora Trabalhada)" : (m3Marker.tipo_pagamento || "-");
+      const tipoLabel = isHG ? "H.G. — Horas Garantidas" : isHT ? "H.T. — Horas Trabalhadas" : (m3Marker.tipo_pagamento || "-");
 
       linhas.push(`Modelo: M3 — Controle de Horímetros Obras Ápia`);
       linhas.push(`Tipo de pagamento: ${tipoLabel}`);
-      linhas.push(`Garantia aplicada conforme planilha/importação: ${fmtNum(garAplic)} h`);
-      linhas.push(`HT informado: ${fmtNum(htInf)} h`);
       if (isHG) {
+        linhas.push(`Garantia aplicada conforme planilha/importação: ${fmtNum(garAplic)} h`);
         linhas.push(`Horas a pagar bruto = Garantia aplicada = ${fmtNum(hPagarBruto)} h`);
       } else if (isHT) {
+        linhas.push(`HT informado: ${fmtNum(htInf)} h`);
         linhas.push(`Horas a pagar bruto = HT informado = ${fmtNum(hPagarBruto)} h`);
       } else {
-        linhas.push(`Horas a pagar bruto = MAX(HT informado; Garantia aplicada) = MAX(${fmtNum(htInf)}; ${fmtNum(garAplic)}) = ${fmtNum(hPagarBruto)} h`);
+        linhas.push(`Garantia aplicada conforme planilha/importação: ${fmtNum(garAplic)} h`);
+        linhas.push(`HT informado: ${fmtNum(htInf)} h`);
+        linhas.push(`Horas a pagar bruto = ${fmtNum(hPagarBruto)} h (conforme planilha)`);
       }
       linhas.push(`Horas mecânicas: ${fmtNum(hMecM3)} h`);
       linhas.push(`Horas a pagar líquido = Horas a pagar bruto - Horas mecânicas = ${fmtNum(hPagarBruto)} - ${fmtNum(hMecM3)} = ${fmtNum(hPagarLiq)} h`);
-      linhas.push(`Valor bruto = Horas a pagar líquido × Valor/hora = ${fmtNum(hPagarLiq)} × ${fmtBRL(vh)} = ${fmtBRL(vBruto)}`);
+      linhas.push(`Valor final = Horas a pagar líquido × Valor/hora = ${fmtNum(hPagarLiq)} × ${fmtBRL(vh)} = ${fmtBRL(vBruto)}`);
     } else {
       linhas.push(`Base de dias do contrato: ${baseDias} dia(s)  -  Dias considerados: ${dias}`);
       if (aplicaProp) {
@@ -518,6 +520,22 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     y += 2;
   });
 
+  // === Critérios de cálculo importados (apenas M3) ===
+  const isAnyM3Med = itensList.some((i: any) =>
+    (Array.isArray(i.regras_aplicadas) ? i.regras_aplicadas : []).some((r: any) => r?.tipo === "m3_importacao")
+  );
+  if (isAnyM3Med) {
+    ensureSpace(20);
+    sectionTitle("CRITÉRIOS DE CÁLCULO IMPORTADOS");
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    const txt = "Esta medição foi importada pelo Modelo M3 — Controle de Horímetros Obras Ápia. As garantias aplicadas, tipo de pagamento, horas a pagar e valores finais foram importados da planilha base e conferidos pelo sistema.";
+    const wrapped = doc.splitTextToSize(txt, pageW - marginX * 2 - 2);
+    ensureSpace(wrapped.length * 3.8 + 2);
+    doc.text(wrapped, marginX, y);
+    y += wrapped.length * 3.8 + 3;
+  }
+
   // === Regras Contratuais Aplicadas ===
   ensureSpace(15);
   sectionTitle("REGRAS CONTRATUAIS APLICADAS");
@@ -526,6 +544,9 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     const regras = Array.isArray(i.regras_aplicadas) ? i.regras_aplicadas : [];
     const equipLabel = `${i.equipamentos?.tag ?? "-"}${i.equipamentos?.serie ? ` / ${i.equipamentos.serie}` : ""}`;
     regras.forEach((r: any) => {
+      // Não tratar marcadores de importação como regras contratuais
+      const tipoStr = String(r?.tipo ?? "").toLowerCase();
+      if (tipoStr === "m3_importacao" || tipoStr === "importacao" || tipoStr.includes("importac")) return;
       const isProp = r.tipo === "garantia_proporcional";
       const detalhe = isProp
         ? `Dias: ${r.dias_considerados ?? "-"}/${r.base_dias ?? "-"}  -  Gar. mensal: ${fmtNum(r.garantia_mensal)} h  -  Gar. prop.: ${fmtNum(r.garantia_proporcional)} h`
