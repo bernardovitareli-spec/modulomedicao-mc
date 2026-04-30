@@ -1266,7 +1266,7 @@ export default function ImportarMedicao() {
               {ignoradas.length > 0 && <Badge variant="secondary">{ignoradas.length} ignoradas</Badge>}
               {linhasComDivergencia > 0 && <Badge variant="destructive">{linhasComDivergencia} com divergência de cálculo</Badge>}
               <div className="ml-auto flex gap-2">
-                <Button variant="outline" onClick={() => { setLinhas([]); setIgnoradas([]); setFilename(""); setHeaderInfo(null); setHeaderError(""); setOverrides({}); setConfirmDivergencia(false); }}>Cancelar</Button>
+                <Button variant="outline" onClick={() => { setLinhas([]); setIgnoradas([]); setFilename(""); setHeaderInfo(null); setHeaderError(""); setOverrides({}); setM3Settings({}); setM3Result(null); setModelo(null); setConfirmDivergencia(false); }}>Cancelar</Button>
                 <Button onClick={confirmar} disabled={importing || !podeImportar}>
                   {importing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Upload className="mr-1 h-4 w-4" />}
                   Confirmar importação ({validas.length})
