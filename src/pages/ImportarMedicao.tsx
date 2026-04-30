@@ -1374,7 +1374,100 @@ export default function ImportarMedicao() {
             </CardContent></Card>
           )}
 
-          {validas.length > 0 && modelo === "M1" && (
+          {modelo === "M3" && validas.length > 0 && (
+            <Card className="mb-4"><CardContent className="p-4">
+              <h3 className="mb-2 text-sm font-semibold">
+                Configurações do Modelo M3 — Obras Ápia (aba "{sheetUsed}")
+              </h3>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Confirme cliente/contratante, fornecedor, centro de custo, competência e período antes de importar.
+                Sugestões automáticas: cliente <strong>Construtora Ápia</strong>, período <strong>dia 16 do mês anterior até dia 15 do mês da competência</strong>.
+              </p>
+              <div className="space-y-4">
+                {Array.from(new Set(validas.map((l) => l.numero_dj))).map((dj) => {
+                  const s = m3Settings[dj] ?? {};
+                  const setS = (patch: Partial<typeof s>) => {
+                    setM3Settings((prev) => {
+                      const next = { ...prev, [dj]: { ...(prev[dj] ?? {}), ...patch } };
+                      // Reflete competência/centro custo nas linhas convertidas (mes_ref e centro_custo)
+                      if ("competencia" in patch || "centro_custo" in patch) {
+                        const novaComp = next[dj]?.competencia;
+                        const novoCC = next[dj]?.centro_custo;
+                        setLinhas((linhasPrev) => linhasPrev.map((l) => l.numero_dj === dj ? {
+                          ...l,
+                          mes_ref: novaComp || l.mes_ref,
+                          centro_custo: novoCC || l.centro_custo,
+                        } : l));
+                      }
+                      return next;
+                    });
+                  };
+                  return (
+                    <div key={dj} className="rounded-md border p-3">
+                      <div className="mb-2 text-xs">
+                        <span className="font-medium">Contrato/Nº DJ <span className="font-mono">{dj}</span></span>
+                        <span className="ml-2 text-muted-foreground">
+                          Fornecedor: <span className="font-medium text-foreground">{s.fornecedor_nome || "—"}</span>
+                          {s.fornecedor_codigo && <> · cód. <span className="font-mono">{s.fornecedor_codigo}</span></>}
+                        </span>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                        <div className="lg:col-span-2">
+                          <Label className="text-xs">Cliente / Contratante *</Label>
+                          <Select value={s.cliente_id ?? ""} onValueChange={(v) => setS({ cliente_id: v })}>
+                            <SelectTrigger><SelectValue placeholder="Selecione o cliente" /></SelectTrigger>
+                            <SelectContent>
+                              {clientesAtivos.map((c) => <SelectItem key={c.id} value={c.id}>{c.razao_social}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Centro de custo *</Label>
+                          <Input value={s.centro_custo ?? ""} onChange={(e) => setS({ centro_custo: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Competência *</Label>
+                          <Input type="month" value={(s.competencia ?? "").slice(0, 7)} onChange={(e) => setS({ competencia: e.target.value ? `${e.target.value}-01` : "" })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Período início *</Label>
+                          <Input type="date" value={s.periodo_inicio ?? ""} onChange={(e) => setS({ periodo_inicio: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Período fim *</Label>
+                          <Input type="date" value={s.periodo_fim ?? ""} onChange={(e) => setS({ periodo_fim: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Fornecedor / Locadora</Label>
+                          <Input value={s.fornecedor_nome ?? ""} onChange={(e) => setS({ fornecedor_nome: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Código do fornecedor</Label>
+                          <Input value={s.fornecedor_codigo ?? ""} onChange={(e) => setS({ fornecedor_codigo: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Tipo de serviço</Label>
+                          <Select value={s.tipo_servico ?? ""} onValueChange={(v) => setS({ tipo_servico: v })}>
+                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              {TIPOS_SERVICO_M1.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-3 grid gap-2 md:grid-cols-3 text-xs">
+                <Stat label="Total HT calculado" value={fmtNum(totalHtCalc)} />
+                <Stat label="Total horas pagar bruto" value={fmtNum(totalHorasPagarBruto)} />
+                <Stat label="Total horas pagar líquido" value={fmtNum(totalHorasPagarLiquido)} />
+              </div>
+            </CardContent></Card>
+          )}
+
+
             <Card className="mb-4"><CardContent className="p-4">
               <h3 className="mb-2 text-sm font-semibold">
                 Amostra do mapeamento — Modelo M1 (aba "{sheetUsed}") — primeiras 5 linhas válidas
