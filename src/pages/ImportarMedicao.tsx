@@ -648,36 +648,42 @@ export default function ImportarMedicao() {
         const periodo = periodoPorMedicao.get(provKey)!;
         const chave = buildMedKey(ctrInfo.id, l.mes_ref!, periodo.inicio, periodo.fim);
 
+        // Considera a versão mais recente (ativa ou cancelada/inativa)
         const { data: existentes } = await supabase
           .from("medicoes")
-          .select("id, status, valor_final, versao, ativa, updated_at, created_by, contratos(numero_dj, clientes(razao_social))")
+          .select("id, status, valor_final, versao, ativa, updated_at, created_by, arquivo_origem, contratos(numero_dj, clientes(razao_social))")
           .eq("contrato_id", ctrInfo.id)
           .eq("competencia", l.mes_ref!)
           .eq("periodo_inicio", periodo.inicio)
           .eq("periodo_fim", periodo.fim)
-          .eq("ativa", true)
           .order("versao", { ascending: false })
           .limit(1);
 
-        const ex = existentes?.[0];
+        const ex = existentes?.[0] as any;
         if (!ex) continue;
 
-        // buscar email do último alterador
+        // buscar último registro de histórico (email + motivo cancelamento)
         let userEmail: string | null = null;
-        if (ex.created_by) {
-          const { data: prof } = await supabase
-            .from("medicao_status_historico")
-            .select("user_email")
-            .eq("medicao_id", ex.id)
-            .order("created_at", { ascending: false })
-            .limit(1);
-          userEmail = prof?.[0]?.user_email ?? null;
+        let motivoCancelamento: string | null = null;
+        const { data: hist } = await supabase
+          .from("medicao_status_historico")
+          .select("user_email, status_novo, motivo, created_at")
+          .eq("medicao_id", ex.id)
+          .order("created_at", { ascending: false })
+          .limit(20);
+        if (hist?.length) {
+          userEmail = hist[0].user_email ?? null;
+          const cancel = hist.find((h: any) => h.status_novo === "cancelada");
+          if (cancel) {
+            userEmail = cancel.user_email ?? userEmail;
+            motivoCancelamento = cancel.motivo ?? null;
+          }
         }
 
         conflitosDetectados.push({
           chave,
-          cliente: (ex as any).contratos?.clientes?.razao_social ?? "—",
-          contratoNumero: (ex as any).contratos?.numero_dj ?? l.numero_dj,
+          cliente: ex.contratos?.clientes?.razao_social ?? "—",
+          contratoNumero: ex.contratos?.numero_dj ?? l.numero_dj,
           competencia: l.mes_ref!,
           periodoInicio: periodo.inicio,
           periodoFim: periodo.fim,
@@ -688,8 +694,11 @@ export default function ImportarMedicao() {
             versao: Number(ex.versao ?? 1),
             updated_at: ex.updated_at,
             user_email: userEmail,
+            motivo_cancelamento: motivoCancelamento,
+            arquivo_origem: ex.arquivo_origem ?? null,
           },
           valorNovo: valorPorChave.get(chave) ?? 0,
+          arquivoNovo: filename || null,
         });
       }
 
@@ -741,6 +750,8 @@ export default function ImportarMedicao() {
           const { data, error } = await supabase.rpc("criar_nova_versao_medicao" as any, {
             _medicao_anterior_id: conflito.medicaoExistente.id,
             _motivo: r.motivo,
+            _arquivo_origem: r.arquivoOrigem ?? filename ?? null,
+            _origem: "reimportacao",
           });
           if (error) throw new Error(`Nova versão ${conflito.contratoNumero}: ${error.message}`);
           medicaoIdsResolvidos.set(r.chave, data as unknown as string);

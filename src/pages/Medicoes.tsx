@@ -22,7 +22,7 @@ export default function Medicoes() {
   const [list, setList] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("todos");
-  const [versaoFilter, setVersaoFilter] = useState<"ativas" | "todas" | "inativas">("ativas");
+  const [versaoFilter, setVersaoFilter] = useState<"ativas" | "todas" | "inativas" | "canceladas">("ativas");
   const [delTarget, setDelTarget] = useState<any>(null);
   const [cancelTarget, setCancelTarget] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -32,6 +32,7 @@ export default function Medicoes() {
     if (status !== "todos") q = q.eq("status", status as any);
     if (versaoFilter === "ativas") q = q.eq("ativa", true);
     else if (versaoFilter === "inativas") q = q.eq("ativa", false);
+    else if (versaoFilter === "canceladas") q = q.eq("status", "cancelada" as any);
     q.then(({ data }) => setList(data ?? []));
   };
   useEffect(() => { load(); }, [status, versaoFilter]);
@@ -92,11 +93,12 @@ export default function Medicoes() {
             </SelectContent>
           </Select>
           <Select value={versaoFilter} onValueChange={(v) => setVersaoFilter(v as any)}>
-            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ativas">Apenas versões ativas</SelectItem>
-              <SelectItem value="todas">Todas as versões</SelectItem>
-              <SelectItem value="inativas">Apenas inativas</SelectItem>
+              <SelectItem value="todas">Todas</SelectItem>
+              <SelectItem value="canceladas">Canceladas</SelectItem>
+              <SelectItem value="inativas">Versões anteriores (inativas)</SelectItem>
             </SelectContent>
           </Select>
           <span className="ml-auto text-xs text-muted-foreground">{filtered.length} medição(ões)</span>

@@ -1082,6 +1082,7 @@ export type Database = {
           aprovada_cliente_em: string | null
           aprovada_cliente_por: string | null
           aprovador_cliente_nome: string | null
+          arquivo_origem: string | null
           ativa: boolean
           competencia: string
           contrato_id: string
@@ -1093,8 +1094,10 @@ export type Database = {
           importacao_id: string | null
           medicao_original_id: string | null
           motivo_reabertura: string | null
+          motivo_reimportacao: string | null
           motivo_substituicao: string | null
           observacoes: string | null
+          origem_reimportacao: string | null
           periodo_fim: string
           periodo_inicio: string
           status: Database["public"]["Enums"]["medicao_status"]
@@ -1114,6 +1117,7 @@ export type Database = {
           aprovada_cliente_em?: string | null
           aprovada_cliente_por?: string | null
           aprovador_cliente_nome?: string | null
+          arquivo_origem?: string | null
           ativa?: boolean
           competencia: string
           contrato_id: string
@@ -1125,8 +1129,10 @@ export type Database = {
           importacao_id?: string | null
           medicao_original_id?: string | null
           motivo_reabertura?: string | null
+          motivo_reimportacao?: string | null
           motivo_substituicao?: string | null
           observacoes?: string | null
+          origem_reimportacao?: string | null
           periodo_fim: string
           periodo_inicio: string
           status?: Database["public"]["Enums"]["medicao_status"]
@@ -1146,6 +1152,7 @@ export type Database = {
           aprovada_cliente_em?: string | null
           aprovada_cliente_por?: string | null
           aprovador_cliente_nome?: string | null
+          arquivo_origem?: string | null
           ativa?: boolean
           competencia?: string
           contrato_id?: string
@@ -1157,8 +1164,10 @@ export type Database = {
           importacao_id?: string | null
           medicao_original_id?: string | null
           motivo_reabertura?: string | null
+          motivo_reimportacao?: string | null
           motivo_substituicao?: string | null
           observacoes?: string | null
+          origem_reimportacao?: string | null
           periodo_fim?: string
           periodo_inicio?: string
           status?: Database["public"]["Enums"]["medicao_status"]
@@ -1355,10 +1364,20 @@ export type Database = {
         Returns: undefined
       }
       criar_faturamento: { Args: { _medicao_id: string }; Returns: string }
-      criar_nova_versao_medicao: {
-        Args: { _medicao_anterior_id: string; _motivo: string }
-        Returns: string
-      }
+      criar_nova_versao_medicao:
+        | {
+            Args: { _medicao_anterior_id: string; _motivo: string }
+            Returns: string
+          }
+        | {
+            Args: {
+              _arquivo_origem?: string
+              _medicao_anterior_id: string
+              _motivo: string
+              _origem?: string
+            }
+            Returns: string
+          }
       delete_medicao_safe: {
         Args: { _medicao_id: string; _motivo: string }
         Returns: Json

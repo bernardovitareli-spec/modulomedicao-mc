@@ -30,6 +30,7 @@ export default function MedicaoDetalhe() {
   const perms = usePermissions();
   const [med, setMed] = useState<any>(null);
   const [itens, setItens] = useState<any[]>([]);
+  const [versoes, setVersoes] = useState<any[]>([]);
   const [delOpen, setDelOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reabrirOpen, setReabrirOpen] = useState(false);
@@ -42,6 +43,16 @@ export default function MedicaoDetalhe() {
       supabase.from("medicao_itens").select("*, equipamentos(tag, tipo, modelo)").eq("medicao_id", id).order("created_at"),
     ]);
     setMed(m.data); setItens(i.data ?? []);
+    // Carrega outras versões da mesma cadeia
+    if (m.data) {
+      const original = (m.data as any).medicao_original_id ?? m.data.id;
+      const { data: vs } = await supabase
+        .from("medicoes")
+        .select("id, versao, status, ativa, valor_final, created_at, arquivo_origem, motivo_reimportacao")
+        .or(`id.eq.${original},medicao_original_id.eq.${original}`)
+        .order("versao", { ascending: false });
+      setVersoes(vs ?? []);
+    }
   };
   useEffect(() => { load(); }, [id]);
 
@@ -202,6 +213,46 @@ export default function MedicaoDetalhe() {
           )}
         </CardContent>
       </Card>
+
+      {versoes.length > 1 && (
+        <Card className="mb-4">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h3 className="text-sm font-semibold">Versões desta medição</h3>
+                <p className="text-xs text-muted-foreground">Todas as versões para o mesmo contrato/competência/período</p>
+              </div>
+              <span className="text-xs text-muted-foreground">{versoes.length} versão(ões)</span>
+            </div>
+            <div className="space-y-1.5">
+              {versoes.map((v) => {
+                const atual = v.id === id;
+                return (
+                  <div
+                    key={v.id}
+                    className={`flex flex-wrap items-center gap-2 rounded-md border p-2 text-xs ${atual ? "bg-muted/50 border-primary" : "cursor-pointer hover:bg-muted/30"}`}
+                    onClick={() => { if (!atual) navigate(`/medicoes/${v.id}`); }}
+                  >
+                    <span className="px-1.5 py-0.5 rounded border font-mono">v{v.versao}</span>
+                    <StatusBadge status={v.status} />
+                    {v.ativa ? (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary">ativa</span>
+                    ) : (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-muted">inativa</span>
+                    )}
+                    <span className="text-muted-foreground">{fmtDate(v.created_at)}</span>
+                    <span className="num font-semibold ml-auto">{fmtBRL(v.valor_final)}</span>
+                    {v.arquivo_origem && (
+                      <span className="basis-full text-muted-foreground truncate">📎 {v.arquivo_origem}</span>
+                    )}
+                    {atual && <span className="basis-full text-[10px] text-primary">⬤ Visualizando esta versão</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="mb-4 grid gap-3 md:grid-cols-5">
         <Kpi l="Horas informadas" v={fmtNum(med.total_horas_informadas)} />
