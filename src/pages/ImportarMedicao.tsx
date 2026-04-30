@@ -654,12 +654,26 @@ export default function ImportarMedicao() {
 
   // Helpers para aplicar overrides M1 (preenchidos manualmente pelo usuário)
   const ovOf = (dj: string) => overrides[dj] ?? {};
-  const cnpjEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).cnpj || l.cnpj) : l.cnpj);
-  // No M1 o "código" extraído da planilha é o CÓDIGO DO FORNECEDOR (não cliente)
-  const codFornecedorEf = (l: LinhaLida) => (modelo === "M1" ? l.codigo_cliente : "");
-  const tipoServicoEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).tipo_servico || l.tipo_servico) : l.tipo_servico);
-  const periodoIniEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).periodo_inicio || l.periodo_inicio || "") : (l.periodo_inicio || ""));
-  const periodoFimEf = (l: LinhaLida) => (modelo === "M1" ? (ovOf(l.numero_dj).periodo_fim || l.periodo_fim || "") : (l.periodo_fim || ""));
+  // Helper unificado: para M1 lê de "overrides", para M3 lê de "m3Settings".
+  const cfgOf = (dj: string): {
+    cnpj?: string; tipo_servico?: string; periodo_inicio?: string;
+    periodo_fim?: string; cliente_id?: string; centro_custo?: string;
+    competencia?: string; fornecedor_nome?: string; fornecedor_codigo?: string;
+  } => {
+    if (modelo === "M3") return m3Settings[dj] ?? {};
+    return overrides[dj] ?? {};
+  };
+  const usaConfig = modelo === "M1" || modelo === "M3";
+  const cnpjEf = (l: LinhaLida) => (usaConfig ? (cfgOf(l.numero_dj).cnpj || l.cnpj) : l.cnpj);
+  // No M1/M3 o "código" extraído da planilha é o CÓDIGO DO FORNECEDOR (não cliente)
+  const codFornecedorEf = (l: LinhaLida) => (usaConfig ? l.codigo_cliente : "");
+  const tipoServicoEf = (l: LinhaLida) => (usaConfig ? (cfgOf(l.numero_dj).tipo_servico || l.tipo_servico) : l.tipo_servico);
+  const periodoIniEf = (l: LinhaLida) => (usaConfig ? (cfgOf(l.numero_dj).periodo_inicio || l.periodo_inicio || "") : (l.periodo_inicio || ""));
+  const periodoFimEf = (l: LinhaLida) => (usaConfig ? (cfgOf(l.numero_dj).periodo_fim || l.periodo_fim || "") : (l.periodo_fim || ""));
+  const competenciaEf = (l: LinhaLida) =>
+    (modelo === "M3" ? (cfgOf(l.numero_dj).competencia || l.mes_ref) : l.mes_ref);
+  const centroCustoEf = (l: LinhaLida) =>
+    (modelo === "M3" ? (cfgOf(l.numero_dj).centro_custo || l.centro_custo) : l.centro_custo);
 
   // Resumo agregado
   const clientes = Array.from(new Set(validas.map((l) => l.contratado)));
@@ -667,8 +681,8 @@ export default function ImportarMedicao() {
   const codigosFornecedor = Array.from(new Set(validas.map(codFornecedorEf).filter(Boolean)));
   const contratos = Array.from(new Set(validas.map((l) => l.numero_dj)));
   const tiposServico = Array.from(new Set(validas.map(tipoServicoEf).filter(Boolean)));
-  const centrosCusto = Array.from(new Set(validas.map((l) => l.centro_custo).filter(Boolean)));
-  const competencias = Array.from(new Set(validas.map((l) => l.mes_ref).filter(Boolean) as string[]));
+  const centrosCusto = Array.from(new Set(validas.map(centroCustoEf).filter(Boolean) as string[]));
+  const competencias = Array.from(new Set(validas.map((l) => competenciaEf(l)).filter(Boolean) as string[]));
   const periodosIni = validas.map(periodoIniEf).filter(Boolean) as string[];
   const periodosFim = validas.map(periodoFimEf).filter(Boolean) as string[];
   const periodoIniMin = periodosIni.length ? periodosIni.sort()[0] : "";
@@ -682,6 +696,10 @@ export default function ImportarMedicao() {
   const totalHorasMec = validas.reduce((s, l) => s + l.horas_mec, 0);
   const totalComplementares = validas.reduce((s, l) => s + l.complementares, 0);
   const totalDesc = validas.reduce((s, l) => s + l.desc_manutencao, 0);
+  // Totais específicos do M3
+  const totalHtCalc = validas.reduce((s, l) => s + l.ht_calculado, 0);
+  const totalHorasPagarBruto = validas.reduce((s, l) => s + l.horas_a_pagar, 0);
+  const totalHorasPagarLiquido = validas.reduce((s, l) => s + l.horas_liquidas, 0);
 
   // Validação: tipo_equip == tipo_servico em todos os itens (provável mapeamento errado)
   const itensComTipoEquip = validas.filter((l) => l.tipo_equip);
@@ -690,7 +708,7 @@ export default function ImportarMedicao() {
     itensComTipoEquip.every((l) => normalize(l.tipo_equip) === normalize(l.tipo_servico));
   const erroMapeamentoTipoEquip = modelo === "M2" && tipoEquipIgualServico;
 
-  // Validação dos overrides obrigatórios M1
+  // Validação dos overrides obrigatórios M1/M3
   const m1Pendencias: string[] = [];
   if (modelo === "M1") {
     const djs = Array.from(new Set(validas.map((l) => l.numero_dj)));
@@ -705,13 +723,29 @@ export default function ImportarMedicao() {
       }
     }
   }
+  const m3Pendencias: string[] = [];
+  if (modelo === "M3") {
+    const djs = Array.from(new Set(validas.map((l) => l.numero_dj)));
+    for (const dj of djs) {
+      const s = m3Settings[dj] ?? {};
+      if (!s.cliente_id) m3Pendencias.push(`Contrato ${dj}: selecione o Cliente/Contratante`);
+      if (!s.competencia) m3Pendencias.push(`Contrato ${dj}: competência obrigatória`);
+      if (!s.periodo_inicio) m3Pendencias.push(`Contrato ${dj}: período início obrigatório`);
+      if (!s.periodo_fim) m3Pendencias.push(`Contrato ${dj}: período fim obrigatório`);
+      if (s.periodo_inicio && s.periodo_fim && s.periodo_fim < s.periodo_inicio) {
+        m3Pendencias.push(`Contrato ${dj}: período fim não pode ser anterior ao início`);
+      }
+      if (!s.centro_custo) m3Pendencias.push(`Contrato ${dj}: centro de custo obrigatório`);
+    }
+  }
 
-  const precisaConfirmarDivergencia = modelo === "M1" && linhasComDivergencia > 0;
+  const precisaConfirmarDivergencia = (modelo === "M1" || modelo === "M3") && linhasComDivergencia > 0;
   const podeImportar =
     !headerError &&
     validas.length > 0 &&
     !erroMapeamentoTipoEquip &&
     m1Pendencias.length === 0 &&
+    m3Pendencias.length === 0 &&
     (!precisaConfirmarDivergencia || confirmDivergencia);
 
   // Helper: chave canônica de medição (contrato + competência + período)
