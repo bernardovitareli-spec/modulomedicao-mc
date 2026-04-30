@@ -269,6 +269,9 @@ export default function MedicaoDetalhe() {
           <TabsTrigger value="historico">Histórico de alterações</TabsTrigger>
           <TabsTrigger value="fluxo">Fluxo de aprovação</TabsTrigger>
           <TabsTrigger value="anexos">Anexos</TabsTrigger>
+          <TabsTrigger value="versoes">
+            Versões{versoes.length > 1 && <span className="ml-1 text-[10px] px-1.5 rounded bg-primary/15 text-primary">{versoes.length}</span>}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="itens" className="mt-4">
