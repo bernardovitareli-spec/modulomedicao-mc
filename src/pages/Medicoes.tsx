@@ -27,13 +27,25 @@ export default function Medicoes() {
   const [cancelTarget, setCancelTarget] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  const load = () => {
+  const [versionCounts, setVersionCounts] = useState<Record<string, number>>({});
+
+  const load = async () => {
     let q = supabase.from("medicoes").select("*, contratos(numero_dj, clientes(razao_social))").order("competencia", { ascending: false });
     if (status !== "todos") q = q.eq("status", status as any);
     if (versaoFilter === "ativas") q = q.eq("ativa", true);
     else if (versaoFilter === "inativas") q = q.eq("ativa", false);
     else if (versaoFilter === "canceladas") q = q.eq("status", "cancelada" as any);
-    q.then(({ data }) => setList(data ?? []));
+    const { data } = await q;
+    setList(data ?? []);
+
+    // Calcula contagem de versões por cadeia (medicao_original_id ou id)
+    const { data: all } = await supabase.from("medicoes").select("id, medicao_original_id");
+    const counts: Record<string, number> = {};
+    (all ?? []).forEach((m: any) => {
+      const k = m.medicao_original_id ?? m.id;
+      counts[k] = (counts[k] ?? 0) + 1;
+    });
+    setVersionCounts(counts);
   };
   useEffect(() => { load(); }, [status, versaoFilter]);
 
