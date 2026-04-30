@@ -448,6 +448,7 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     y += 6;
 
     doc.setFont("helvetica", "normal");
+    const m3Marker = (Array.isArray(i.regras_aplicadas) ? i.regras_aplicadas : []).find((r: any) => r?.tipo === "m3_importacao");
     const baseDias = (med as any).contratos?.base_dias_garantia ?? 30;
     const dias = i.dias_considerados ?? baseDias;
     const garMensal = Number(i.garantia_mensal_horas ?? i.garantia_minima ?? 0);
@@ -456,6 +457,7 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     const ht = Number(i.horas_informadas ?? 0);
     const hLiq = Number(i.horas_liquidas ?? 0);
     const hPagar = Number(i.horas_a_pagar ?? 0);
+    const hMec = Number(i.horas_mecanicas ?? 0);
     const vh = Number(i.valor_hora ?? 0);
     const vBruto = Number(i.valor_bruto ?? 0);
     const vCompl = Number(i.valor_complementares ?? 0);
@@ -464,18 +466,47 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
 
     const linhas: string[] = [];
     linhas.push(`Período efetivo: ${fmtDate(i.data_inicio_operacao_item ?? i.periodo_inicio ?? med.periodo_inicio)} a ${fmtDate(i.data_fim_operacao_item ?? i.periodo_fim ?? med.periodo_fim)}`);
-    linhas.push(`Base de dias do contrato: ${baseDias} dia(s)  -  Dias considerados: ${dias}`);
-    if (aplicaProp) {
-      linhas.push(`Garantia proporcional = Garantia mensal / Base dias x Dias considerados`);
-      linhas.push(`Garantia proporcional = ${fmtNum(garMensal)} / ${baseDias} x ${dias} = ${fmtNum(garProp)} h`);
-      linhas.push(`Horas a pagar = MAX(HT informado; Garantia proporcional)`);
-      linhas.push(`Horas a pagar = MAX(${fmtNum(ht)}; ${fmtNum(garProp)}) = ${fmtNum(hPagar)} h`);
+
+    if (m3Marker) {
+      // Memória de cálculo do Modelo M3 — respeita os valores importados da planilha
+      const tipoPgto = String(m3Marker.tipo_pagamento || "").toUpperCase().replace(/\s+/g, "");
+      const isHG = tipoPgto.includes("HG");
+      const isHT = tipoPgto.includes("HT");
+      const garAplic = Number(m3Marker.garantia_aplicada ?? i.garantia_minima ?? 0);
+      const htInf = Number(m3Marker.ht_informado ?? ht);
+      const hMecM3 = Number(m3Marker.horas_mecanicas ?? hMec);
+      const hPagarBruto = Number(m3Marker.horas_pagar_bruto ?? Math.max(hLiq, garAplic));
+      const hPagarLiq = Number(m3Marker.horas_pagar_liquido ?? hPagar);
+      const tipoLabel = isHG ? "H.G. (Hora Garantia)" : isHT ? "H.T. (Hora Trabalhada)" : (m3Marker.tipo_pagamento || "-");
+
+      linhas.push(`Modelo: M3 — Controle de Horímetros Obras Ápia`);
+      linhas.push(`Tipo de pagamento: ${tipoLabel}`);
+      linhas.push(`Garantia aplicada conforme planilha/importação: ${fmtNum(garAplic)} h`);
+      linhas.push(`HT informado: ${fmtNum(htInf)} h`);
+      if (isHG) {
+        linhas.push(`Horas a pagar bruto = Garantia aplicada = ${fmtNum(hPagarBruto)} h`);
+      } else if (isHT) {
+        linhas.push(`Horas a pagar bruto = HT informado = ${fmtNum(hPagarBruto)} h`);
+      } else {
+        linhas.push(`Horas a pagar bruto = MAX(HT informado; Garantia aplicada) = MAX(${fmtNum(htInf)}; ${fmtNum(garAplic)}) = ${fmtNum(hPagarBruto)} h`);
+      }
+      linhas.push(`Horas mecânicas: ${fmtNum(hMecM3)} h`);
+      linhas.push(`Horas a pagar líquido = Horas a pagar bruto - Horas mecânicas = ${fmtNum(hPagarBruto)} - ${fmtNum(hMecM3)} = ${fmtNum(hPagarLiq)} h`);
+      linhas.push(`Valor bruto = Horas a pagar líquido × Valor/hora = ${fmtNum(hPagarLiq)} × ${fmtBRL(vh)} = ${fmtBRL(vBruto)}`);
     } else {
-      linhas.push(`Horas liquidas = HT informado - Horas mecanicas = ${fmtNum(ht)} - ${fmtNum(i.horas_mecanicas)} = ${fmtNum(hLiq)} h`);
-      linhas.push(`Horas a pagar = MAX(Horas liquidas; Garantia mensal)`);
-      linhas.push(`Horas a pagar = MAX(${fmtNum(hLiq)}; ${fmtNum(garMensal)}) = ${fmtNum(hPagar)} h`);
+      linhas.push(`Base de dias do contrato: ${baseDias} dia(s)  -  Dias considerados: ${dias}`);
+      if (aplicaProp) {
+        linhas.push(`Garantia proporcional = Garantia mensal / Base dias x Dias considerados`);
+        linhas.push(`Garantia proporcional = ${fmtNum(garMensal)} / ${baseDias} x ${dias} = ${fmtNum(garProp)} h`);
+        linhas.push(`Horas a pagar = MAX(HT informado; Garantia proporcional)`);
+        linhas.push(`Horas a pagar = MAX(${fmtNum(ht)}; ${fmtNum(garProp)}) = ${fmtNum(hPagar)} h`);
+      } else {
+        linhas.push(`Horas liquidas = HT informado - Horas mecanicas = ${fmtNum(ht)} - ${fmtNum(i.horas_mecanicas)} = ${fmtNum(hLiq)} h`);
+        linhas.push(`Horas a pagar = MAX(Horas liquidas; Garantia mensal)`);
+        linhas.push(`Horas a pagar = MAX(${fmtNum(hLiq)}; ${fmtNum(garMensal)}) = ${fmtNum(hPagar)} h`);
+      }
+      linhas.push(`Valor bruto = ${fmtNum(hPagar)} x ${fmtBRL(vh)} = ${fmtBRL(vBruto)}`);
     }
-    linhas.push(`Valor bruto = ${fmtNum(hPagar)} x ${fmtBRL(vh)} = ${fmtBRL(vBruto)}`);
     linhas.push(`Valor final = Valor bruto + Complementares - Descontos`);
     linhas.push(`Valor final = ${fmtBRL(vBruto)} + ${fmtBRL(vCompl)} - ${fmtBRL(vDesc)} = ${fmtBRL(vFinal)}`);
 
