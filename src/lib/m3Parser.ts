@@ -251,6 +251,7 @@ export function parseM3(wb: XLSX.WorkBook, sheetName: string): M3ParseResult {
       ok: false,
       motivo: `Cabeçalho M3 não localizado. Faltam: ${hdr.missing.join(", ")}`,
       sheetName, headerRowIndex: hdr.rowIndex,
+      colMap: hdr.colMap,
       abaNomeSemSufixo: base, competenciaSugerida: null,
       centroCustoSugerido: base, fornecedorNome: "", fornecedorCodigo: "", numeroDjUnico: "",
       linhas: [], ignoradas: [],
