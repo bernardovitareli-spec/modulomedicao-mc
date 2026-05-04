@@ -1011,8 +1011,11 @@ export default function ImportarMedicao() {
           clienteId = cfg.cliente_id;
           if (!clienteId) throw new Error(`Selecione o Cliente/Contratante para o contrato ${l.numero_dj}`);
         } else {
-          const cliKey = l.contratado.toUpperCase();
-          clienteId = clientesCache.get(cliKey);
+          // M2: identificar prioritariamente por CNPJ; depois por nome normalizado
+          const cnpjN = normCNPJ(cnpjEfetivo);
+          const nomeN = normNome(l.contratado);
+          if (cnpjN) clienteId = clientesCache.get(`cnpj:${cnpjN}`);
+          if (!clienteId && nomeN) clienteId = clientesCache.get(`nome:${nomeN}`);
           if (!clienteId) {
             const { data, error } = await supabase.from("clientes").insert({
               razao_social: l.contratado,
@@ -1021,30 +1024,47 @@ export default function ImportarMedicao() {
               status: "ativo",
             } as any).select("id").single();
             if (error) throw error;
-            clienteId = data.id; clientesCache.set(cliKey, clienteId!); createdCli++;
+            clienteId = data.id;
+            if (cnpjN) clientesCache.set(`cnpj:${cnpjN}`, clienteId!);
+            if (nomeN) clientesCache.set(`nome:${nomeN}`, clienteId!);
+            createdCli++;
           }
         }
 
-        let contrato = contratosCache.get(l.numero_dj);
+        // Chave do contrato: cliente_id + numero_dj + centro_custo (mesmo nº pode existir para clientes diferentes)
+        const ctrCacheKey = `${clienteId}|${l.numero_dj}|${(centroCustoEfetivo ?? "").trim()}`;
+        let contrato = contratosCache.get(ctrCacheKey);
         if (!contrato) {
-          const inicio = l.inicio_op ?? periodoIniEfetivo ?? (l.mes_ref ?? new Date().toISOString().slice(0, 10));
-          const termino = l.termino_contrato ?? new Date(new Date(inicio).getFullYear() + 1, 11, 31).toISOString().slice(0, 10);
-          const { data, error } = await supabase.from("contratos").insert({
-            numero_dj: l.numero_dj, cliente_id: clienteId,
-            tipo_servico: tipoServicoEfetivo,
-            centro_custo: centroCustoEfetivo,
-            inicio_operacao: inicio, termino_contrato: termino,
-            valor_hora_padrao: l.valor_hora, garantia_minima_horas: l.garantia,
-            status: "ativo",
-            fornecedor_nome: fornecedorNome || null,
-            fornecedor_codigo: fornecedorCodigo || null,
-            fornecedor_cnpj: fornecedorCnpj || null,
-          } as any).select("id, valor_hora_padrao, garantia_minima_horas").single();
-          if (error) throw error;
-          contrato = { id: data.id, valor_hora: Number(data.valor_hora_padrao ?? 0), garantia: Number(data.garantia_minima_horas ?? 0) };
-          contratosCache.set(l.numero_dj, contrato); createdCtr++;
+          // Procura no banco por (cliente_id, numero_dj, centro_custo)
+          const { data: existCtr } = await supabase.from("contratos")
+            .select("id, valor_hora_padrao, garantia_minima_horas")
+            .eq("cliente_id", clienteId!)
+            .eq("numero_dj", l.numero_dj)
+            .eq("centro_custo", centroCustoEfetivo ?? "")
+            .maybeSingle();
+          if (existCtr) {
+            contrato = { id: existCtr.id, valor_hora: Number(existCtr.valor_hora_padrao ?? 0), garantia: Number(existCtr.garantia_minima_horas ?? 0) };
+          } else {
+            const inicio = l.inicio_op ?? periodoIniEfetivo ?? (l.mes_ref ?? new Date().toISOString().slice(0, 10));
+            const termino = l.termino_contrato ?? new Date(new Date(inicio).getFullYear() + 1, 11, 31).toISOString().slice(0, 10);
+            const { data, error } = await supabase.from("contratos").insert({
+              numero_dj: l.numero_dj, cliente_id: clienteId,
+              tipo_servico: tipoServicoEfetivo,
+              centro_custo: centroCustoEfetivo,
+              inicio_operacao: inicio, termino_contrato: termino,
+              valor_hora_padrao: l.valor_hora, garantia_minima_horas: l.garantia,
+              status: "ativo",
+              fornecedor_nome: fornecedorNome || null,
+              fornecedor_codigo: fornecedorCodigo || null,
+              fornecedor_cnpj: fornecedorCnpj || null,
+            } as any).select("id, valor_hora_padrao, garantia_minima_horas").single();
+            if (error) throw error;
+            contrato = { id: data.id, valor_hora: Number(data.valor_hora_padrao ?? 0), garantia: Number(data.garantia_minima_horas ?? 0) };
+            createdCtr++;
+          }
+          contratosCache.set(ctrCacheKey, contrato);
         } else {
-          const patch: any = { tipo_servico: tipoServicoEfetivo || undefined, centro_custo: centroCustoEfetivo };
+          const patch: any = { tipo_servico: tipoServicoEfetivo || undefined };
           if (isM1 || isM3) {
             patch.cliente_id = clienteId;
             if (fornecedorNome) patch.fornecedor_nome = fornecedorNome;
