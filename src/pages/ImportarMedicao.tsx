@@ -888,7 +888,9 @@ export default function ImportarMedicao() {
         conflitosDetectados.push({
           chave,
           cliente: ex.contratos?.clientes?.razao_social ?? "—",
+          clienteCnpj: ex.contratos?.clientes?.cnpj ?? null,
           contratoNumero: ex.contratos?.numero_dj ?? l.numero_dj,
+          centroCusto: ex.contratos?.centro_custo ?? null,
           competencia: l.mes_ref!,
           periodoInicio: periodo.inicio,
           periodoFim: periodo.fim,
