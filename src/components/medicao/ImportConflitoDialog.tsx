@@ -13,7 +13,9 @@ import { labelStatus } from "@/lib/medicaoStatus";
 export interface ConflitoMedicao {
   chave: string;
   cliente: string;
+  clienteCnpj?: string | null;
   contratoNumero: string;
+  centroCusto?: string | null;
   competencia: string;
   periodoInicio: string;
   periodoFim: string;
