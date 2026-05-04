@@ -752,28 +752,59 @@ export default function ImportarMedicao() {
   const buildMedKey = (contratoId: string, competencia: string, ini: string, fim: string) =>
     `${contratoId}|${competencia}|${ini}|${fim}`;
 
+  // Normalização de nome de cliente (sem acentos, sem espaços extras, lowercase)
+  const normNome = (s: string) =>
+    (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+  const normCNPJ = (s: string) => (s || "").replace(/\D/g, "");
+
   const confirmar = async () => {
     if (!podeImportar) { toast.error("Não é possível importar"); return; }
     setImporting(true);
     try {
       // Etapa 1: preparar caches e resolver cliente/contrato (sem gravar itens ainda)
+      // clientesCache: indexado por CNPJ ("cnpj:XXXX") e por nome normalizado ("nome:XXXX")
       const clientesCache = new Map<string, string>();
+      // contratosCache: indexado por `${cliente_id}|${numero_dj}|${centro_custo}`
       const contratosCache = new Map<string, { id: string; valor_hora: number; garantia: number }>();
       const equipsCache = new Map<string, string>();
       const contratoEquipCache = new Map<string, string>();
 
       const [{ data: cli }, { data: ctr }, { data: eqp }] = await Promise.all([
-        supabase.from("clientes").select("id, razao_social"),
-        supabase.from("contratos").select("id, numero_dj, valor_hora_padrao, garantia_minima_horas"),
+        supabase.from("clientes").select("id, razao_social, cnpj"),
+        supabase.from("contratos").select("id, numero_dj, cliente_id, centro_custo, valor_hora_padrao, garantia_minima_horas"),
         supabase.from("equipamentos").select("id, serie, tag"),
       ]);
-      cli?.forEach((c: any) => clientesCache.set(c.razao_social.toUpperCase(), c.id));
-      ctr?.forEach((c: any) => contratosCache.set(c.numero_dj, { id: c.id, valor_hora: Number(c.valor_hora_padrao ?? 0), garantia: Number(c.garantia_minima_horas ?? 0) }));
+      cli?.forEach((c: any) => {
+        if (c.cnpj) clientesCache.set(`cnpj:${normCNPJ(c.cnpj)}`, c.id);
+        if (c.razao_social) clientesCache.set(`nome:${normNome(c.razao_social)}`, c.id);
+      });
+      ctr?.forEach((c: any) => {
+        const k = `${c.cliente_id ?? ""}|${c.numero_dj ?? ""}|${(c.centro_custo ?? "").trim()}`;
+        contratosCache.set(k, { id: c.id, valor_hora: Number(c.valor_hora_padrao ?? 0), garantia: Number(c.garantia_minima_horas ?? 0) });
+      });
       eqp?.forEach((e: any) => equipsCache.set(`${e.serie ?? ""}|${e.tag ?? ""}`, e.id));
 
       // Resolver config (M1: overrides, M3: m3Settings) para um único objeto.
       const cfgFor = (dj: string): any =>
         modelo === "M3" ? (m3Settings[dj] ?? {}) : (overrides[dj] ?? {});
+
+      // Resolve o cliente_id de uma linha SEM criar (apenas lookup) — usado para detectar conflito.
+      // Para M1/M3 usa o cliente_id da config; para M2 usa CNPJ → nome.
+      const resolveClienteIdLookup = (l: LinhaLida): string | null => {
+        const cfg = cfgFor(l.numero_dj);
+        if (modelo === "M1" || modelo === "M3") return cfg.cliente_id || null;
+        const cnpj = normCNPJ(cfg.cnpj || l.cnpj);
+        if (cnpj) {
+          const id = clientesCache.get(`cnpj:${cnpj}`);
+          if (id) return id;
+        }
+        const nome = normNome(l.contratado);
+        if (nome) {
+          const id = clientesCache.get(`nome:${nome}`);
+          if (id) return id;
+        }
+        return null;
+      };
 
       // Calcular períodos por medKey provisória (numero_dj+mes_ref) para checar conflitos
       const periodoPorMedicao = new Map<string, { inicio: string; fim: string }>();
@@ -794,23 +825,29 @@ export default function ImportarMedicao() {
       }
 
 
-      // Verificar conflitos somente para contratos já existentes
+      // Verificar conflitos somente quando contrato JÁ existe para o MESMO cliente+centro de custo
       const conflitosDetectados: ConflitoMedicao[] = [];
       const valorPorChave = new Map<string, number>();
+      const ctrInfoPorLinha = new Map<string, { id: string } | null>();
       for (const l of validas) {
         const provKey = `${l.numero_dj}|${l.mes_ref}`;
         const periodo = periodoPorMedicao.get(provKey)!;
-        const ctrInfo = contratosCache.get(l.numero_dj);
-        if (!ctrInfo) continue; // contrato novo, nunca tem conflito
+        const cfg = cfgFor(l.numero_dj);
+        const clienteIdLookup = resolveClienteIdLookup(l);
+        const cc = ((modelo === "M3" ? cfg.centro_custo : null) || l.centro_custo || "").trim();
+        const ctrKey = clienteIdLookup ? `${clienteIdLookup}|${l.numero_dj}|${cc}` : "";
+        const ctrInfo = ctrKey ? contratosCache.get(ctrKey) : undefined;
+        ctrInfoPorLinha.set(provKey, ctrInfo ? { id: ctrInfo.id } : null);
+        if (!ctrInfo) continue;
         const chave = buildMedKey(ctrInfo.id, l.mes_ref!, periodo.inicio, periodo.fim);
         valorPorChave.set(chave, (valorPorChave.get(chave) ?? 0) + l.valor_final);
       }
 
       const provKeysCheck = new Set<string>();
       for (const l of validas) {
-        const ctrInfo = contratosCache.get(l.numero_dj);
-        if (!ctrInfo) continue;
         const provKey = `${l.numero_dj}|${l.mes_ref}`;
+        const ctrInfo = ctrInfoPorLinha.get(provKey);
+        if (!ctrInfo) continue;
         if (provKeysCheck.has(provKey)) continue;
         provKeysCheck.add(provKey);
         const periodo = periodoPorMedicao.get(provKey)!;
@@ -819,7 +856,7 @@ export default function ImportarMedicao() {
         // Considera a versão mais recente (ativa ou cancelada/inativa)
         const { data: existentes } = await supabase
           .from("medicoes")
-          .select("id, status, valor_final, versao, ativa, updated_at, created_by, arquivo_origem, contratos(numero_dj, clientes(razao_social))")
+          .select("id, status, valor_final, versao, ativa, updated_at, created_by, arquivo_origem, contratos(numero_dj, centro_custo, clientes(razao_social, cnpj))")
           .eq("contrato_id", ctrInfo.id)
           .eq("competencia", l.mes_ref!)
           .eq("periodo_inicio", periodo.inicio)
@@ -851,7 +888,9 @@ export default function ImportarMedicao() {
         conflitosDetectados.push({
           chave,
           cliente: ex.contratos?.clientes?.razao_social ?? "—",
+          clienteCnpj: ex.contratos?.clientes?.cnpj ?? null,
           contratoNumero: ex.contratos?.numero_dj ?? l.numero_dj,
+          centroCusto: ex.contratos?.centro_custo ?? null,
           competencia: l.mes_ref!,
           periodoInicio: periodo.inicio,
           periodoFim: periodo.fim,
@@ -974,8 +1013,11 @@ export default function ImportarMedicao() {
           clienteId = cfg.cliente_id;
           if (!clienteId) throw new Error(`Selecione o Cliente/Contratante para o contrato ${l.numero_dj}`);
         } else {
-          const cliKey = l.contratado.toUpperCase();
-          clienteId = clientesCache.get(cliKey);
+          // M2: identificar prioritariamente por CNPJ; depois por nome normalizado
+          const cnpjN = normCNPJ(cnpjEfetivo);
+          const nomeN = normNome(l.contratado);
+          if (cnpjN) clienteId = clientesCache.get(`cnpj:${cnpjN}`);
+          if (!clienteId && nomeN) clienteId = clientesCache.get(`nome:${nomeN}`);
           if (!clienteId) {
             const { data, error } = await supabase.from("clientes").insert({
               razao_social: l.contratado,
@@ -984,30 +1026,47 @@ export default function ImportarMedicao() {
               status: "ativo",
             } as any).select("id").single();
             if (error) throw error;
-            clienteId = data.id; clientesCache.set(cliKey, clienteId!); createdCli++;
+            clienteId = data.id;
+            if (cnpjN) clientesCache.set(`cnpj:${cnpjN}`, clienteId!);
+            if (nomeN) clientesCache.set(`nome:${nomeN}`, clienteId!);
+            createdCli++;
           }
         }
 
-        let contrato = contratosCache.get(l.numero_dj);
+        // Chave do contrato: cliente_id + numero_dj + centro_custo (mesmo nº pode existir para clientes diferentes)
+        const ctrCacheKey = `${clienteId}|${l.numero_dj}|${(centroCustoEfetivo ?? "").trim()}`;
+        let contrato = contratosCache.get(ctrCacheKey);
         if (!contrato) {
-          const inicio = l.inicio_op ?? periodoIniEfetivo ?? (l.mes_ref ?? new Date().toISOString().slice(0, 10));
-          const termino = l.termino_contrato ?? new Date(new Date(inicio).getFullYear() + 1, 11, 31).toISOString().slice(0, 10);
-          const { data, error } = await supabase.from("contratos").insert({
-            numero_dj: l.numero_dj, cliente_id: clienteId,
-            tipo_servico: tipoServicoEfetivo,
-            centro_custo: centroCustoEfetivo,
-            inicio_operacao: inicio, termino_contrato: termino,
-            valor_hora_padrao: l.valor_hora, garantia_minima_horas: l.garantia,
-            status: "ativo",
-            fornecedor_nome: fornecedorNome || null,
-            fornecedor_codigo: fornecedorCodigo || null,
-            fornecedor_cnpj: fornecedorCnpj || null,
-          } as any).select("id, valor_hora_padrao, garantia_minima_horas").single();
-          if (error) throw error;
-          contrato = { id: data.id, valor_hora: Number(data.valor_hora_padrao ?? 0), garantia: Number(data.garantia_minima_horas ?? 0) };
-          contratosCache.set(l.numero_dj, contrato); createdCtr++;
+          // Procura no banco por (cliente_id, numero_dj, centro_custo)
+          const { data: existCtr } = await supabase.from("contratos")
+            .select("id, valor_hora_padrao, garantia_minima_horas")
+            .eq("cliente_id", clienteId!)
+            .eq("numero_dj", l.numero_dj)
+            .eq("centro_custo", centroCustoEfetivo ?? "")
+            .maybeSingle();
+          if (existCtr) {
+            contrato = { id: existCtr.id, valor_hora: Number(existCtr.valor_hora_padrao ?? 0), garantia: Number(existCtr.garantia_minima_horas ?? 0) };
+          } else {
+            const inicio = l.inicio_op ?? periodoIniEfetivo ?? (l.mes_ref ?? new Date().toISOString().slice(0, 10));
+            const termino = l.termino_contrato ?? new Date(new Date(inicio).getFullYear() + 1, 11, 31).toISOString().slice(0, 10);
+            const { data, error } = await supabase.from("contratos").insert({
+              numero_dj: l.numero_dj, cliente_id: clienteId,
+              tipo_servico: tipoServicoEfetivo,
+              centro_custo: centroCustoEfetivo,
+              inicio_operacao: inicio, termino_contrato: termino,
+              valor_hora_padrao: l.valor_hora, garantia_minima_horas: l.garantia,
+              status: "ativo",
+              fornecedor_nome: fornecedorNome || null,
+              fornecedor_codigo: fornecedorCodigo || null,
+              fornecedor_cnpj: fornecedorCnpj || null,
+            } as any).select("id, valor_hora_padrao, garantia_minima_horas").single();
+            if (error) throw error;
+            contrato = { id: data.id, valor_hora: Number(data.valor_hora_padrao ?? 0), garantia: Number(data.garantia_minima_horas ?? 0) };
+            createdCtr++;
+          }
+          contratosCache.set(ctrCacheKey, contrato);
         } else {
-          const patch: any = { tipo_servico: tipoServicoEfetivo || undefined, centro_custo: centroCustoEfetivo };
+          const patch: any = { tipo_servico: tipoServicoEfetivo || undefined };
           if (isM1 || isM3) {
             patch.cliente_id = clienteId;
             if (fornecedorNome) patch.fornecedor_nome = fornecedorNome;

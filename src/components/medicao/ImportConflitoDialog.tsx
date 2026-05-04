@@ -13,7 +13,9 @@ import { labelStatus } from "@/lib/medicaoStatus";
 export interface ConflitoMedicao {
   chave: string;
   cliente: string;
+  clienteCnpj?: string | null;
   contratoNumero: string;
+  centroCusto?: string | null;
   competencia: string;
   periodoInicio: string;
   periodoFim: string;
@@ -123,7 +125,9 @@ export function ImportConflitoDialog({ open, conflitos, onResolve, onCancel }: P
               <div key={c.chave} className="rounded-md border p-3 space-y-3">
                 <div className="grid gap-2 md:grid-cols-2 text-xs">
                   <div><span className="text-muted-foreground">Cliente:</span> <strong>{c.cliente}</strong></div>
+                  <div><span className="text-muted-foreground">CNPJ:</span> <span className="font-mono">{c.clienteCnpj || "—"}</span></div>
                   <div><span className="text-muted-foreground">Contrato:</span> <span className="font-mono">{c.contratoNumero}</span></div>
+                  <div><span className="text-muted-foreground">Centro de custo:</span> {c.centroCusto || "—"}</div>
                   <div><span className="text-muted-foreground">Competência:</span> {fmtCompetencia(c.competencia)}</div>
                   <div><span className="text-muted-foreground">Período:</span> {fmtDate(c.periodoInicio)} → {fmtDate(c.periodoFim)}</div>
                   <div className="flex items-center gap-2">
