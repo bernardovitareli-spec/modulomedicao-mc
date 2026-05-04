@@ -856,7 +856,7 @@ export default function ImportarMedicao() {
         // Considera a versão mais recente (ativa ou cancelada/inativa)
         const { data: existentes } = await supabase
           .from("medicoes")
-          .select("id, status, valor_final, versao, ativa, updated_at, created_by, arquivo_origem, contratos(numero_dj, clientes(razao_social))")
+          .select("id, status, valor_final, versao, ativa, updated_at, created_by, arquivo_origem, contratos(numero_dj, centro_custo, clientes(razao_social, cnpj))")
           .eq("contrato_id", ctrInfo.id)
           .eq("competencia", l.mes_ref!)
           .eq("periodo_inicio", periodo.inicio)
