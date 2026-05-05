@@ -1069,10 +1069,10 @@ export default function ImportarMedicao() {
           const patch: any = { tipo_servico: tipoServicoEfetivo || undefined };
           if (isM1 || isM3) {
             patch.cliente_id = clienteId;
-            if (fornecedorNome) patch.fornecedor_nome = fornecedorNome;
-            if (fornecedorCodigo) patch.fornecedor_codigo = fornecedorCodigo;
-            if (fornecedorCnpj) patch.fornecedor_cnpj = fornecedorCnpj;
           }
+          if (fornecedorNome) patch.fornecedor_nome = fornecedorNome;
+          if (fornecedorCodigo) patch.fornecedor_codigo = fornecedorCodigo;
+          if (fornecedorCnpj) patch.fornecedor_cnpj = fornecedorCnpj;
           await supabase.from("contratos").update(patch).eq("id", contrato.id);
         }
 
