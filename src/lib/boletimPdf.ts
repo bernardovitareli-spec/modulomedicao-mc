@@ -5,6 +5,11 @@ import { fmtBRL, fmtNum, fmtDate, fmtCompetencia } from "@/lib/format";
 
 const STATUS_LABEL: Record<string, string> = {
   rascunho: "Rascunho",
+  em_revisao_interna: "Em revisão interna",
+  aprovada_internamente: "Aprovada internamente",
+  enviada_cliente: "Enviada ao cliente",
+  aprovada_cliente: "Aprovada pelo cliente",
+  reprovada_cliente: "Reprovada pelo cliente",
   importada: "Importada",
   revisao_tecnica: "Em revisão técnica",
   aprovacao_gerencial: "Em aprovação gerencial",
@@ -14,6 +19,9 @@ const STATUS_LABEL: Record<string, string> = {
   paga: "Paga",
   cancelada: "Cancelada",
 };
+
+const FORNECEDOR_PADRAO_NOME = "MC TERRAPLENAGEM E CONSTRUÇÕES LTDA";
+const FORNECEDOR_PADRAO_CODIGO = "15811";
 
 const FIELD_LABEL: Record<string, string> = {
   horimetro_inicial: "Horímetro inicial",
