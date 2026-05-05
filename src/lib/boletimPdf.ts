@@ -235,9 +235,18 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
 
   // === Identificação (duas colunas independentes) ===
   const cliente = (med as any).contratos?.clientes?.razao_social ?? "-";
-  const fornecedorNome = (med as any).contratos?.fornecedor_nome;
-  const fornecedorCodigo = (med as any).contratos?.fornecedor_codigo;
-  const fornecedorTexto = fornecedorNome ? String(fornecedorNome) : "Não informado";
+  let fornecedorNome: string | null = (med as any).fornecedor_locadora || (med as any).contratos?.fornecedor_nome || null;
+  let fornecedorCodigo: string | null = (med as any).contratos?.fornecedor_codigo || null;
+  if (!fornecedorNome) {
+    const { data: ee } = await supabase
+      .from("empresa_emissora")
+      .select("razao_social")
+      .eq("padrao", true)
+      .maybeSingle();
+    fornecedorNome = ee?.razao_social || FORNECEDOR_PADRAO_NOME;
+    if (!fornecedorCodigo) fornecedorCodigo = FORNECEDOR_PADRAO_CODIGO;
+  }
+  const fornecedorTexto = fornecedorNome;
 
   const colEsq: [string, string][] = [
     ["Cliente / Contratante", cliente],
