@@ -187,7 +187,7 @@ export default function MedicaoDetalhe() {
           <Info l="Fornecedor / Locadora" v={
             med.contratos?.fornecedor_nome
               ? `${med.contratos.fornecedor_nome}${med.contratos.fornecedor_codigo ? ` (${med.contratos.fornecedor_codigo})` : ""}`
-              : "-"
+              : "MC TERRAPLENAGEM E CONSTRUÇÕES LTDA"
           } />
           <Info l="Contrato / Nº DJ" v={med.contratos?.numero_dj ?? "-"} />
           <Info l="Tipo de serviço" v={med.contratos?.tipo_servico ?? "-"} />

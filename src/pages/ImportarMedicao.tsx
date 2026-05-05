@@ -1004,9 +1004,9 @@ export default function ImportarMedicao() {
         const periodoFimEfetivo = cfg.periodo_fim || l.periodo_fim || null;
         const centroCustoEfetivo = (isM3 ? (cfg.centro_custo || l.centro_custo) : l.centro_custo) || null;
 
-        const fornecedorNome = isM1 ? l.contratado : (isM3 ? (cfg.fornecedor_nome || l.contratado) : "");
-        const fornecedorCodigo = isM1 ? l.codigo_cliente : (isM3 ? (cfg.fornecedor_codigo || l.codigo_cliente) : "");
-        const fornecedorCnpj = isM1 ? cnpjEfetivo : "";
+        const fornecedorNome = isM1 ? l.contratado : (isM3 ? (cfg.fornecedor_nome || l.contratado) : "MC TERRAPLENAGEM E CONSTRUÇÕES LTDA");
+        const fornecedorCodigo = isM1 ? l.codigo_cliente : (isM3 ? (cfg.fornecedor_codigo || l.codigo_cliente) : "15811");
+        const fornecedorCnpj = isM1 ? cnpjEfetivo : (isM3 ? "" : "07.299.287/0001-41");
 
         let clienteId: string | undefined;
         if (isM1 || isM3) {
@@ -1067,12 +1067,10 @@ export default function ImportarMedicao() {
           contratosCache.set(ctrCacheKey, contrato);
         } else {
           const patch: any = { tipo_servico: tipoServicoEfetivo || undefined };
-          if (isM1 || isM3) {
-            patch.cliente_id = clienteId;
-            if (fornecedorNome) patch.fornecedor_nome = fornecedorNome;
-            if (fornecedorCodigo) patch.fornecedor_codigo = fornecedorCodigo;
-            if (fornecedorCnpj) patch.fornecedor_cnpj = fornecedorCnpj;
-          }
+          if (isM1 || isM3) patch.cliente_id = clienteId;
+          if (fornecedorNome) patch.fornecedor_nome = fornecedorNome;
+          if (fornecedorCodigo) patch.fornecedor_codigo = fornecedorCodigo;
+          if (fornecedorCnpj) patch.fornecedor_cnpj = fornecedorCnpj;
           await supabase.from("contratos").update(patch).eq("id", contrato.id);
         }
 

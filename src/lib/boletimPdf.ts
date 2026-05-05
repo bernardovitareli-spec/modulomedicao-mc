@@ -5,6 +5,11 @@ import { fmtBRL, fmtNum, fmtDate, fmtCompetencia } from "@/lib/format";
 
 const STATUS_LABEL: Record<string, string> = {
   rascunho: "Rascunho",
+  em_revisao_interna: "Em revisão interna",
+  aprovada_internamente: "Aprovada internamente",
+  enviada_cliente: "Enviada ao cliente",
+  aprovada_cliente: "Aprovada pelo cliente",
+  reprovada_cliente: "Reprovada pelo cliente",
   importada: "Importada",
   revisao_tecnica: "Em revisão técnica",
   aprovacao_gerencial: "Em aprovação gerencial",
@@ -14,6 +19,9 @@ const STATUS_LABEL: Record<string, string> = {
   paga: "Paga",
   cancelada: "Cancelada",
 };
+
+const FORNECEDOR_PADRAO_NOME = "MC TERRAPLENAGEM E CONSTRUÇÕES LTDA";
+const FORNECEDOR_PADRAO_CODIGO = "15811";
 
 const FIELD_LABEL: Record<string, string> = {
   horimetro_inicial: "Horímetro inicial",
@@ -227,9 +235,18 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
 
   // === Identificação (duas colunas independentes) ===
   const cliente = (med as any).contratos?.clientes?.razao_social ?? "-";
-  const fornecedorNome = (med as any).contratos?.fornecedor_nome;
-  const fornecedorCodigo = (med as any).contratos?.fornecedor_codigo;
-  const fornecedorTexto = fornecedorNome ? String(fornecedorNome) : "Não informado";
+  let fornecedorNome: string | null = (med as any).fornecedor_locadora || (med as any).contratos?.fornecedor_nome || null;
+  let fornecedorCodigo: string | null = (med as any).contratos?.fornecedor_codigo || null;
+  if (!fornecedorNome) {
+    const { data: ee } = await supabase
+      .from("empresa_emissora")
+      .select("razao_social")
+      .eq("padrao", true)
+      .maybeSingle();
+    fornecedorNome = ee?.razao_social || FORNECEDOR_PADRAO_NOME;
+    if (!fornecedorCodigo) fornecedorCodigo = FORNECEDOR_PADRAO_CODIGO;
+  }
+  const fornecedorTexto = fornecedorNome;
 
   const colEsq: [string, string][] = [
     ["Cliente / Contratante", cliente],
