@@ -138,26 +138,6 @@ export function FluxoAcoes({ medicaoId, status, onChanged }: Props) {
       />
 
       <AcaoMedicaoDialog
-        open={acao === "faturar"} onOpenChange={(o) => !o && close()}
-        title="Criar faturamento"
-        description="Informe os dados da nota fiscal."
-        campos={[
-          { name: "numero_nf", label: "Número da NF", required: true },
-          { name: "data_emissao", label: "Data de emissão", type: "date", required: true },
-          { name: "valor", label: "Valor da NF (R$)", type: "number", required: true },
-          { name: "data_vencimento", label: "Data de vencimento", type: "date", required: true },
-        ]}
-        confirmLabel="Faturar"
-        onConfirm={(v) => exec("faturar_medicao", {
-          _numero_nf: v.numero_nf,
-          _data_emissao: v.data_emissao,
-          _valor: Number(v.valor),
-          _data_vencimento: v.data_vencimento,
-          _observacoes: v._observacoes || null,
-        })}
-      />
-
-      <AcaoMedicaoDialog
         open={acao === "marcar_paga"} onOpenChange={(o) => !o && close()}
         title="Marcar como paga"
         campos={[
