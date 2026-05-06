@@ -743,7 +743,7 @@ export type Database = {
           {
             foreignKeyName: "faturas_medicao_id_fkey"
             columns: ["medicao_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "medicoes"
             referencedColumns: ["id"]
           },
@@ -1436,6 +1436,10 @@ export type Database = {
       purge_importacao_teste: {
         Args: { _importacao_id: string; _motivo: string }
         Returns: Json
+      }
+      reabrir_faturamento_cancelado: {
+        Args: { _fatura_id: string }
+        Returns: string
       }
       reabrir_medicao_cancelada: {
         Args: { _medicao_id: string; _motivo: string }
