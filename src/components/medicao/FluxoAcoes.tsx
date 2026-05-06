@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
-  Send, CheckCircle2, XCircle, Undo2, UserCheck, UserX, Receipt, DollarSign,
+  Send, CheckCircle2, Undo2, UserCheck, UserX, DollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
 import { usePermissions } from "@/lib/permissions";
@@ -76,11 +76,6 @@ export function FluxoAcoes({ medicaoId, status, onChanged }: Props) {
           <UserX className="mr-1 h-4 w-4" />Reprovada pelo cliente
         </Button>
       )}
-      {perms.canFaturar(status) && (
-        <Button size="sm" onClick={() => setAcao("faturar")}>
-          <Receipt className="mr-1 h-4 w-4" />Criar faturamento
-        </Button>
-      )}
       {perms.canMarcarPaga(status) && (
         <Button size="sm" onClick={() => setAcao("marcar_paga")}>
           <DollarSign className="mr-1 h-4 w-4" />Marcar como paga
@@ -140,26 +135,6 @@ export function FluxoAcoes({ medicaoId, status, onChanged }: Props) {
         motivoObrigatorio variant="destructive"
         confirmLabel="Confirmar reprovação"
         onConfirm={(v) => exec("reprovar_pelo_cliente", { _motivo: v._motivo })}
-      />
-
-      <AcaoMedicaoDialog
-        open={acao === "faturar"} onOpenChange={(o) => !o && close()}
-        title="Criar faturamento"
-        description="Informe os dados da nota fiscal."
-        campos={[
-          { name: "numero_nf", label: "Número da NF", required: true },
-          { name: "data_emissao", label: "Data de emissão", type: "date", required: true },
-          { name: "valor", label: "Valor da NF (R$)", type: "number", required: true },
-          { name: "data_vencimento", label: "Data de vencimento", type: "date", required: true },
-        ]}
-        confirmLabel="Faturar"
-        onConfirm={(v) => exec("faturar_medicao", {
-          _numero_nf: v.numero_nf,
-          _data_emissao: v.data_emissao,
-          _valor: Number(v.valor),
-          _data_vencimento: v.data_vencimento,
-          _observacoes: v._observacoes || null,
-        })}
       />
 
       <AcaoMedicaoDialog
