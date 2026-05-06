@@ -433,13 +433,14 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   doc.setFont("helvetica", "normal");
 
   itensList.forEach((i: any, idx: number) => {
-    ensureSpace(38);
+    ensureSpace(30);
     const titulo = `${idx + 1}. ${i.equipamentos?.tipo ?? ""} ${i.equipamentos?.modelo ?? ""} — Tag ${i.equipamentos?.tag ?? "-"}${i.equipamentos?.serie ? ` / Série ${i.equipamentos.serie}` : ""}`;
     doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
     doc.setFillColor(241, 245, 249);
-    doc.rect(marginX, y, pageW - marginX * 2, 5, "F");
-    doc.text(titulo, marginX + 1.5, y + 3.5);
-    y += 6;
+    doc.rect(marginX, y, pageW - marginX * 2, 4.4, "F");
+    doc.text(titulo, marginX + 1.5, y + 3.1);
+    y += 5;
 
     doc.setFont("helvetica", "normal");
     const m3Marker = (Array.isArray(i.regras_aplicadas) ? i.regras_aplicadas : []).find((r: any) => r?.tipo === "m3_importacao");
