@@ -188,13 +188,13 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const marginX = 12;
-  let y = 14;
+  const marginX = 10;
+  let y = 12;
 
   const ensureSpace = (need: number) => {
-    if (y + need > pageH - 15) {
+    if (y + need > pageH - 14) {
       doc.addPage();
-      y = 14;
+      y = 12;
     }
   };
 
