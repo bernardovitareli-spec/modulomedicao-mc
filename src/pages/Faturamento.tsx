@@ -60,7 +60,7 @@ export default function Faturamento() {
   const totalAFaturar = filtered.filter(f => f.status === "a_faturar").reduce((s, f) => s + Number(f.valor ?? 0), 0);
   const totalAReceber = filtered.filter(f => ["nf_emitida","aguardando_pagamento","em_atraso","pago_parcial"].includes(f.status))
     .reduce((s, f) => s + (Number(f.valor_liquido ?? f.valor ?? 0) - Number(f.valor_recebido ?? 0)), 0);
-  const totalRecebido = filtered.reduce((s, f) => s + Number(f.valor_recebido ?? 0), 0);
+  const totalRecebido = filtered.filter(f => f.status !== "cancelado").reduce((s, f) => s + Number(f.valor_recebido ?? 0), 0);
   const totalAtraso = filtered.filter(f => f.status === "em_atraso").reduce((s, f) => s + Number(f.valor_liquido ?? f.valor ?? 0), 0);
 
   return (
