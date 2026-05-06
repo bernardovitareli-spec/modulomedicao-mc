@@ -756,16 +756,14 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   }
 
   // === Assinaturas ===
-  // Altura total estimada do bloco (título + espaço + linhas + rótulos + data)
-  const ASSINATURAS_BLOCO_H = 55;
-  // Garante que o bloco inteiro caiba na mesma página; senão, força nova página
-  const espacoDisponivel = pageH - 15 - y;
+  const ASSINATURAS_BLOCO_H = 42;
+  const espacoDisponivel = pageH - 14 - y;
   if (espacoDisponivel < ASSINATURAS_BLOCO_H) {
     doc.addPage();
-    y = 14;
+    y = 12;
   }
   sectionTitle("ASSINATURAS");
-  y += 14;
+  y += 10;
   const sigW = (pageW - marginX * 2 - 10) / 3;
   const sigY = y;
   const responsavelLocadora = fornecedorNome
@@ -781,19 +779,19 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     doc.setFontSize(7.5);
     doc.setTextColor(0, 0, 0);
     const wrapped = doc.splitTextToSize(lbl, sigW);
-    doc.text(wrapped, xx + sigW / 2, sigY + 4, { align: "center" });
+    doc.text(wrapped, xx + sigW / 2, sigY + 3.5, { align: "center" });
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(100, 116, 139);
-    doc.text("Nome / Assinatura", xx + sigW / 2, sigY + 4 + wrapped.length * 3 + 2, { align: "center" });
+    doc.text("Nome / Assinatura", xx + sigW / 2, sigY + 3.5 + wrapped.length * 3 + 1.5, { align: "center" });
     doc.setTextColor(0, 0, 0);
   });
-  y = sigY + 22;
+  y = sigY + 18;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(0, 0, 0);
   doc.text(`Data da aprovação: ____ / ____ / ________`, marginX, y);
-  y += 5;
+  y += 4;
 
   // === Marca d'água + Rodapé ===
   const total = doc.getNumberOfPages();
