@@ -520,12 +520,13 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     linhas.push(`Valor final = Valor bruto + Complementares - Descontos`);
     linhas.push(`Valor final = ${fmtBRL(vBruto)} + ${fmtBRL(vCompl)} - ${fmtBRL(vDesc)} = ${fmtBRL(vFinal)}`);
 
+    doc.setFontSize(8);
     linhas.forEach((l) => {
-      ensureSpace(4);
+      ensureSpace(3.4);
       doc.text(l, marginX + 2, y);
-      y += 3.6;
+      y += 3.2;
     });
-    y += 2;
+    y += 1.5;
   });
 
   // === Critérios de cálculo importados (apenas M3) ===
