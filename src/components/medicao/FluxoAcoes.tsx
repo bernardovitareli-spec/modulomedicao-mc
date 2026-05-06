@@ -76,11 +76,6 @@ export function FluxoAcoes({ medicaoId, status, onChanged }: Props) {
           <UserX className="mr-1 h-4 w-4" />Reprovada pelo cliente
         </Button>
       )}
-      {perms.canFaturar(status) && (
-        <Button size="sm" onClick={() => setAcao("faturar")}>
-          <Receipt className="mr-1 h-4 w-4" />Criar faturamento
-        </Button>
-      )}
       {perms.canMarcarPaga(status) && (
         <Button size="sm" onClick={() => setAcao("marcar_paga")}>
           <DollarSign className="mr-1 h-4 w-4" />Marcar como paga
