@@ -505,6 +505,19 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
     const linhas: string[] = [];
     linhas.push(`Período efetivo: ${fmtDate(i.data_inicio_operacao_item ?? i.periodo_inicio ?? med.periodo_inicio)} a ${fmtDate(i.data_fim_operacao_item ?? i.periodo_fim ?? med.periodo_fim)}`);
 
+    // Horímetros e HT calculado (sempre que houver)
+    const hIniMC = i.horimetro_inicial;
+    const hFimMC = i.horimetro_final;
+    linhas.push(`Horímetro inicial: ${hIniMC != null ? fmtNum(hIniMC) : "-"}`);
+    linhas.push(`Horímetro final: ${hFimMC != null ? fmtNum(hFimMC) : "-"}`);
+    if (hIniMC != null && hFimMC != null) {
+      const htC = Number(hFimMC) - Number(hIniMC);
+      linhas.push(`HT calculado = Horímetro final - Horímetro inicial = ${fmtNum(hFimMC)} - ${fmtNum(hIniMC)} = ${fmtNum(htC)} h`);
+    } else {
+      linhas.push(`HT calculado: -`);
+    }
+    linhas.push(`HT informado: ${fmtNum(ht)} h`);
+
     if (m3Marker) {
       // Memória de cálculo do Modelo M3 — respeita os valores importados da planilha
       const tipoPgto = String(m3Marker.tipo_pagamento || "").toUpperCase().replace(/\s+/g, "").replace(/\./g, "");
