@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
-  Send, CheckCircle2, XCircle, Undo2, UserCheck, UserX, Receipt, DollarSign,
+  Send, CheckCircle2, Undo2, UserCheck, UserX, DollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
 import { usePermissions } from "@/lib/permissions";
