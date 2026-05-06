@@ -320,11 +320,23 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
   const itensList = itens ?? [];
 
   if (modo === "cliente") {
-    // Versão Cliente: tabela RESUMIDA em retrato (mesma orientação do resto do PDF)
-    ensureSpace(15);
-    sectionTitle("ITENS DA MEDIÇÃO");
+    // Versão Cliente: tabela em PAISAGEM com horímetros e HT
+    doc.addPage("a4", "landscape");
+    const lpW = doc.internal.pageSize.getWidth();
+    doc.setFillColor(30, 41, 59);
+    doc.rect(10, 10, lpW - 20, 6.5, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("ITENS DA MEDIÇÃO", 12, 14.6);
+    doc.setTextColor(0, 0, 0);
+
+    const isAnyM3 = itensList.some((i: any) => (Array.isArray(i.regras_aplicadas) ? i.regras_aplicadas : []).some((r: any) => r?.tipo === "m3_importacao"));
     const bodyCli = itensList.map((i: any) => {
       const m3 = (Array.isArray(i.regras_aplicadas) ? i.regras_aplicadas : []).find((r: any) => r?.tipo === "m3_importacao");
+      const hIni = i.horimetro_inicial;
+      const hFim = i.horimetro_final;
+      const htCalc = (hIni != null && hFim != null) ? (Number(hFim) - Number(hIni)) : null;
       const garantiaCol = m3
         ? fmtNum(m3.garantia_aplicada ?? i.garantia_minima)
         : fmtNum(i.garantia_proporcional_horas);
@@ -333,6 +345,9 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
         i.equipamentos?.tag ?? "-",
         i.equipamentos?.tipo ?? "-",
         i.equipamentos?.modelo ?? "-",
+        hIni != null ? fmtNum(hIni) : "-",
+        hFim != null ? fmtNum(hFim) : "-",
+        htCalc != null ? fmtNum(htCalc) : "-",
         fmtNum(i.horas_informadas),
         m3 ? (m3.tipo_pagamento || "-") : String(i.dias_considerados ?? "-"),
         garantiaCol,
@@ -341,28 +356,31 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
         fmtBRL(i.valor_final),
       ];
     });
-    const isAnyM3 = itensList.some((i: any) => (Array.isArray(i.regras_aplicadas) ? i.regras_aplicadas : []).some((r: any) => r?.tipo === "m3_importacao"));
     autoTable(doc, {
-      startY: y,
-      margin: { left: marginX, right: marginX },
+      startY: 20,
+      margin: { left: 8, right: 8 },
       theme: "grid",
-      styles: { fontSize: 7.5, cellPadding: 1.5, overflow: "linebreak", valign: "middle" },
-      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 7.5, halign: "center" },
+      tableWidth: lpW - 16,
+      styles: { fontSize: 7, cellPadding: 1.3, overflow: "linebreak", valign: "middle" },
+      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 7, halign: "center" },
       columnStyles: {
-        0: { cellWidth: 20 },                                  // Série
-        1: { cellWidth: 16 },                                  // Tag
-        2: { cellWidth: 26 },                                  // Tipo
-        3: { cellWidth: 26 },                                  // Modelo
-        4: { cellWidth: 16, halign: "right" },                 // HT inf
-        5: { cellWidth: 13, halign: "center" },                // Dias / Tipo pgto
-        6: { cellWidth: 18, halign: "right" },                 // Gar. prop / Garantia aplicada
-        7: { cellWidth: 18, halign: "right" },                 // H. pagar
-        8: { cellWidth: 22, halign: "right" },                 // Valor/h
-        9: { cellWidth: 23, halign: "right", fontStyle: "bold" }, // Valor final
+        0: { cellWidth: 20 },
+        1: { cellWidth: 16 },
+        2: { cellWidth: 28 },
+        3: { cellWidth: 28 },
+        4: { cellWidth: 18, halign: "right" },
+        5: { cellWidth: 18, halign: "right" },
+        6: { cellWidth: 16, halign: "right" },
+        7: { cellWidth: 16, halign: "right" },
+        8: { cellWidth: 14, halign: "center" },
+        9: { cellWidth: 18, halign: "right" },
+        10: { cellWidth: 18, halign: "right" },
+        11: { cellWidth: 22, halign: "right" },
+        12: { cellWidth: 26, halign: "right", fontStyle: "bold" },
       },
       head: [[
         "Série", "Tag", "Tipo", "Modelo",
-        "HT\ninformado",
+        "Horím.\nInicial", "Horím.\nFinal", "HT\ncalc.", "HT\ninf.",
         isAnyM3 ? "Tipo\npagto" : "Dias",
         isAnyM3 ? "Garantia\naplicada" : "Gar.\nprop.",
         "Horas\na pagar", "Valor/hora", "Valor final",
@@ -371,7 +389,10 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
       rowPageBreak: "avoid",
       showHead: "everyPage",
     });
-    y = (doc as any).lastAutoTable.finalY + 5;
+
+    // Volta para retrato nas demais seções
+    doc.addPage("a4", "portrait");
+    y = 14;
   } else {
     // Versão Interna: tabela COMPLETA em página paisagem
     doc.addPage("a4", "landscape");
@@ -483,6 +504,19 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
 
     const linhas: string[] = [];
     linhas.push(`Período efetivo: ${fmtDate(i.data_inicio_operacao_item ?? i.periodo_inicio ?? med.periodo_inicio)} a ${fmtDate(i.data_fim_operacao_item ?? i.periodo_fim ?? med.periodo_fim)}`);
+
+    // Horímetros e HT calculado (sempre que houver)
+    const hIniMC = i.horimetro_inicial;
+    const hFimMC = i.horimetro_final;
+    linhas.push(`Horímetro inicial: ${hIniMC != null ? fmtNum(hIniMC) : "-"}`);
+    linhas.push(`Horímetro final: ${hFimMC != null ? fmtNum(hFimMC) : "-"}`);
+    if (hIniMC != null && hFimMC != null) {
+      const htC = Number(hFimMC) - Number(hIniMC);
+      linhas.push(`HT calculado = Horímetro final - Horímetro inicial = ${fmtNum(hFimMC)} - ${fmtNum(hIniMC)} = ${fmtNum(htC)} h`);
+    } else {
+      linhas.push(`HT calculado: -`);
+    }
+    linhas.push(`HT informado: ${fmtNum(ht)} h`);
 
     if (m3Marker) {
       // Memória de cálculo do Modelo M3 — respeita os valores importados da planilha
