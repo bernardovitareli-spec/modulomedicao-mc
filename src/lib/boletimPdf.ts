@@ -319,27 +319,15 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
 
   const itensList = itens ?? [];
 
-  if (modo === "cliente") {
-    // Versão Cliente: tabela em PAISAGEM com horímetros e HT
-    doc.addPage("a4", "landscape");
-    const lpW = doc.internal.pageSize.getWidth();
-    doc.setFillColor(30, 41, 59);
-    doc.rect(10, 10, lpW - 20, 6.5, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text("ITENS DA MEDIÇÃO", 12, 14.6);
-    doc.setTextColor(0, 0, 0);
+  // === Itens da Medição (sempre RETRATO, tabela compacta) ===
+  ensureSpace(20);
+  sectionTitle("ITENS DA MEDIÇÃO");
 
-    const isAnyM3 = itensList.some((i: any) => (Array.isArray(i.regras_aplicadas) ? i.regras_aplicadas : []).some((r: any) => r?.tipo === "m3_importacao"));
+  if (modo === "cliente") {
     const bodyCli = itensList.map((i: any) => {
-      const m3 = (Array.isArray(i.regras_aplicadas) ? i.regras_aplicadas : []).find((r: any) => r?.tipo === "m3_importacao");
       const hIni = i.horimetro_inicial;
       const hFim = i.horimetro_final;
       const htCalc = (hIni != null && hFim != null) ? (Number(hFim) - Number(hIni)) : null;
-      const garantiaCol = m3
-        ? fmtNum(m3.garantia_aplicada ?? i.garantia_minima)
-        : fmtNum(i.garantia_proporcional_horas);
       return [
         i.equipamentos?.serie ?? "-",
         i.equipamentos?.tag ?? "-",
@@ -349,126 +337,94 @@ export async function gerarBoletimPDF(medicaoId: string, opts: GenerarOpts = {})
         hFim != null ? fmtNum(hFim) : "-",
         htCalc != null ? fmtNum(htCalc) : "-",
         fmtNum(i.horas_informadas),
-        m3 ? (m3.tipo_pagamento || "-") : String(i.dias_considerados ?? "-"),
-        garantiaCol,
         fmtNum(i.horas_a_pagar),
         fmtBRL(i.valor_hora),
         fmtBRL(i.valor_final),
       ];
     });
     autoTable(doc, {
-      startY: 20,
-      margin: { left: 8, right: 8 },
+      startY: y,
+      margin: { left: marginX, right: marginX },
       theme: "grid",
-      tableWidth: lpW - 16,
-      styles: { fontSize: 7, cellPadding: 1.3, overflow: "linebreak", valign: "middle" },
-      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 7, halign: "center" },
+      tableWidth: pageW - marginX * 2,
+      styles: { fontSize: 7, cellPadding: { top: 1.2, bottom: 1.2, left: 1.5, right: 1.5 }, overflow: "linebreak", valign: "middle" },
+      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 7, halign: "center", cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } },
       columnStyles: {
-        0: { cellWidth: 20 },
-        1: { cellWidth: 16 },
-        2: { cellWidth: 28 },
-        3: { cellWidth: 28 },
-        4: { cellWidth: 18, halign: "right" },
-        5: { cellWidth: 18, halign: "right" },
-        6: { cellWidth: 16, halign: "right" },
-        7: { cellWidth: 16, halign: "right" },
-        8: { cellWidth: 14, halign: "center" },
+        0: { cellWidth: 18 },
+        1: { cellWidth: 14 },
+        2: { cellWidth: 24 },
+        3: { cellWidth: 24 },
+        4: { cellWidth: 14, halign: "right" },
+        5: { cellWidth: 14, halign: "right" },
+        6: { cellWidth: 12, halign: "right" },
+        7: { cellWidth: 12, halign: "right" },
+        8: { cellWidth: 14, halign: "right" },
         9: { cellWidth: 18, halign: "right" },
-        10: { cellWidth: 18, halign: "right" },
-        11: { cellWidth: 22, halign: "right" },
-        12: { cellWidth: 26, halign: "right", fontStyle: "bold" },
+        10: { cellWidth: "auto", halign: "right", fontStyle: "bold" },
       },
       head: [[
         "Série", "Tag", "Tipo", "Modelo",
-        "Horím.\nInicial", "Horím.\nFinal", "HT\ncalc.", "HT\ninf.",
-        isAnyM3 ? "Tipo\npagto" : "Dias",
-        isAnyM3 ? "Garantia\naplicada" : "Gar.\nprop.",
-        "Horas\na pagar", "Valor/hora", "Valor final",
+        "Horím.\nIni.", "Horím.\nFin.", "HT\nCalc.", "HT\nInf.",
+        "H. Pagar", "Valor/h", "Vlr. Final",
       ]],
       body: bodyCli,
       rowPageBreak: "avoid",
       showHead: "everyPage",
     });
-
-    // Volta para retrato nas demais seções
-    doc.addPage("a4", "portrait");
-    y = 14;
+    y = (doc as any).lastAutoTable.finalY + 4;
   } else {
-    // Versão Interna: tabela COMPLETA em página paisagem
-    doc.addPage("a4", "landscape");
-    const lpW = doc.internal.pageSize.getWidth();
-    doc.setFillColor(30, 41, 59);
-    doc.rect(10, 10, lpW - 20, 6.5, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text("ITENS DA MEDIÇÃO", 12, 14.6);
-    doc.setTextColor(0, 0, 0);
-
     const body = itensList.map((i: any) => {
-      const htCalc = Number(i.horimetro_final ?? 0) - Number(i.horimetro_inicial ?? 0);
+      const hIni = i.horimetro_inicial;
+      const hFim = i.horimetro_final;
+      const htCalc = (hIni != null && hFim != null) ? (Number(hFim) - Number(hIni)) : null;
       return [
         i.equipamentos?.serie ?? "-",
         i.equipamentos?.tag ?? "-",
         i.equipamentos?.tipo ?? "-",
         i.equipamentos?.modelo ?? "-",
-        fmtNum(i.horimetro_inicial),
-        fmtNum(i.horimetro_final),
-        fmtNum(htCalc),
+        hIni != null ? fmtNum(hIni) : "-",
+        hFim != null ? fmtNum(hFim) : "-",
+        htCalc != null ? fmtNum(htCalc) : "-",
         fmtNum(i.horas_informadas),
         fmtNum(i.horas_liquidas),
         fmtNum(i.garantia_mensal_horas ?? i.garantia_minima),
-        String(i.dias_considerados ?? "-"),
-        fmtNum(i.garantia_proporcional_horas),
-        i.aplicar_garantia_proporcional ? "Sim" : "Não",
         fmtNum(i.horas_a_pagar),
         fmtBRL(i.valor_hora),
-        fmtBRL(i.valor_complementares),
-        fmtBRL(i.valor_descontos),
         fmtBRL(i.valor_final),
       ];
     });
     autoTable(doc, {
-      startY: 20,
-      margin: { left: 8, right: 8 },
+      startY: y,
+      margin: { left: marginX, right: marginX },
       theme: "grid",
-      tableWidth: lpW - 16,
-      styles: { fontSize: 6.5, cellPadding: 1.2, overflow: "linebreak", valign: "middle" },
-      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 6.5, halign: "center" },
+      tableWidth: pageW - marginX * 2,
+      styles: { fontSize: 6.8, cellPadding: { top: 1.1, bottom: 1.1, left: 1.3, right: 1.3 }, overflow: "linebreak", valign: "middle" },
+      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 6.8, halign: "center" },
       columnStyles: {
         0: { cellWidth: 16 },
-        1: { cellWidth: 13 },
-        2: { cellWidth: 26 },
-        3: { cellWidth: 26 },
-        4: { cellWidth: 14, halign: "right" },
-        5: { cellWidth: 14, halign: "right" },
-        6: { cellWidth: 12, halign: "right" },
-        7: { cellWidth: 12, halign: "right" },
+        1: { cellWidth: 12 },
+        2: { cellWidth: 21 },
+        3: { cellWidth: 21 },
+        4: { cellWidth: 13, halign: "right" },
+        5: { cellWidth: 13, halign: "right" },
+        6: { cellWidth: 11, halign: "right" },
+        7: { cellWidth: 11, halign: "right" },
         8: { cellWidth: 12, halign: "right" },
-        9: { cellWidth: 14, halign: "right" },
-        10: { cellWidth: 9, halign: "center" },
-        11: { cellWidth: 14, halign: "right" },
-        12: { cellWidth: 11, halign: "center" },
-        13: { cellWidth: 14, halign: "right" },
-        14: { cellWidth: 18, halign: "right" },
-        15: { cellWidth: 14, halign: "right" },
-        16: { cellWidth: 14, halign: "right" },
-        17: { cellWidth: 24, halign: "right", fontStyle: "bold" },
+        9: { cellWidth: 13, halign: "right" },
+        10: { cellWidth: 13, halign: "right" },
+        11: { cellWidth: 16, halign: "right" },
+        12: { cellWidth: "auto", halign: "right", fontStyle: "bold" },
       },
       head: [[
         "Série", "Tag", "Tipo", "Modelo",
-        "Horím.\nInicial", "Horím.\nFinal", "HT\ncalc.", "HT\ninf.",
-        "Horas\nlíq.", "Gar.\nmensal", "Dias", "Gar.\nprop.",
-        "Prop.?", "Horas\na pagar", "Valor/hora", "Compl.", "Desc.", "Valor final",
+        "Horím.\nIni.", "Horím.\nFin.", "HT\nCalc.", "HT\nInf.",
+        "H. Líq.", "Gar.\nMensal", "H. Pagar", "Valor/h", "Vlr. Final",
       ]],
       body,
       rowPageBreak: "avoid",
       showHead: "everyPage",
     });
-
-    // Volta para retrato nas demais seções
-    doc.addPage("a4", "portrait");
-    y = 14;
+    y = (doc as any).lastAutoTable.finalY + 4;
   }
 
   // === Memória de Cálculo ===
