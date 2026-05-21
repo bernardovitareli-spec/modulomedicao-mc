@@ -1221,7 +1221,8 @@ export default function ImportarMedicao() {
           contratosCache.set(ctrCacheKey, contrato);
         } else {
           const patch: any = { tipo_servico: tipoServicoEfetivo || undefined };
-          if (isM1 || isM3) patch.cliente_id = clienteId;
+          if (isM1 || isApiaLike) patch.cliente_id = clienteId;
+          if (isM4 && cfg.local_servico) patch.local_servico = cfg.local_servico;
           if (fornecedorNome) patch.fornecedor_nome = fornecedorNome;
           if (fornecedorCodigo) patch.fornecedor_codigo = fornecedorCodigo;
           if (fornecedorCnpj) patch.fornecedor_cnpj = fornecedorCnpj;
