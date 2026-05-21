@@ -215,7 +215,7 @@ function detectHeaderM2(matrix: any[][], maxRows = 5): HeaderInfo {
 }
 
 // ---------- Modelo ----------
-type ModeloLayout = "M1" | "M2" | "M3";
+type ModeloLayout = "M1" | "M2" | "M3" | "M4";
 
 const parseSN = (v: any): boolean => {
   const s = normalize(v);
