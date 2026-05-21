@@ -97,6 +97,7 @@ export default function Dashboard() {
     statusMed: ALL, statusFat: ALL,
     apenasAtivas: true, exibirCanceladas: false, exibirVersoes: false,
   });
+  const [showAdv, setShowAdv] = useState(false);
 
   async function load() {
     setLoading(true);
