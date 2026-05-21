@@ -831,3 +831,37 @@ function SimpleTable({ headers, children }: { headers: string[]; children: React
     </div>
   );
 }
+
+function HeroKpi({
+  icon: Icon, label, value, desc, tone, to,
+}: {
+  icon: any; label: string; value: string; desc: string;
+  tone: "primary" | "success" | "warning" | "danger" | "info"; to?: string;
+}) {
+  const toneMap: Record<string, { ring: string; bg: string; icon: string; value: string }> = {
+    primary: { ring: "border-primary/30", bg: "bg-primary/5", icon: "text-primary bg-primary/10", value: "text-foreground" },
+    success: { ring: "border-emerald-500/30", bg: "bg-emerald-500/5", icon: "text-emerald-600 bg-emerald-500/10", value: "text-emerald-700 dark:text-emerald-400" },
+    warning: { ring: "border-amber-500/30", bg: "bg-amber-500/5", icon: "text-amber-600 bg-amber-500/10", value: "text-amber-700 dark:text-amber-400" },
+    danger:  { ring: "border-destructive/30", bg: "bg-destructive/5", icon: "text-destructive bg-destructive/10", value: "text-destructive" },
+    info:    { ring: "border-sky-500/30", bg: "bg-sky-500/5", icon: "text-sky-600 bg-sky-500/10", value: "text-sky-700 dark:text-sky-400" },
+  };
+  const t = toneMap[tone];
+  const inner = (
+    <Card className={`h-full border ${t.ring} ${t.bg} transition hover:shadow-md ${to ? "cursor-pointer" : ""}`}>
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+            <p className={`mt-2 truncate text-2xl font-bold num ${t.value}`}>{value}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{desc}</p>
+          </div>
+          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${t.icon}`}>
+            <Icon className="h-4 w-4" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+  return to ? <Link to={to}>{inner}</Link> : inner;
+}
+
