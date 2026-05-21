@@ -980,7 +980,7 @@ export default function ImportarMedicao() {
         const periodo = periodoPorMedicao.get(provKey)!;
         const cfg = cfgFor(l.numero_dj);
         const clienteIdLookup = resolveClienteIdLookup(l);
-        const cc = ((modelo === "M3" ? cfg.centro_custo : null) || l.centro_custo || "").trim();
+        const cc = (((modelo === "M3" || modelo === "M4") ? cfg.centro_custo : null) || l.centro_custo || "").trim();
         const ctrKey = clienteIdLookup ? `${clienteIdLookup}|${l.numero_dj}|${cc}` : "";
         const ctrInfo = ctrKey ? contratosCache.get(ctrKey) : undefined;
         ctrInfoPorLinha.set(provKey, ctrInfo ? { id: ctrInfo.id } : null);
