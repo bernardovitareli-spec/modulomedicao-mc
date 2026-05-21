@@ -938,7 +938,7 @@ export default function ImportarMedicao() {
       // Para M1/M3 usa o cliente_id da config; para M2 usa CNPJ → nome.
       const resolveClienteIdLookup = (l: LinhaLida): string | null => {
         const cfg = cfgFor(l.numero_dj);
-        if (modelo === "M1" || modelo === "M3") return cfg.cliente_id || null;
+        if (modelo === "M1" || modelo === "M3" || modelo === "M4") return cfg.cliente_id || null;
         const cnpj = normCNPJ(cfg.cnpj || l.cnpj);
         if (cnpj) {
           const id = clientesCache.get(`cnpj:${cnpj}`);
