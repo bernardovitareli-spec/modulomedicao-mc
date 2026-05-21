@@ -889,6 +889,7 @@ export default function ImportarMedicao() {
     !erroMapeamentoTipoEquip &&
     m1Pendencias.length === 0 &&
     m3Pendencias.length === 0 &&
+    m4Pendencias.length === 0 &&
     (!precisaConfirmarDivergencia || confirmDivergencia);
 
   // Helper: chave canônica de medição (contrato + competência + período)
