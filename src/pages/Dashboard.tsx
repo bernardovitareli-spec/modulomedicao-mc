@@ -399,125 +399,164 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-        <PageHeader title="Dashboard Gerencial" description="Visão executiva de medições, contratos e faturamento" />
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span>Atualizado em {updatedAt.toLocaleString("pt-BR")}</span>
+      {/* Cabeçalho executivo */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="space-y-2">
+          <PageHeader title="Dashboard Gerencial" description="Visão executiva de medições, contratos e faturamento" />
+          <p className="max-w-3xl text-sm text-muted-foreground">
+            No período selecionado, existem <strong className="text-foreground">{medAtivas.length}</strong> medições ativas,{" "}
+            <strong className="text-foreground">{fmtBRL(valorMedido)}</strong> medidos,{" "}
+            <strong className="text-foreground">{fmtBRL(valorAprovado)}</strong> aprovados e{" "}
+            <strong className="text-foreground">{fmtBRL(valorAFaturar)}</strong> pendentes de faturamento.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span className="whitespace-nowrap">Atualizado em {updatedAt.toLocaleString("pt-BR")}</span>
           <Button size="sm" variant="outline" onClick={load} disabled={loading}>
             <RefreshCw className={`mr-2 h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Atualizar
+          </Button>
+          <Button size="sm" variant={showAdv ? "default" : "outline"} onClick={() => setShowAdv(v => !v)}>
+            <FilterIcon className="mr-2 h-3.5 w-3.5" /> Filtros avançados
           </Button>
         </div>
       </div>
 
-      {/* Filtros */}
+      {/* Cards executivos principais */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <HeroKpi icon={Wallet} label="Valor medido" value={fmtBRL(valorMedido)} desc="Total medido no período filtrado" tone="primary" />
+        <HeroKpi icon={CheckCircle2} label="Valor aprovado" value={fmtBRL(valorAprovado)} desc="Medições aprovadas pelo cliente" tone="success" to="/medicoes" />
+        <HeroKpi icon={Hourglass} label="A faturar" value={fmtBRL(valorAFaturar)} desc="Aprovadas ainda sem faturamento" tone="warning" to="/faturamento" />
+        <HeroKpi icon={BadgeDollarSign} label="Em aberto" value={fmtBRL(valorEmAberto)} desc="Saldo financeiro a receber" tone="info" to="/faturamento" />
+        <HeroKpi icon={AlertCircle} label="Em atraso" value={fmtBRL(valorEmAtraso)} desc="Valores vencidos e não pagos" tone="danger" to="/faturamento" />
+      </div>
+
+      {/* Cards operacionais secundários */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+        <KpiCard icon={FileText} label="Contratos ativos" value={String(contratosAtivosCount)} to="/contratos" />
+        <KpiCard icon={ClipboardList} label="Medições no período" value={String(medMesCount)} to="/medicoes" />
+        <KpiCard icon={CheckCircle2} label="Aprovadas no período" value={String(aprovadasMesCount)} accent="success" to="/medicoes" />
+        <KpiCard icon={AlertTriangle} label="Pendentes de aprovação" value={String(pendentesAprovCount)} accent="warning" to="/medicoes" />
+        <KpiCard icon={TrendingUp} label="Contratos vencendo (30d)" value={String(contratosVencendo.length)} accent="warning" to="/contratos" />
+        <KpiCard icon={X} label="Medições canceladas" value={String(medicoes.filter(m => m.status === "cancelada").length)} accent="danger" to="/medicoes" />
+      </div>
+
+      {/* Filtros compactos e agrupados */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base"><FilterIcon className="h-4 w-4" /> Filtros</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base"><FilterIcon className="h-4 w-4" /> Filtros</CardTitle>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setShowAdv(v => !v)}>
+                {showAdv ? "Ocultar avançados" : "Filtros avançados"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={limparFiltros}><X className="mr-2 h-3.5 w-3.5" /> Limpar</Button>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
-          <div><Label className="text-xs">Período inicial</Label><Input type="date" value={filtros.periodoIni} onChange={e => setFiltros({ ...filtros, periodoIni: e.target.value })} /></div>
-          <div><Label className="text-xs">Período final</Label><Input type="date" value={filtros.periodoFim} onChange={e => setFiltros({ ...filtros, periodoFim: e.target.value })} /></div>
+        <CardContent className="space-y-4">
           <div>
-            <Label className="text-xs">Competência</Label>
-            <Select value={filtros.competencia} onValueChange={v => setFiltros({ ...filtros, competencia: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value={ALL}>Todas</SelectItem>{competenciasUnicas.map(c => <SelectItem key={c} value={c}>{fmtCompetencia(c)}</SelectItem>)}</SelectContent>
-            </Select>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Período</p>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div><Label className="text-xs">Período inicial</Label><Input type="date" value={filtros.periodoIni} onChange={e => setFiltros({ ...filtros, periodoIni: e.target.value })} /></div>
+              <div><Label className="text-xs">Período final</Label><Input type="date" value={filtros.periodoFim} onChange={e => setFiltros({ ...filtros, periodoFim: e.target.value })} /></div>
+              <div>
+                <Label className="text-xs">Competência</Label>
+                <Select value={filtros.competencia} onValueChange={v => setFiltros({ ...filtros, competencia: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value={ALL}>Todas</SelectItem>{competenciasUnicas.map(c => <SelectItem key={c} value={c}>{fmtCompetencia(c)}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
+
           <div>
-            <Label className="text-xs">Cliente</Label>
-            <Select value={filtros.clienteId} onValueChange={v => setFiltros({ ...filtros, clienteId: v, contratoId: ALL })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value={ALL}>Todos</SelectItem>{clientes.map(c => <SelectItem key={c.id} value={c.id}>{c.nome_fantasia || c.razao_social}</SelectItem>)}</SelectContent>
-            </Select>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cliente e contrato</p>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div>
+                <Label className="text-xs">Cliente</Label>
+                <Select value={filtros.clienteId} onValueChange={v => setFiltros({ ...filtros, clienteId: v, contratoId: ALL })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value={ALL}>Todos</SelectItem>{clientes.map(c => <SelectItem key={c.id} value={c.id}>{c.nome_fantasia || c.razao_social}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Contrato</Label>
+                <Select value={filtros.contratoId} onValueChange={v => setFiltros({ ...filtros, contratoId: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value={ALL}>Todos</SelectItem>{contratos.filter(c => filtros.clienteId === ALL || c.cliente_id === filtros.clienteId).map(c => <SelectItem key={c.id} value={c.id}>{c.numero_dj}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Status medição</Label>
+                <Select value={filtros.statusMed} onValueChange={v => setFiltros({ ...filtros, statusMed: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value={ALL}>Todos</SelectItem>{STATUS_MED_OPTS.map(s => <SelectItem key={s} value={s}>{labelStatus(s)}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
-          <div>
-            <Label className="text-xs">Contrato</Label>
-            <Select value={filtros.contratoId} onValueChange={v => setFiltros({ ...filtros, contratoId: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value={ALL}>Todos</SelectItem>{contratos.filter(c => filtros.clienteId === ALL || c.cliente_id === filtros.clienteId).map(c => <SelectItem key={c.id} value={c.id}>{c.numero_dj}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Centro de custo</Label>
-            <Select value={filtros.centroCusto} onValueChange={v => setFiltros({ ...filtros, centroCusto: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value={ALL}>Todos</SelectItem>{centrosUnicos.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Fornecedor</Label>
-            <Select value={filtros.fornecedor} onValueChange={v => setFiltros({ ...filtros, fornecedor: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value={ALL}>Todos</SelectItem>{fornecedoresUnicos.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Tipo de serviço</Label>
-            <Select value={filtros.tipoServico} onValueChange={v => setFiltros({ ...filtros, tipoServico: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value={ALL}>Todos</SelectItem>{tiposUnicos.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Status medição</Label>
-            <Select value={filtros.statusMed} onValueChange={v => setFiltros({ ...filtros, statusMed: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value={ALL}>Todos</SelectItem>{STATUS_MED_OPTS.map(s => <SelectItem key={s} value={s}>{labelStatus(s)}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Status faturamento</Label>
-            <Select value={filtros.statusFat} onValueChange={v => setFiltros({ ...filtros, statusFat: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value={ALL}>Todos</SelectItem>{STATUS_FAT_OPTS.map(s => <SelectItem key={s} value={s}>{labelFatStatus(s)}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center justify-between gap-2"><Label className="text-xs">Apenas ativas</Label><Switch checked={filtros.apenasAtivas} onCheckedChange={v => setFiltros({ ...filtros, apenasAtivas: v })} /></div>
-          <div className="flex items-center justify-between gap-2"><Label className="text-xs">Exibir canceladas</Label><Switch checked={filtros.exibirCanceladas} onCheckedChange={v => setFiltros({ ...filtros, exibirCanceladas: v })} /></div>
-          <div className="flex items-center justify-between gap-2"><Label className="text-xs">Exibir versões</Label><Switch checked={filtros.exibirVersoes} onCheckedChange={v => setFiltros({ ...filtros, exibirVersoes: v })} /></div>
-          <div className="col-span-2 md:col-span-4 lg:col-span-6 flex justify-end">
-            <Button variant="outline" size="sm" onClick={limparFiltros}><X className="mr-2 h-3.5 w-3.5" /> Limpar filtros</Button>
-          </div>
+
+          {showAdv && (
+            <div className="space-y-4 border-t pt-4">
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Operação e fiscal</p>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <Label className="text-xs">Centro de custo</Label>
+                    <Select value={filtros.centroCusto} onValueChange={v => setFiltros({ ...filtros, centroCusto: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value={ALL}>Todos</SelectItem>{centrosUnicos.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Fornecedor / Locadora</Label>
+                    <Select value={filtros.fornecedor} onValueChange={v => setFiltros({ ...filtros, fornecedor: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value={ALL}>Todos</SelectItem>{fornecedoresUnicos.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Tipo de serviço</Label>
+                    <Select value={filtros.tipoServico} onValueChange={v => setFiltros({ ...filtros, tipoServico: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value={ALL}>Todos</SelectItem>{tiposUnicos.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Status faturamento</Label>
+                    <Select value={filtros.statusFat} onValueChange={v => setFiltros({ ...filtros, statusFat: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value={ALL}>Todos</SelectItem>{STATUS_FAT_OPTS.map(s => <SelectItem key={s} value={s}>{labelFatStatus(s)}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Exibição</p>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2"><Label className="text-xs">Apenas medições ativas</Label><Switch checked={filtros.apenasAtivas} onCheckedChange={v => setFiltros({ ...filtros, apenasAtivas: v })} /></div>
+                  <div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2"><Label className="text-xs">Exibir canceladas</Label><Switch checked={filtros.exibirCanceladas} onCheckedChange={v => setFiltros({ ...filtros, exibirCanceladas: v })} /></div>
+                  <div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2"><Label className="text-xs">Exibir versões anteriores</Label><Switch checked={filtros.exibirVersoes} onCheckedChange={v => setFiltros({ ...filtros, exibirVersoes: v })} /></div>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Cards principais */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        <KpiCard icon={FileText} label="Contratos ativos" value={String(contratosAtivosCount)} to="/contratos" />
-        <KpiCard icon={ClipboardList} label="Medições do mês" value={String(medMesCount)} to="/medicoes" />
-        <KpiCard icon={CheckCircle2} label="Aprovadas no mês" value={String(aprovadasMesCount)} accent="success" to="/medicoes" />
-        <KpiCard icon={Receipt} label="Valor aprovado" value={fmtBRL(valorAprovado)} accent="primary" to="/medicoes" />
-        <KpiCard icon={AlertTriangle} label="Pendentes aprovação" value={String(pendentesAprovCount)} accent="warning" to="/medicoes" />
-        <KpiCard icon={TrendingUp} label="Contratos vencendo (30d)" value={String(contratosVencendo.length)} accent="warning" to="/contratos" />
-      </div>
-
-      {/* Cards financeiros */}
+      {/* Indicadores operacionais */}
       <div>
-        <h2 className="mb-2 text-sm font-semibold text-muted-foreground">Financeiro</h2>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
-          <KpiCard icon={Wallet} label="Valor medido" value={fmtBRL(valorMedido)} />
-          <KpiCard icon={CheckCircle2} label="Aprovado pelo cliente" value={fmtBRL(valorAprovado)} accent="success" />
-          <KpiCard icon={Hourglass} label="A faturar" value={fmtBRL(valorAFaturar)} accent="warning" to="/faturamento" />
+        <h2 className="mb-2 text-sm font-semibold text-muted-foreground">Indicadores operacionais</h2>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
           <KpiCard icon={Receipt} label="Faturado" value={fmtBRL(valorFaturadoTotal)} accent="primary" to="/faturamento" />
           <KpiCard icon={Banknote} label="Recebido" value={fmtBRL(valorRecebido)} accent="success" to="/faturamento" />
-          <KpiCard icon={BadgeDollarSign} label="Em aberto" value={fmtBRL(valorEmAberto)} accent="warning" to="/faturamento" />
-          <KpiCard icon={AlertCircle} label="Em atraso" value={fmtBRL(valorEmAtraso)} accent="danger" to="/faturamento" />
-        </div>
-      </div>
-
-      {/* Cards operacionais */}
-      <div>
-        <h2 className="mb-2 text-sm font-semibold text-muted-foreground">Operacional</h2>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-          <KpiCard icon={Wrench} label="Medições ativas" value={String(equipamentosMedidos)} />
           <KpiCard icon={Activity} label="Horas informadas" value={`${fmtNum(totalHorasInf)} h`} />
           <KpiCard icon={Activity} label="Horas líquidas" value={`${fmtNum(totalHorasLiq)} h`} />
           <KpiCard icon={Clock} label="Horas a pagar" value={`${fmtNum(totalHorasPagar)} h`} accent="primary" />
-          <KpiCard icon={AlertCircle} label="Descontos" value={fmtBRL(totalDesc)} accent="danger" />
           <KpiCard icon={TrendingUp} label="Complementares" value={fmtBRL(totalComp)} accent="success" />
         </div>
       </div>
+
 
       {/* Gráficos */}
       <div className="grid gap-4 lg:grid-cols-2">
