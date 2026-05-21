@@ -778,26 +778,28 @@ export default function ImportarMedicao() {
 
   // Helpers para aplicar overrides M1 (preenchidos manualmente pelo usuário)
   const ovOf = (dj: string) => overrides[dj] ?? {};
-  // Helper unificado: para M1 lê de "overrides", para M3 lê de "m3Settings".
+  // Helper unificado: para M1 lê de "overrides", para M3 lê de "m3Settings", M4 de "m4Settings".
   const cfgOf = (dj: string): {
     cnpj?: string; tipo_servico?: string; periodo_inicio?: string;
     periodo_fim?: string; cliente_id?: string; centro_custo?: string;
     competencia?: string; fornecedor_nome?: string; fornecedor_codigo?: string;
+    local_servico?: string;
   } => {
     if (modelo === "M3") return m3Settings[dj] ?? {};
+    if (modelo === "M4") return m4Settings[dj] ?? {};
     return overrides[dj] ?? {};
   };
-  const usaConfig = modelo === "M1" || modelo === "M3";
+  const usaConfig = modelo === "M1" || modelo === "M3" || modelo === "M4";
   const cnpjEf = (l: LinhaLida) => (usaConfig ? (cfgOf(l.numero_dj).cnpj || l.cnpj) : l.cnpj);
-  // No M1/M3 o "código" extraído da planilha é o CÓDIGO DO FORNECEDOR (não cliente)
+  // No M1/M3/M4 o "código" extraído da planilha é o CÓDIGO DO FORNECEDOR (não cliente)
   const codFornecedorEf = (l: LinhaLida) => (usaConfig ? l.codigo_cliente : "");
   const tipoServicoEf = (l: LinhaLida) => (usaConfig ? (cfgOf(l.numero_dj).tipo_servico || l.tipo_servico) : l.tipo_servico);
   const periodoIniEf = (l: LinhaLida) => (usaConfig ? (cfgOf(l.numero_dj).periodo_inicio || l.periodo_inicio || "") : (l.periodo_inicio || ""));
   const periodoFimEf = (l: LinhaLida) => (usaConfig ? (cfgOf(l.numero_dj).periodo_fim || l.periodo_fim || "") : (l.periodo_fim || ""));
   const competenciaEf = (l: LinhaLida) =>
-    (modelo === "M3" ? (cfgOf(l.numero_dj).competencia || l.mes_ref) : l.mes_ref);
+    ((modelo === "M3" || modelo === "M4") ? (cfgOf(l.numero_dj).competencia || l.mes_ref) : l.mes_ref);
   const centroCustoEf = (l: LinhaLida) =>
-    (modelo === "M3" ? (cfgOf(l.numero_dj).centro_custo || l.centro_custo) : l.centro_custo);
+    ((modelo === "M3" || modelo === "M4") ? (cfgOf(l.numero_dj).centro_custo || l.centro_custo) : l.centro_custo);
 
   // Resumo agregado
   const clientes = Array.from(new Set(validas.map((l) => l.contratado)));
