@@ -1141,19 +1141,27 @@ export default function ImportarMedicao() {
       for (const l of validas) {
         const isM1 = modelo === "M1";
         const isM3 = modelo === "M3";
-        const cfg: any = isM3 ? (m3Settings[l.numero_dj] ?? {}) : (overrides[l.numero_dj] ?? {});
+        const isM4 = modelo === "M4";
+        const isApiaLike = isM3 || isM4;
+        const cfg: any = isM4
+          ? (m4Settings[l.numero_dj] ?? {})
+          : isM3 ? (m3Settings[l.numero_dj] ?? {}) : (overrides[l.numero_dj] ?? {});
         const cnpjEfetivo = (cfg.cnpj || l.cnpj || "").trim();
         const tipoServicoEfetivo = (cfg.tipo_servico || l.tipo_servico || "Locação").trim();
         const periodoIniEfetivo = cfg.periodo_inicio || l.periodo_inicio || null;
         const periodoFimEfetivo = cfg.periodo_fim || l.periodo_fim || null;
-        const centroCustoEfetivo = (isM3 ? (cfg.centro_custo || l.centro_custo) : l.centro_custo) || null;
+        const centroCustoEfetivo = (isApiaLike ? (cfg.centro_custo || l.centro_custo) : l.centro_custo) || null;
 
-        const fornecedorNome = isM1 ? l.contratado : (isM3 ? (cfg.fornecedor_nome || l.contratado) : "MC TERRAPLENAGEM E CONSTRUÇÕES LTDA");
-        const fornecedorCodigo = isM1 ? l.codigo_cliente : (isM3 ? (cfg.fornecedor_codigo || l.codigo_cliente) : "15811");
-        const fornecedorCnpj = isM1 ? cnpjEfetivo : (isM3 ? "" : "07.299.287/0001-41");
+        const fornecedorNome = isM1
+          ? l.contratado
+          : (isApiaLike ? (cfg.fornecedor_nome || l.contratado) : "MC TERRAPLENAGEM E CONSTRUÇÕES LTDA");
+        const fornecedorCodigo = isM1
+          ? l.codigo_cliente
+          : (isApiaLike ? (cfg.fornecedor_codigo || l.codigo_cliente) : "15811");
+        const fornecedorCnpj = isM1 ? cnpjEfetivo : (isApiaLike ? "" : "07.299.287/0001-41");
 
         let clienteId: string | undefined;
-        if (isM1 || isM3) {
+        if (isM1 || isApiaLike) {
           clienteId = cfg.cliente_id;
           if (!clienteId) throw new Error(`Selecione o Cliente/Contratante para o contrato ${l.numero_dj}`);
         } else {
