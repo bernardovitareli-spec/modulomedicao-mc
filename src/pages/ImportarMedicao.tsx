@@ -313,6 +313,123 @@ export default function ImportarMedicao() {
   }>>({});
   const [m3Result, setM3Result] = useState<M3ParseResult | null>(null);
 
+  // ----- M4 (Obras Ápia / Obra 919 SLB) -----
+  const [m4Settings, setM4Settings] = useState<Record<string, {
+    cliente_id?: string;
+    fornecedor_nome?: string;
+    fornecedor_codigo?: string;
+    centro_custo?: string;
+    local_servico?: string;
+    competencia?: string;
+    periodo_inicio?: string;
+    periodo_fim?: string;
+    tipo_servico?: string;
+  }>>({});
+  const [m4Result, setM4Result] = useState<M4ParseResult | null>(null);
+
+  const m4LinhaToLinhaLida = (l: M4Linha, opts: {
+    competencia: string;
+    centro_custo: string;
+    numero_dj: string;
+    fornecedor_nome: string;
+    fornecedor_codigo: string;
+    periodo_inicio: string;
+    periodo_fim: string;
+  }): LinhaLida => ({
+    rowExcel: l.rowExcel,
+    raw: [],
+    mes_ref: opts.competencia,
+    numero_dj: opts.numero_dj,
+    contratado: opts.fornecedor_nome,
+    codigo_cliente: opts.fornecedor_codigo,
+    cnpj: "",
+    tipo_servico: "Terraplenagem",
+    tipo_equip: l.tipo,
+    modelo: l.modelo,
+    serie: l.serie,
+    tag: l.tag,
+    centro_custo: opts.centro_custo,
+    periodo_inicio: opts.periodo_inicio || null,
+    periodo_fim: opts.periodo_fim || null,
+    inicio_op: null,
+    termino_contrato: null,
+    hor_inicial: l.hor_inicial,
+    hor_final: l.hor_final,
+    ht_calculado: l.ht_calculado,
+    ht_informado: l.ht_informado,
+    divergencia_ht: 0,
+    garantia: l.garantia_minima,
+    horas_disp: 0,
+    horas_mec: 0,
+    complementares: 0,
+    valor_hora: l.valor_hora,
+    desc_manutencao: 0,
+    periodo_chuvoso: false,
+    excecao_chuvoso: 0,
+    observacoes: "",
+    tipo_pagamento: l.tipo_pagamento,
+    horas_liquidas: l.ht_informado,
+    horas_a_pagar: l.horas_a_pagar,
+    valor_final: l.valor_final,
+    valor_planilha: l.valor_planilha,
+    diferenca_calc: l.diferenca_calc,
+    erros: l.erros.slice(),
+    alertas: l.alertas.slice(),
+  });
+
+  const processarM4 = async (wb: XLSX.WorkBook, sheetName: string) => {
+    const result = parseM4(wb, sheetName);
+    if (!result.ok) {
+      setHeaderError(result.motivo ?? "Não foi possível ler M4");
+      toast.error(result.motivo ?? "Não foi possível ler M4");
+      return;
+    }
+    setModelo("M4");
+    setSheetUsed(sheetName);
+    setHeaderInfo({ rowIndex: result.headerRowIndex, colMap: result.colMap, missingRequired: [] });
+    setM4Result(result);
+
+    const { data: cliAtivos } = await supabase
+      .from("clientes").select("id, razao_social").eq("status", "ativo").order("razao_social");
+    setClientesAtivos(cliAtivos ?? []);
+    const apia = (cliAtivos ?? []).find((c: any) => {
+      const nm = String(c.razao_social).toUpperCase();
+      return nm.includes("APIA") || nm.includes("ÁPIA");
+    });
+
+    const dj = result.numero_dj || "—";
+    const settings = {
+      [dj]: {
+        cliente_id: apia?.id || "",
+        fornecedor_nome: result.fornecedor_nome,
+        fornecedor_codigo: result.fornecedor_codigo,
+        centro_custo: result.centro_custo,
+        local_servico: result.local_servico,
+        competencia: result.competencia || "",
+        periodo_inicio: result.periodo_inicio || "",
+        periodo_fim: result.periodo_fim || "",
+        tipo_servico: result.tipo_servico,
+      },
+    };
+    setM4Settings(settings);
+
+    const lidas: LinhaLida[] = result.linhas.map((l) =>
+      m4LinhaToLinhaLida(l, {
+        competencia: settings[dj]!.competencia!,
+        centro_custo: settings[dj]!.centro_custo!,
+        numero_dj: dj,
+        fornecedor_nome: settings[dj]!.fornecedor_nome!,
+        fornecedor_codigo: settings[dj]!.fornecedor_codigo!,
+        periodo_inicio: settings[dj]!.periodo_inicio!,
+        periodo_fim: settings[dj]!.periodo_fim!,
+      }),
+    );
+
+    setLinhas(lidas);
+    setIgnoradas(result.ignoradas.map((i) => ({ rowExcel: i.rowExcel, motivo: i.motivo, preview: i.preview })));
+    toast.success(`Modelo M4 • ${lidas.length} linha(s) lidas, ${result.ignoradas.length} ignorada(s).`);
+  };
+
   // Converte uma linha M3 para o formato LinhaLida usado pelo restante do fluxo.
   const m3LinhaToLinhaLida = (l: M3Linha, opts: {
     competencia: string;
