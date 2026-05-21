@@ -865,7 +865,24 @@ export default function ImportarMedicao() {
     }
   }
 
-  const precisaConfirmarDivergencia = (modelo === "M1" || modelo === "M3") && linhasComDivergencia > 0;
+  const m4Pendencias: string[] = [];
+  if (modelo === "M4") {
+    const djs = Array.from(new Set(validas.map((l) => l.numero_dj)));
+    for (const dj of djs) {
+      const s = m4Settings[dj] ?? {};
+      if (!s.cliente_id) m4Pendencias.push(`Contrato ${dj}: selecione o Cliente/Contratante`);
+      if (!s.competencia) m4Pendencias.push(`Contrato ${dj}: competência obrigatória`);
+      if (!s.periodo_inicio) m4Pendencias.push(`Contrato ${dj}: período início obrigatório`);
+      if (!s.periodo_fim) m4Pendencias.push(`Contrato ${dj}: período fim obrigatório`);
+      if (s.periodo_inicio && s.periodo_fim && s.periodo_fim < s.periodo_inicio) {
+        m4Pendencias.push(`Contrato ${dj}: período fim não pode ser anterior ao início`);
+      }
+      if (!s.centro_custo) m4Pendencias.push(`Contrato ${dj}: centro de custo obrigatório`);
+      if (!s.fornecedor_nome) m4Pendencias.push(`Contrato ${dj}: fornecedor/locadora obrigatório`);
+    }
+  }
+
+  const precisaConfirmarDivergencia = (modelo === "M1" || modelo === "M3" || modelo === "M4") && linhasComDivergencia > 0;
   const podeImportar =
     !headerError &&
     validas.length > 0 &&
