@@ -1465,13 +1465,14 @@ export default function ImportarMedicao() {
                   <Stat label="Fornecedor / Locadora" value={clientes.length === 1 ? clientes[0] : String(clientes.length)} />
                   <Stat label="Código fornecedor" value={codigosFornecedor.length === 1 ? codigosFornecedor[0] : (codigosFornecedor.length ? `${codigosFornecedor.length}` : "—")} />
                 </>
-              ) : modelo === "M3" ? (
+              ) : (modelo === "M3" || modelo === "M4") ? (
                 <>
                   {(() => {
-                    const cliIds = Array.from(new Set(Object.values(m3Settings).map((s) => s?.cliente_id).filter(Boolean) as string[]));
+                    const src = modelo === "M4" ? m4Settings : m3Settings;
+                    const cliIds = Array.from(new Set(Object.values(src).map((s: any) => s?.cliente_id).filter(Boolean) as string[]));
                     const cliNomes = cliIds.map((id) => clientesAtivos.find((c) => c.id === id)?.razao_social).filter(Boolean) as string[];
-                    const fornNomes = Array.from(new Set(Object.values(m3Settings).map((s) => s?.fornecedor_nome).filter(Boolean) as string[]));
-                    const fornCods = Array.from(new Set(Object.values(m3Settings).map((s) => s?.fornecedor_codigo).filter(Boolean) as string[]));
+                    const fornNomes = Array.from(new Set(Object.values(src).map((s: any) => s?.fornecedor_nome).filter(Boolean) as string[]));
+                    const fornCods = Array.from(new Set(Object.values(src).map((s: any) => s?.fornecedor_codigo).filter(Boolean) as string[]));
                     return (
                       <>
                         <Stat label="Cliente / Contratante" value={cliNomes.length === 1 ? cliNomes[0] : (cliNomes.length ? `${cliNomes.length}` : "— (selecione)")} />
@@ -1514,7 +1515,7 @@ export default function ImportarMedicao() {
               {ignoradas.length > 0 && <Badge variant="secondary">{ignoradas.length} ignoradas</Badge>}
               {linhasComDivergencia > 0 && <Badge variant="destructive">{linhasComDivergencia} com divergência de cálculo</Badge>}
               <div className="ml-auto flex gap-2">
-                <Button variant="outline" onClick={() => { setLinhas([]); setIgnoradas([]); setFilename(""); setHeaderInfo(null); setHeaderError(""); setOverrides({}); setM3Settings({}); setM3Result(null); setModelo(null); setConfirmDivergencia(false); }}>Cancelar</Button>
+                <Button variant="outline" onClick={() => { setLinhas([]); setIgnoradas([]); setFilename(""); setHeaderInfo(null); setHeaderError(""); setOverrides({}); setM3Settings({}); setM3Result(null); setM4Settings({}); setM4Result(null); setModelo(null); setConfirmDivergencia(false); }}>Cancelar</Button>
                 <Button onClick={confirmar} disabled={importing || !podeImportar}>
                   {importing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Upload className="mr-1 h-4 w-4" />}
                   Confirmar importação ({validas.length})
@@ -1528,6 +1529,17 @@ export default function ImportarMedicao() {
                   <strong>Preencha os campos obrigatórios antes de confirmar:</strong>
                   <ul className="mt-1 ml-4 list-disc">
                     {m1Pendencias.map((p, i) => <li key={i}>{p}</li>)}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
+            {m4Pendencias.length > 0 && (
+              <Alert variant="destructive" className="mt-3">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  <strong>Preencha os campos obrigatórios do Modelo M4 antes de confirmar:</strong>
+                  <ul className="mt-1 ml-4 list-disc">
+                    {m4Pendencias.map((p, i) => <li key={i}>{p}</li>)}
                   </ul>
                 </AlertDescription>
               </Alert>
@@ -1720,7 +1732,117 @@ export default function ImportarMedicao() {
             </CardContent></Card>
           )}
 
-          {validas.length > 0 && (modelo === "M1" || modelo === "M3") && (
+          {modelo === "M4" && validas.length > 0 && (
+            <Card className="mb-4"><CardContent className="p-4">
+              <h3 className="mb-2 text-sm font-semibold">
+                Configurações do Modelo M4 — Obras Ápia / Obra 919 SLB (aba "{sheetUsed}")
+              </h3>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Confirme cliente/contratante, fornecedor, centro de custo, local do serviço,
+                competência e período antes de importar. Sugestão automática: cliente <strong>Construtora Ápia</strong>.
+              </p>
+              <div className="space-y-4">
+                {Array.from(new Set(validas.map((l) => l.numero_dj))).map((dj) => {
+                  const s = m4Settings[dj] ?? {};
+                  const setS = (patch: Partial<typeof s>) => {
+                    setM4Settings((prev) => {
+                      const next = { ...prev, [dj]: { ...(prev[dj] ?? {}), ...patch } };
+                      if ("competencia" in patch || "centro_custo" in patch || "periodo_inicio" in patch || "periodo_fim" in patch) {
+                        const novaComp = next[dj]?.competencia;
+                        const novoCC = next[dj]?.centro_custo;
+                        const novoPI = next[dj]?.periodo_inicio;
+                        const novoPF = next[dj]?.periodo_fim;
+                        setLinhas((linhasPrev) => linhasPrev.map((l) => l.numero_dj === dj ? {
+                          ...l,
+                          mes_ref: novaComp || l.mes_ref,
+                          centro_custo: novoCC || l.centro_custo,
+                          periodo_inicio: novoPI || l.periodo_inicio,
+                          periodo_fim: novoPF || l.periodo_fim,
+                        } : l));
+                      }
+                      return next;
+                    });
+                  };
+                  return (
+                    <div key={dj} className="rounded-md border p-3">
+                      <div className="mb-2 text-xs">
+                        <span className="font-medium">Contrato/Nº DJ <span className="font-mono">{dj}</span></span>
+                        <span className="ml-2 text-muted-foreground">
+                          Fornecedor: <span className="font-medium text-foreground">{s.fornecedor_nome || "—"}</span>
+                          {s.fornecedor_codigo && <> · cód. <span className="font-mono">{s.fornecedor_codigo}</span></>}
+                        </span>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                        <div className="lg:col-span-2">
+                          <Label className="text-xs">Cliente / Contratante *</Label>
+                          <Select value={s.cliente_id ?? ""} onValueChange={(v) => setS({ cliente_id: v })}>
+                            <SelectTrigger><SelectValue placeholder="Selecione o cliente" /></SelectTrigger>
+                            <SelectContent>
+                              {clientesAtivos.map((c) => <SelectItem key={c.id} value={c.id}>{c.razao_social}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Centro de custo *</Label>
+                          <Input value={s.centro_custo ?? ""} onChange={(e) => setS({ centro_custo: e.target.value })} />
+                        </div>
+                        <div className="lg:col-span-2">
+                          <Label className="text-xs">Local do serviço / Obra</Label>
+                          <Input value={s.local_servico ?? ""} onChange={(e) => setS({ local_servico: e.target.value })} placeholder="ex.: Mina do Salobo" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Competência *</Label>
+                          <Input type="month" value={(s.competencia ?? "").slice(0, 7)} onChange={(e) => setS({ competencia: e.target.value ? `${e.target.value}-01` : "" })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Período início *</Label>
+                          <Input type="date" value={s.periodo_inicio ?? ""} onChange={(e) => setS({ periodo_inicio: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Período fim *</Label>
+                          <Input type="date" value={s.periodo_fim ?? ""} onChange={(e) => setS({ periodo_fim: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Fornecedor / Locadora *</Label>
+                          <Input value={s.fornecedor_nome ?? ""} onChange={(e) => setS({ fornecedor_nome: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Código do fornecedor</Label>
+                          <Input value={s.fornecedor_codigo ?? ""} onChange={(e) => setS({ fornecedor_codigo: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Tipo de serviço</Label>
+                          <Select value={s.tipo_servico ?? ""} onValueChange={(v) => setS({ tipo_servico: v })}>
+                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              {TIPOS_SERVICO_M1.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {m4Result && m4Result.observacoes_gerais.length > 0 && (
+                <div className="mt-4 rounded-md border bg-muted/30 p-3 text-xs">
+                  <div className="mb-1 font-semibold">Observações capturadas da planilha (após TOTAL GERAL):</div>
+                  <ul className="ml-4 list-disc space-y-0.5">
+                    {m4Result.observacoes_gerais.map((o, i) => <li key={i}>{o}</li>)}
+                  </ul>
+                </div>
+              )}
+              <div className="mt-3 grid gap-2 md:grid-cols-3 text-xs">
+                <Stat label="Total HT calculado" value={fmtNum(validas.reduce((s, l) => s + (l.ht_calculado || 0), 0))} />
+                <Stat label="Total garantia mínima" value={fmtNum(validas.reduce((s, l) => s + (l.garantia || 0), 0))} />
+                <Stat label="Total horas a pagar" value={fmtNum(validas.reduce((s, l) => s + (l.horas_a_pagar || 0), 0))} />
+              </div>
+            </CardContent></Card>
+          )}
+
+
+
+          {validas.length > 0 && (modelo === "M1" || modelo === "M3" || modelo === "M4") && (
             <Card className="mb-4"><CardContent className="p-4">
               <h3 className="mb-2 text-sm font-semibold">
                 Amostra do mapeamento — Modelo {modelo} (aba "{sheetUsed}") — primeiras 5 linhas válidas
@@ -1802,7 +1924,7 @@ export default function ImportarMedicao() {
             </CardContent></Card>
           )}
 
-          {validas.length > 0 && modelo !== "M1" && modelo !== "M3" && (
+          {validas.length > 0 && modelo !== "M1" && modelo !== "M3" && modelo !== "M4" && (
             <Card className="mb-4"><CardContent className="p-4">
               <h3 className="mb-2 text-sm font-semibold">Amostra do mapeamento — primeiras 5 linhas válidas</h3>
               <div className="overflow-x-auto">
