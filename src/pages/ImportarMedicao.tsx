@@ -1814,7 +1814,7 @@ export default function ImportarMedicao() {
             </CardContent></Card>
           )}
 
-          {validas.length > 0 && modelo !== "M1" && modelo !== "M3" && (
+          {validas.length > 0 && modelo !== "M1" && modelo !== "M3" && modelo !== "M4" && (
             <Card className="mb-4"><CardContent className="p-4">
               <h3 className="mb-2 text-sm font-semibold">Amostra do mapeamento — primeiras 5 linhas válidas</h3>
               <div className="overflow-x-auto">
