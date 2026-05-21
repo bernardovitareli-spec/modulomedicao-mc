@@ -928,9 +928,11 @@ export default function ImportarMedicao() {
       });
       eqp?.forEach((e: any) => equipsCache.set(`${e.serie ?? ""}|${e.tag ?? ""}`, e.id));
 
-      // Resolver config (M1: overrides, M3: m3Settings) para um único objeto.
+      // Resolver config (M1: overrides, M3: m3Settings, M4: m4Settings) para um único objeto.
       const cfgFor = (dj: string): any =>
-        modelo === "M3" ? (m3Settings[dj] ?? {}) : (overrides[dj] ?? {});
+        modelo === "M4" ? (m4Settings[dj] ?? {})
+        : modelo === "M3" ? (m3Settings[dj] ?? {})
+        : (overrides[dj] ?? {});
 
       // Resolve o cliente_id de uma linha SEM criar (apenas lookup) — usado para detectar conflito.
       // Para M1/M3 usa o cliente_id da config; para M2 usa CNPJ → nome.
