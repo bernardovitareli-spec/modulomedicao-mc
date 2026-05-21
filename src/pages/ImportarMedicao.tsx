@@ -534,6 +534,7 @@ export default function ImportarMedicao() {
     setFilename(file.name);
     setLinhas([]); setIgnoradas([]); setHeaderError(""); setHeaderInfo(null); setModelo(null); setSheetUsed(""); setOverrides({}); setConfirmDivergencia(false);
     setM3Settings({}); setM3Result(null);
+    setM4Settings({}); setM4Result(null);
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { cellDates: true });
@@ -541,9 +542,14 @@ export default function ImportarMedicao() {
       const sheetM1 = wb.SheetNames.find((n) => normalize(n) === normalize(SHEET_MODELO_1));
       const sheetM2 = wb.SheetNames.find((n) => normalize(n) === normalize(SHEET_MODELO_2));
 
-      // M3 — Obras Ápia: só é considerado quando NÃO há aba M1/M2.
-      // Isso garante que M1/M2 nunca sejam afetados.
+      // M3/M4 — Obras Ápia: só considerados quando NÃO há aba M1/M2.
       if (!sheetM1 && !sheetM2) {
+        // M4 tem prioridade sobre M3 quando há aba com cabeçalho M4 específico
+        const sheetM4 = findM4Sheet(wb);
+        if (sheetM4) {
+          await processarM4(wb, sheetM4);
+          return;
+        }
         const sheetM3 = findM3Sheet(wb);
         if (sheetM3) {
           await processarM3(wb, sheetM3);
