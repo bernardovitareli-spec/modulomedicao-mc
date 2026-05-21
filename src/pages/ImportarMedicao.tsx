@@ -17,6 +17,7 @@ import {
   findM3Sheet, parseM3, periodoApiaPorCompetencia, M3_LABEL,
   type M3ParseResult, type M3Linha,
 } from "@/lib/m3Parser";
+import { findM4Sheet, parseM4, M4_LABEL, type M4ParseResult, type M4Linha } from "@/lib/m4Parser";
 
 const TIPOS_SERVICO_M1 = [
   "Locação de equipamentos",
@@ -214,7 +215,7 @@ function detectHeaderM2(matrix: any[][], maxRows = 5): HeaderInfo {
 }
 
 // ---------- Modelo ----------
-type ModeloLayout = "M1" | "M2" | "M3";
+type ModeloLayout = "M1" | "M2" | "M3" | "M4";
 
 const parseSN = (v: any): boolean => {
   const s = normalize(v);
@@ -311,6 +312,123 @@ export default function ImportarMedicao() {
     tipo_servico?: string;
   }>>({});
   const [m3Result, setM3Result] = useState<M3ParseResult | null>(null);
+
+  // ----- M4 (Obras Ápia / Obra 919 SLB) -----
+  const [m4Settings, setM4Settings] = useState<Record<string, {
+    cliente_id?: string;
+    fornecedor_nome?: string;
+    fornecedor_codigo?: string;
+    centro_custo?: string;
+    local_servico?: string;
+    competencia?: string;
+    periodo_inicio?: string;
+    periodo_fim?: string;
+    tipo_servico?: string;
+  }>>({});
+  const [m4Result, setM4Result] = useState<M4ParseResult | null>(null);
+
+  const m4LinhaToLinhaLida = (l: M4Linha, opts: {
+    competencia: string;
+    centro_custo: string;
+    numero_dj: string;
+    fornecedor_nome: string;
+    fornecedor_codigo: string;
+    periodo_inicio: string;
+    periodo_fim: string;
+  }): LinhaLida => ({
+    rowExcel: l.rowExcel,
+    raw: [],
+    mes_ref: opts.competencia,
+    numero_dj: opts.numero_dj,
+    contratado: opts.fornecedor_nome,
+    codigo_cliente: opts.fornecedor_codigo,
+    cnpj: "",
+    tipo_servico: "Terraplenagem",
+    tipo_equip: l.tipo,
+    modelo: l.modelo,
+    serie: l.serie,
+    tag: l.tag,
+    centro_custo: opts.centro_custo,
+    periodo_inicio: opts.periodo_inicio || null,
+    periodo_fim: opts.periodo_fim || null,
+    inicio_op: null,
+    termino_contrato: null,
+    hor_inicial: l.hor_inicial,
+    hor_final: l.hor_final,
+    ht_calculado: l.ht_calculado,
+    ht_informado: l.ht_informado,
+    divergencia_ht: 0,
+    garantia: l.garantia_minima,
+    horas_disp: 0,
+    horas_mec: 0,
+    complementares: 0,
+    valor_hora: l.valor_hora,
+    desc_manutencao: 0,
+    periodo_chuvoso: false,
+    excecao_chuvoso: 0,
+    observacoes: "",
+    tipo_pagamento: l.tipo_pagamento,
+    horas_liquidas: l.ht_informado,
+    horas_a_pagar: l.horas_a_pagar,
+    valor_final: l.valor_final,
+    valor_planilha: l.valor_planilha,
+    diferenca_calc: l.diferenca_calc,
+    erros: l.erros.slice(),
+    alertas: l.alertas.slice(),
+  });
+
+  const processarM4 = async (wb: XLSX.WorkBook, sheetName: string) => {
+    const result = parseM4(wb, sheetName);
+    if (!result.ok) {
+      setHeaderError(result.motivo ?? "Não foi possível ler M4");
+      toast.error(result.motivo ?? "Não foi possível ler M4");
+      return;
+    }
+    setModelo("M4");
+    setSheetUsed(sheetName);
+    setHeaderInfo({ rowIndex: result.headerRowIndex, colMap: result.colMap, missingRequired: [] });
+    setM4Result(result);
+
+    const { data: cliAtivos } = await supabase
+      .from("clientes").select("id, razao_social").eq("status", "ativo").order("razao_social");
+    setClientesAtivos(cliAtivos ?? []);
+    const apia = (cliAtivos ?? []).find((c: any) => {
+      const nm = String(c.razao_social).toUpperCase();
+      return nm.includes("APIA") || nm.includes("ÁPIA");
+    });
+
+    const dj = result.numero_dj || "—";
+    const settings = {
+      [dj]: {
+        cliente_id: apia?.id || "",
+        fornecedor_nome: result.fornecedor_nome,
+        fornecedor_codigo: result.fornecedor_codigo,
+        centro_custo: result.centro_custo,
+        local_servico: result.local_servico,
+        competencia: result.competencia || "",
+        periodo_inicio: result.periodo_inicio || "",
+        periodo_fim: result.periodo_fim || "",
+        tipo_servico: result.tipo_servico,
+      },
+    };
+    setM4Settings(settings);
+
+    const lidas: LinhaLida[] = result.linhas.map((l) =>
+      m4LinhaToLinhaLida(l, {
+        competencia: settings[dj]!.competencia!,
+        centro_custo: settings[dj]!.centro_custo!,
+        numero_dj: dj,
+        fornecedor_nome: settings[dj]!.fornecedor_nome!,
+        fornecedor_codigo: settings[dj]!.fornecedor_codigo!,
+        periodo_inicio: settings[dj]!.periodo_inicio!,
+        periodo_fim: settings[dj]!.periodo_fim!,
+      }),
+    );
+
+    setLinhas(lidas);
+    setIgnoradas(result.ignoradas.map((i) => ({ rowExcel: i.rowExcel, motivo: i.motivo, preview: i.preview })));
+    toast.success(`Modelo M4 • ${lidas.length} linha(s) lidas, ${result.ignoradas.length} ignorada(s).`);
+  };
 
   // Converte uma linha M3 para o formato LinhaLida usado pelo restante do fluxo.
   const m3LinhaToLinhaLida = (l: M3Linha, opts: {
@@ -416,6 +534,7 @@ export default function ImportarMedicao() {
     setFilename(file.name);
     setLinhas([]); setIgnoradas([]); setHeaderError(""); setHeaderInfo(null); setModelo(null); setSheetUsed(""); setOverrides({}); setConfirmDivergencia(false);
     setM3Settings({}); setM3Result(null);
+    setM4Settings({}); setM4Result(null);
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { cellDates: true });
@@ -423,9 +542,14 @@ export default function ImportarMedicao() {
       const sheetM1 = wb.SheetNames.find((n) => normalize(n) === normalize(SHEET_MODELO_1));
       const sheetM2 = wb.SheetNames.find((n) => normalize(n) === normalize(SHEET_MODELO_2));
 
-      // M3 — Obras Ápia: só é considerado quando NÃO há aba M1/M2.
-      // Isso garante que M1/M2 nunca sejam afetados.
+      // M3/M4 — Obras Ápia: só considerados quando NÃO há aba M1/M2.
       if (!sheetM1 && !sheetM2) {
+        // M4 tem prioridade sobre M3 quando há aba com cabeçalho M4 específico
+        const sheetM4 = findM4Sheet(wb);
+        if (sheetM4) {
+          await processarM4(wb, sheetM4);
+          return;
+        }
         const sheetM3 = findM3Sheet(wb);
         if (sheetM3) {
           await processarM3(wb, sheetM3);
@@ -654,26 +778,28 @@ export default function ImportarMedicao() {
 
   // Helpers para aplicar overrides M1 (preenchidos manualmente pelo usuário)
   const ovOf = (dj: string) => overrides[dj] ?? {};
-  // Helper unificado: para M1 lê de "overrides", para M3 lê de "m3Settings".
+  // Helper unificado: para M1 lê de "overrides", para M3 lê de "m3Settings", M4 de "m4Settings".
   const cfgOf = (dj: string): {
     cnpj?: string; tipo_servico?: string; periodo_inicio?: string;
     periodo_fim?: string; cliente_id?: string; centro_custo?: string;
     competencia?: string; fornecedor_nome?: string; fornecedor_codigo?: string;
+    local_servico?: string;
   } => {
     if (modelo === "M3") return m3Settings[dj] ?? {};
+    if (modelo === "M4") return m4Settings[dj] ?? {};
     return overrides[dj] ?? {};
   };
-  const usaConfig = modelo === "M1" || modelo === "M3";
+  const usaConfig = modelo === "M1" || modelo === "M3" || modelo === "M4";
   const cnpjEf = (l: LinhaLida) => (usaConfig ? (cfgOf(l.numero_dj).cnpj || l.cnpj) : l.cnpj);
-  // No M1/M3 o "código" extraído da planilha é o CÓDIGO DO FORNECEDOR (não cliente)
+  // No M1/M3/M4 o "código" extraído da planilha é o CÓDIGO DO FORNECEDOR (não cliente)
   const codFornecedorEf = (l: LinhaLida) => (usaConfig ? l.codigo_cliente : "");
   const tipoServicoEf = (l: LinhaLida) => (usaConfig ? (cfgOf(l.numero_dj).tipo_servico || l.tipo_servico) : l.tipo_servico);
   const periodoIniEf = (l: LinhaLida) => (usaConfig ? (cfgOf(l.numero_dj).periodo_inicio || l.periodo_inicio || "") : (l.periodo_inicio || ""));
   const periodoFimEf = (l: LinhaLida) => (usaConfig ? (cfgOf(l.numero_dj).periodo_fim || l.periodo_fim || "") : (l.periodo_fim || ""));
   const competenciaEf = (l: LinhaLida) =>
-    (modelo === "M3" ? (cfgOf(l.numero_dj).competencia || l.mes_ref) : l.mes_ref);
+    ((modelo === "M3" || modelo === "M4") ? (cfgOf(l.numero_dj).competencia || l.mes_ref) : l.mes_ref);
   const centroCustoEf = (l: LinhaLida) =>
-    (modelo === "M3" ? (cfgOf(l.numero_dj).centro_custo || l.centro_custo) : l.centro_custo);
+    ((modelo === "M3" || modelo === "M4") ? (cfgOf(l.numero_dj).centro_custo || l.centro_custo) : l.centro_custo);
 
   // Resumo agregado
   const clientes = Array.from(new Set(validas.map((l) => l.contratado)));
@@ -739,13 +865,31 @@ export default function ImportarMedicao() {
     }
   }
 
-  const precisaConfirmarDivergencia = (modelo === "M1" || modelo === "M3") && linhasComDivergencia > 0;
+  const m4Pendencias: string[] = [];
+  if (modelo === "M4") {
+    const djs = Array.from(new Set(validas.map((l) => l.numero_dj)));
+    for (const dj of djs) {
+      const s = m4Settings[dj] ?? {};
+      if (!s.cliente_id) m4Pendencias.push(`Contrato ${dj}: selecione o Cliente/Contratante`);
+      if (!s.competencia) m4Pendencias.push(`Contrato ${dj}: competência obrigatória`);
+      if (!s.periodo_inicio) m4Pendencias.push(`Contrato ${dj}: período início obrigatório`);
+      if (!s.periodo_fim) m4Pendencias.push(`Contrato ${dj}: período fim obrigatório`);
+      if (s.periodo_inicio && s.periodo_fim && s.periodo_fim < s.periodo_inicio) {
+        m4Pendencias.push(`Contrato ${dj}: período fim não pode ser anterior ao início`);
+      }
+      if (!s.centro_custo) m4Pendencias.push(`Contrato ${dj}: centro de custo obrigatório`);
+      if (!s.fornecedor_nome) m4Pendencias.push(`Contrato ${dj}: fornecedor/locadora obrigatório`);
+    }
+  }
+
+  const precisaConfirmarDivergencia = (modelo === "M1" || modelo === "M3" || modelo === "M4") && linhasComDivergencia > 0;
   const podeImportar =
     !headerError &&
     validas.length > 0 &&
     !erroMapeamentoTipoEquip &&
     m1Pendencias.length === 0 &&
     m3Pendencias.length === 0 &&
+    m4Pendencias.length === 0 &&
     (!precisaConfirmarDivergencia || confirmDivergencia);
 
   // Helper: chave canônica de medição (contrato + competência + período)
@@ -784,15 +928,17 @@ export default function ImportarMedicao() {
       });
       eqp?.forEach((e: any) => equipsCache.set(`${e.serie ?? ""}|${e.tag ?? ""}`, e.id));
 
-      // Resolver config (M1: overrides, M3: m3Settings) para um único objeto.
+      // Resolver config (M1: overrides, M3: m3Settings, M4: m4Settings) para um único objeto.
       const cfgFor = (dj: string): any =>
-        modelo === "M3" ? (m3Settings[dj] ?? {}) : (overrides[dj] ?? {});
+        modelo === "M4" ? (m4Settings[dj] ?? {})
+        : modelo === "M3" ? (m3Settings[dj] ?? {})
+        : (overrides[dj] ?? {});
 
       // Resolve o cliente_id de uma linha SEM criar (apenas lookup) — usado para detectar conflito.
       // Para M1/M3 usa o cliente_id da config; para M2 usa CNPJ → nome.
       const resolveClienteIdLookup = (l: LinhaLida): string | null => {
         const cfg = cfgFor(l.numero_dj);
-        if (modelo === "M1" || modelo === "M3") return cfg.cliente_id || null;
+        if (modelo === "M1" || modelo === "M3" || modelo === "M4") return cfg.cliente_id || null;
         const cnpj = normCNPJ(cfg.cnpj || l.cnpj);
         if (cnpj) {
           const id = clientesCache.get(`cnpj:${cnpj}`);
@@ -834,7 +980,7 @@ export default function ImportarMedicao() {
         const periodo = periodoPorMedicao.get(provKey)!;
         const cfg = cfgFor(l.numero_dj);
         const clienteIdLookup = resolveClienteIdLookup(l);
-        const cc = ((modelo === "M3" ? cfg.centro_custo : null) || l.centro_custo || "").trim();
+        const cc = (((modelo === "M3" || modelo === "M4") ? cfg.centro_custo : null) || l.centro_custo || "").trim();
         const ctrKey = clienteIdLookup ? `${clienteIdLookup}|${l.numero_dj}|${cc}` : "";
         const ctrInfo = ctrKey ? contratosCache.get(ctrKey) : undefined;
         ctrInfoPorLinha.set(provKey, ctrInfo ? { id: ctrInfo.id } : null);
@@ -997,19 +1143,27 @@ export default function ImportarMedicao() {
       for (const l of validas) {
         const isM1 = modelo === "M1";
         const isM3 = modelo === "M3";
-        const cfg: any = isM3 ? (m3Settings[l.numero_dj] ?? {}) : (overrides[l.numero_dj] ?? {});
+        const isM4 = modelo === "M4";
+        const isApiaLike = isM3 || isM4;
+        const cfg: any = isM4
+          ? (m4Settings[l.numero_dj] ?? {})
+          : isM3 ? (m3Settings[l.numero_dj] ?? {}) : (overrides[l.numero_dj] ?? {});
         const cnpjEfetivo = (cfg.cnpj || l.cnpj || "").trim();
         const tipoServicoEfetivo = (cfg.tipo_servico || l.tipo_servico || "Locação").trim();
         const periodoIniEfetivo = cfg.periodo_inicio || l.periodo_inicio || null;
         const periodoFimEfetivo = cfg.periodo_fim || l.periodo_fim || null;
-        const centroCustoEfetivo = (isM3 ? (cfg.centro_custo || l.centro_custo) : l.centro_custo) || null;
+        const centroCustoEfetivo = (isApiaLike ? (cfg.centro_custo || l.centro_custo) : l.centro_custo) || null;
 
-        const fornecedorNome = isM1 ? l.contratado : (isM3 ? (cfg.fornecedor_nome || l.contratado) : "MC TERRAPLENAGEM E CONSTRUÇÕES LTDA");
-        const fornecedorCodigo = isM1 ? l.codigo_cliente : (isM3 ? (cfg.fornecedor_codigo || l.codigo_cliente) : "15811");
-        const fornecedorCnpj = isM1 ? cnpjEfetivo : (isM3 ? "" : "07.299.287/0001-41");
+        const fornecedorNome = isM1
+          ? l.contratado
+          : (isApiaLike ? (cfg.fornecedor_nome || l.contratado) : "MC TERRAPLENAGEM E CONSTRUÇÕES LTDA");
+        const fornecedorCodigo = isM1
+          ? l.codigo_cliente
+          : (isApiaLike ? (cfg.fornecedor_codigo || l.codigo_cliente) : "15811");
+        const fornecedorCnpj = isM1 ? cnpjEfetivo : (isApiaLike ? "" : "07.299.287/0001-41");
 
         let clienteId: string | undefined;
-        if (isM1 || isM3) {
+        if (isM1 || isApiaLike) {
           clienteId = cfg.cliente_id;
           if (!clienteId) throw new Error(`Selecione o Cliente/Contratante para o contrato ${l.numero_dj}`);
         } else {
@@ -1067,7 +1221,8 @@ export default function ImportarMedicao() {
           contratosCache.set(ctrCacheKey, contrato);
         } else {
           const patch: any = { tipo_servico: tipoServicoEfetivo || undefined };
-          if (isM1 || isM3) patch.cliente_id = clienteId;
+          if (isM1 || isApiaLike) patch.cliente_id = clienteId;
+          if (isM4 && cfg.local_servico) patch.local_servico = cfg.local_servico;
           if (fornecedorNome) patch.fornecedor_nome = fornecedorNome;
           if (fornecedorCodigo) patch.fornecedor_codigo = fornecedorCodigo;
           if (fornecedorCnpj) patch.fornecedor_cnpj = fornecedorCnpj;
