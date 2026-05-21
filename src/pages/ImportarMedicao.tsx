@@ -1543,7 +1543,7 @@ export default function ImportarMedicao() {
                   </ul>
                 </AlertDescription>
               </Alert>
-            )}
+            {m3Pendencias.length > 0 && (
               <Alert variant="destructive" className="mt-3">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="text-xs">
