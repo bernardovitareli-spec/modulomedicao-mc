@@ -17,6 +17,7 @@ import {
   findM3Sheet, parseM3, periodoApiaPorCompetencia, M3_LABEL,
   type M3ParseResult, type M3Linha,
 } from "@/lib/m3Parser";
+import { findM4Sheet, parseM4, M4_LABEL, type M4ParseResult, type M4Linha } from "@/lib/m4Parser";
 
 const TIPOS_SERVICO_M1 = [
   "Locação de equipamentos",
