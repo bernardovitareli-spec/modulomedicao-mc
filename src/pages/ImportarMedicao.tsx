@@ -1732,7 +1732,7 @@ export default function ImportarMedicao() {
             </CardContent></Card>
           )}
 
-          {validas.length > 0 && (modelo === "M1" || modelo === "M3") && (
+          {validas.length > 0 && (modelo === "M1" || modelo === "M3" || modelo === "M4") && (
             <Card className="mb-4"><CardContent className="p-4">
               <h3 className="mb-2 text-sm font-semibold">
                 Amostra do mapeamento — Modelo {modelo} (aba "{sheetUsed}") — primeiras 5 linhas válidas
