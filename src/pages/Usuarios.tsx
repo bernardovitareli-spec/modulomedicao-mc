@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,17 +14,26 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { fmtDate } from "@/lib/format";
 import { usePermissions, ROLE_LABELS, AppRole } from "@/lib/permissions";
 import { Navigate } from "react-router-dom";
-import { notify } from "@/lib/notify";
 import { Check, X, Users as UsersIcon } from "lucide-react";
+import {
+  useUsuariosAtivos, useUsuariosPendentes, useUsuarioVinculos,
+  useAprovarUsuario, useRejeitarUsuario, useDefinirRole, useEditarVinculosCliente,
+} from "@/data/usuarios";
+import { useClientesAtivos } from "@/data/clientes";
+import { TableSkeleton } from "@/components/skeletons";
 
 type Pendente = { user_id: string; email: string; solicitado_em: string };
-type Cliente = { id: string; razao_social: string };
 
 export default function Usuarios() {
   const { canManageUsers } = usePermissions();
-  const [users, setUsers] = useState<any[]>([]);
-  const [pendentes, setPendentes] = useState<Pendente[]>([]);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const { data: users = [], isLoading: loadingUsers } = useUsuariosAtivos();
+  const { data: pendentes = [], isLoading: loadingPend } = useUsuariosPendentes();
+  const { data: clientes = [] } = useClientesAtivos();
+
+  const aprovar = useAprovarUsuario();
+  const rejeitar = useRejeitarUsuario();
+  const definirRole = useDefinirRole();
+  const editarVinc = useEditarVinculosCliente();
 
   // Aprovar dialog
   const [aprovOpen, setAprovOpen] = useState(false);
@@ -42,65 +50,43 @@ export default function Usuarios() {
   const [vincOpen, setVincOpen] = useState(false);
   const [vincUser, setVincUser] = useState<any>(null);
   const [vincClientes, setVincClientes] = useState<string[]>([]);
+  const { data: vincLoaded } = useUsuarioVinculos(vincOpen && vincUser?.user_id ? vincUser.user_id : undefined);
 
-  const load = async () => {
-    const [u, p, c] = await Promise.all([
-      supabase.rpc("admin_list_users"),
-      supabase.rpc("admin_list_pendentes"),
-      supabase.from("clientes").select("id, razao_social").order("razao_social"),
-    ]);
-    if (u.error) notify.error(u.error.message); else setUsers((u.data as any) ?? []);
-    if (p.error) notify.error(p.error.message); else setPendentes((p.data as any) ?? []);
-    if (!c.error) setClientes((c.data as any) ?? []);
-  };
-
-  useEffect(() => { if (canManageUsers) load(); }, [canManageUsers]);
+  useEffect(() => {
+    if (vincOpen && vincLoaded) setVincClientes(vincLoaded);
+  }, [vincOpen, vincLoaded]);
 
   if (!canManageUsers) return <Navigate to="/" replace />;
 
-  const setRole = async (uid: string, role: AppRole) => {
-    const { error } = await supabase.rpc("admin_set_user_role", { _target_user: uid, _role: role });
-    if (error) return notify.error(error.message);
-    notify.success("Perfil atualizado");
-    load();
-  };
+  const setRole = (uid: string, role: AppRole) => definirRole.mutate({ user_id: uid, role });
 
   const openAprovar = (p: Pendente) => {
     setAprovUser(p); setAprovRole("visualizacao"); setAprovClientes([]); setAprovOpen(true);
   };
   const confirmAprovar = async () => {
     if (!aprovUser) return;
-    const { error } = await supabase.rpc("admin_aprovar_usuario", {
-      _user_id: aprovUser.user_id,
-      _role: aprovRole,
-      _cliente_ids: aprovRole === "visualizacao" ? aprovClientes : null,
-    });
-    if (error) return notify.error(error.message);
-    notify.success("Usuário aprovado");
-    setAprovOpen(false); load();
+    try {
+      await aprovar.mutateAsync({ user_id: aprovUser.user_id, role: aprovRole, cliente_ids: aprovClientes });
+      setAprovOpen(false);
+    } catch { /* notify */ }
   };
 
   const openRejeitar = (p: Pendente) => { setRejUser(p); setRejMotivo(""); setRejOpen(true); };
   const confirmRejeitar = async () => {
     if (!rejUser) return;
-    const { error } = await supabase.rpc("admin_rejeitar_usuario", { _user_id: rejUser.user_id, _motivo: rejMotivo });
-    if (error) return notify.error(error.message);
-    notify.success("Cadastro rejeitado");
-    setRejOpen(false); load();
+    try {
+      await rejeitar.mutateAsync({ user_id: rejUser.user_id, motivo: rejMotivo });
+      setRejOpen(false);
+    } catch { /* notify */ }
   };
 
-  const openVinculos = async (u: any) => {
-    setVincUser(u);
-    const { data } = await supabase.rpc("admin_list_user_clientes", { _user_id: u.user_id });
-    setVincClientes(((data as any) ?? []).map((r: any) => r.cliente_id));
-    setVincOpen(true);
-  };
+  const openVinculos = (u: any) => { setVincUser(u); setVincClientes([]); setVincOpen(true); };
   const confirmVinculos = async () => {
     if (!vincUser) return;
-    const { error } = await supabase.rpc("admin_set_user_clientes", { _user_id: vincUser.user_id, _cliente_ids: vincClientes });
-    if (error) return notify.error(error.message);
-    notify.success("Vínculos atualizados");
-    setVincOpen(false);
+    try {
+      await editarVinc.mutateAsync({ user_id: vincUser.user_id, cliente_ids: vincClientes });
+      setVincOpen(false);
+    } catch { /* notify */ }
   };
 
   const toggleAprovCliente = (id: string) =>
@@ -122,6 +108,7 @@ export default function Usuarios() {
 
         <TabsContent value="pendentes">
           <Card><CardContent className="p-4">
+            {loadingPend ? <TableSkeleton cols={3} rows={4} /> : (
             <Table>
               <TableHeader><TableRow>
                 <TableHead>Email</TableHead>
@@ -130,7 +117,7 @@ export default function Usuarios() {
               </TableRow></TableHeader>
               <TableBody>
                 {pendentes.length === 0 && <TableRow><TableCell colSpan={3} className="py-8 text-center text-sm text-muted-foreground">Nenhum cadastro pendente</TableCell></TableRow>}
-                {pendentes.map((p) => (
+                {pendentes.map((p: any) => (
                   <TableRow key={p.user_id}>
                     <TableCell className="font-medium">{p.email}</TableCell>
                     <TableCell className="num text-xs">{fmtDate(p.solicitado_em)}</TableCell>
@@ -146,11 +133,13 @@ export default function Usuarios() {
                 ))}
               </TableBody>
             </Table>
+            )}
           </CardContent></Card>
         </TabsContent>
 
         <TabsContent value="ativos">
           <Card><CardContent className="p-4">
+            {loadingUsers ? <TableSkeleton cols={5} rows={6} /> : (
             <Table>
               <TableHeader><TableRow>
                 <TableHead>Email</TableHead>
@@ -160,8 +149,8 @@ export default function Usuarios() {
                 <TableHead>Clientes vinculados</TableHead>
               </TableRow></TableHeader>
               <TableBody>
-                {users.length === 0 && <TableRow><TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">Carregando...</TableCell></TableRow>}
-                {users.map((u) => (
+                {users.length === 0 && <TableRow><TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">Nenhum usuário</TableCell></TableRow>}
+                {users.map((u: any) => (
                   <TableRow key={u.user_id}>
                     <TableCell className="font-medium">{u.email}</TableCell>
                     <TableCell className="num text-xs">{fmtDate(u.created_at)}</TableCell>
@@ -187,6 +176,7 @@ export default function Usuarios() {
                 ))}
               </TableBody>
             </Table>
+            )}
           </CardContent></Card>
         </TabsContent>
       </Tabs>
@@ -212,7 +202,7 @@ export default function Usuarios() {
               <div>
                 <Label>Clientes vinculados (obrigatório para perfil de visualização)</Label>
                 <ScrollArea className="h-56 rounded border p-2">
-                  {clientes.map((c) => (
+                  {clientes.map((c: any) => (
                     <label key={c.id} className="flex cursor-pointer items-center gap-2 py-1 text-sm">
                       <Checkbox checked={aprovClientes.includes(c.id)} onCheckedChange={() => toggleAprovCliente(c.id)} />
                       {c.razao_social}
@@ -225,7 +215,7 @@ export default function Usuarios() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAprovOpen(false)}>Cancelar</Button>
-            <Button onClick={confirmAprovar} disabled={aprovRole === "visualizacao" && aprovClientes.length === 0}>Confirmar</Button>
+            <Button onClick={confirmAprovar} disabled={aprovar.isPending || (aprovRole === "visualizacao" && aprovClientes.length === 0)}>Confirmar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -244,7 +234,7 @@ export default function Usuarios() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejOpen(false)}>Cancelar</Button>
-            <Button variant="destructive" onClick={confirmRejeitar} disabled={rejMotivo.trim().length < 3}>Rejeitar</Button>
+            <Button variant="destructive" onClick={confirmRejeitar} disabled={rejeitar.isPending || rejMotivo.trim().length < 3}>Rejeitar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -256,7 +246,7 @@ export default function Usuarios() {
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">{vincUser?.email}</p>
             <ScrollArea className="h-72 rounded border p-2">
-              {clientes.map((c) => (
+              {clientes.map((c: any) => (
                 <label key={c.id} className="flex cursor-pointer items-center gap-2 py-1 text-sm">
                   <Checkbox checked={vincClientes.includes(c.id)} onCheckedChange={() => toggleVincCliente(c.id)} />
                   {c.razao_social}
@@ -267,7 +257,7 @@ export default function Usuarios() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setVincOpen(false)}>Cancelar</Button>
-            <Button onClick={confirmVinculos}>Salvar</Button>
+            <Button onClick={confirmVinculos} disabled={editarVinc.isPending}>Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

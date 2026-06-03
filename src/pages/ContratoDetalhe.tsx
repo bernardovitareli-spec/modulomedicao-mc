@@ -1,6 +1,4 @@
-import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,26 +10,22 @@ import ContratoEquipamentosTab from "@/components/contrato/ContratoEquipamentosT
 import ContratoRegrasTab from "@/components/contrato/ContratoRegrasTab";
 import ContratoAlteracoesTab from "@/components/contrato/ContratoAlteracoesTab";
 import ContratoMedicoesTab from "@/components/contrato/ContratoMedicoesTab";
+import { useContrato } from "@/data/contratos";
+import { DetalheSkeleton } from "@/components/skeletons";
 
 export default function ContratoDetalhe() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [contrato, setContrato] = useState<any>(null);
+  const { data: contrato, isLoading } = useContrato(id);
 
-  useEffect(() => {
-    if (!id) return;
-    supabase.from("contratos").select("*, clientes(razao_social, cnpj)").eq("id", id).single()
-      .then(({ data }) => setContrato(data));
-  }, [id]);
-
-  if (!contrato) return <div className="text-sm text-muted-foreground">Carregando...</div>;
+  if (isLoading || !contrato) return <DetalheSkeleton />;
 
   return (
     <div>
       <Button variant="ghost" size="sm" className="mb-2 -ml-2" onClick={() => navigate("/contratos")}><ArrowLeft className="mr-1 h-4 w-4" />Voltar</Button>
       <PageHeader
         title={`Contrato ${contrato.numero_dj}`}
-        description={contrato.clientes?.razao_social}
+        description={(contrato as any).clientes?.razao_social}
         actions={<Badge variant={contrato.status === "ativo" ? "default" : "secondary"}>{contrato.status}</Badge>}
       />
 
