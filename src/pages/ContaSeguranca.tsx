@@ -39,6 +39,7 @@ interface MfaFactor {
 export default function ContaSeguranca() {
   const { user, session } = useAuth();
   const navigate = useNavigate();
+  const confirm = useConfirmAction();
   const [params] = useSearchParams();
   const isChallenge = params.get("challenge") === "1";
 
@@ -157,7 +158,13 @@ export default function ContaSeguranca() {
 
   const disableMfa = async () => {
     if (!verifiedFactor) return;
-    if (!confirm("Tem certeza que deseja desativar o 2FA? Sua conta ficará menos protegida.")) return;
+    const reason = await confirm({
+      title: "Desativar autenticação em dois fatores?",
+      description: "Sua conta ficará menos protegida sem o 2FA.",
+      variant: "warning",
+      confirmLabel: "Desativar 2FA",
+    });
+    if (reason === null) return;
     const { error } = await supabase.auth.mfa.unenroll({ factorId: verifiedFactor.id });
     if (error) return notify.error("Falha ao desativar 2FA.");
     notify.success("2FA desativado.");
