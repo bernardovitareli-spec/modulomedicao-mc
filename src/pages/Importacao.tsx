@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { calcularItem, Regra } from "@/lib/calculo";
 
 const CAMPOS = ["Contratante","CNPJ","Nº DJ","Tipo Serviço","Centro Custo","Período Início","Período Fim","Tipo Equipamento","Modelo","Série","Tag","Horímetro Inicial","Horímetro Final","Horas Informadas","Garantia Contratual","Período Chuvoso","Exceção Chuvoso","Horas Mecânicas","Valor/Hora","Complementares","Observações","Início Operação","Término Contrato"];
@@ -70,7 +70,7 @@ export default function Importacao() {
 
   const importar = async () => {
     const validas = linhas.filter((l) => l.status === "ok");
-    if (!validas.length) { toast.error("Nenhuma linha válida"); return; }
+    if (!validas.length) { notify.error("Nenhuma linha válida"); return; }
     setImporting(true);
 
     try {
@@ -143,10 +143,10 @@ export default function Importacao() {
         } as any).eq("id", medicaoId);
       }
 
-      toast.success(`Importadas ${validas.length} linha(s) em ${porContrato.size} medição(ões)`);
+      notify.success(`Importadas ${validas.length} linha(s) em ${porContrato.size} medição(ões)`);
       setLinhas([]); setFilename("");
     } catch (e: any) {
-      toast.error("Erro: " + e.message);
+      notify.error("Erro: " + e.message);
     } finally { setImporting(false); }
   };
 

@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Search } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 
 const empty = { tipo: "", modelo: "", serie: "", tag: "", ano: "", status: "ativo", observacoes: "" };
 
@@ -28,12 +28,12 @@ export default function Equipamentos() {
   useEffect(() => { load(); }, []);
 
   const save = async () => {
-    if (!form.tag || !form.tipo || !form.modelo) { toast.error("Tag, tipo e modelo obrigatórios"); return; }
+    if (!form.tag || !form.tipo || !form.modelo) { notify.error("Tag, tipo e modelo obrigatórios"); return; }
     const payload: any = { ...form, ano: form.ano ? Number(form.ano) : null };
     const r = editing
       ? await supabase.from("equipamentos").update(payload).eq("id", editing.id)
       : await supabase.from("equipamentos").insert(payload);
-    if (r.error) toast.error(r.error.message); else { toast.success("Salvo"); setOpen(false); load(); }
+    if (r.error) notify.error(r.error.message); else { notify.success("Salvo"); setOpen(false); load(); }
   };
 
   const filtered = list.filter((e) =>

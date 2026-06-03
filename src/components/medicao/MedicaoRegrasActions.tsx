@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, AlertTriangle, Calculator, CheckCircle2, Loader2, Sparkles } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { fmtBRL } from "@/lib/format";
 import { labelTipo } from "@/lib/regras";
 
@@ -35,7 +35,7 @@ export default function MedicaoRegrasActions({ medicaoId, status, onApplied }: P
     setLoading(true); setResultado(null); setConfirmaMultiplos(false);
     const { data, error } = await supabase.rpc("simular_regras_medicao", { _medicao_id: medicaoId } as any);
     setLoading(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) { notify.error(error.message); return; }
     setResultado(data);
     setOpen(true);
   };
@@ -62,17 +62,17 @@ export default function MedicaoRegrasActions({ medicaoId, status, onApplied }: P
   const regraMultiEq = Array.from(regraEspecificaIds.values()).some((s) => s.size > 1);
 
   const aplicar = async () => {
-    if (!podeAplicar) { toast.error("Status atual permite apenas simulação"); return; }
-    if (motivo.trim().length < 5) { toast.error("Informe um motivo (mínimo 5 caracteres)"); return; }
+    if (!podeAplicar) { notify.error("Status atual permite apenas simulação"); return; }
+    if (motivo.trim().length < 5) { notify.error("Informe um motivo (mínimo 5 caracteres)"); return; }
     if (regraMultiEq && !confirmaMultiplos) {
-      toast.error("Confirme explicitamente a aplicação de regra específica em múltiplos equipamentos");
+      notify.error("Confirme explicitamente a aplicação de regra específica em múltiplos equipamentos");
       return;
     }
     setAplicando(true);
     const { error } = await supabase.rpc("aplicar_regras_medicao", { _medicao_id: medicaoId, _motivo: motivo.trim() } as any);
     setAplicando(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Regras aplicadas e medição recalculada");
+    if (error) { notify.error(error.message); return; }
+    notify.success("Regras aplicadas e medição recalculada");
     setOpen(false); setMotivo(""); setResultado(null); setConfirmaMultiplos(false);
     onApplied?.();
   };

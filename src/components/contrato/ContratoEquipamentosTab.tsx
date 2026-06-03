@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { fmtBRL, fmtDate, fmtNum } from "@/lib/format";
 
 export default function ContratoEquipamentosTab({ contratoId }: { contratoId: string }) {
@@ -28,7 +28,7 @@ export default function ContratoEquipamentosTab({ contratoId }: { contratoId: st
   }, [contratoId]);
 
   const add = async () => {
-    if (!form.equipamento_id || !form.data_inicio) { toast.error("Equipamento e data início obrigatórios"); return; }
+    if (!form.equipamento_id || !form.data_inicio) { notify.error("Equipamento e data início obrigatórios"); return; }
     const payload: any = {
       contrato_id: contratoId,
       equipamento_id: form.equipamento_id,
@@ -38,7 +38,7 @@ export default function ContratoEquipamentosTab({ contratoId }: { contratoId: st
       valor_hora_override: form.valor_hora_override ? Number(form.valor_hora_override) : null,
     };
     const { error } = await supabase.from("contrato_equipamentos").insert(payload);
-    if (error) toast.error(error.message); else { toast.success("Vinculado"); setOpen(false); load(); }
+    if (error) notify.error(error.message); else { notify.success("Vinculado"); setOpen(false); load(); }
   };
 
   const remove = async (id: string) => {

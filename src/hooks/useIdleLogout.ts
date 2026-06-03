@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 
 // 8 horas
 const IDLE_MS = 8 * 60 * 60 * 1000;
@@ -22,7 +22,7 @@ export function useIdleLogout(enabled: boolean) {
       try {
         await supabase.auth.signOut();
       } finally {
-        toast("Sessão expirada por inatividade.", { duration: 6000 });
+        notify.message("Sessão expirada por inatividade.", { duration: 6000 });
         navigate("/auth", { replace: true });
       }
     };

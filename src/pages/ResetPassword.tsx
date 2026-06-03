@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { HardHat, Loader2 } from "lucide-react";
 import { validarSenha } from "@/lib/passwordPolicy";
 import { PasswordStrengthMeter } from "@/components/auth/PasswordStrengthMeter";
@@ -50,7 +50,7 @@ export default function ResetPassword() {
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session) setReady(true);
         else {
-          toast.error("Link de recuperação inválido ou expirado");
+          notify.error("Link de recuperação inválido ou expirado");
           navigate("/auth", { replace: true });
         }
       });
@@ -61,8 +61,8 @@ export default function ResetPassword() {
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password: data.password });
     setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Senha atualizada! Faça login novamente.");
+    if (error) return notify.error(error.message);
+    notify.success("Senha atualizada! Faça login novamente.");
     await supabase.auth.signOut();
     navigate("/auth", { replace: true });
   };

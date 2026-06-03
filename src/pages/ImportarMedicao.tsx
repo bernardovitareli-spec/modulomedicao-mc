@@ -26,7 +26,7 @@ const TIPOS_SERVICO_M1 = [
   "Plano de chuva",
   "Outro",
 ];
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { fmtBRL, fmtCompetencia, fmtDate, fmtNum } from "@/lib/format";
 import { calcularItem } from "@/lib/calculo";
 
@@ -381,7 +381,7 @@ export default function ImportarMedicao() {
     const result = parseM4(wb, sheetName);
     if (!result.ok) {
       setHeaderError(result.motivo ?? "Não foi possível ler M4");
-      toast.error(result.motivo ?? "Não foi possível ler M4");
+      notify.error(result.motivo ?? "Não foi possível ler M4");
       return;
     }
     setModelo("M4");
@@ -427,7 +427,7 @@ export default function ImportarMedicao() {
 
     setLinhas(lidas);
     setIgnoradas(result.ignoradas.map((i) => ({ rowExcel: i.rowExcel, motivo: i.motivo, preview: i.preview })));
-    toast.success(`Modelo M4 • ${lidas.length} linha(s) lidas, ${result.ignoradas.length} ignorada(s).`);
+    notify.success(`Modelo M4 • ${lidas.length} linha(s) lidas, ${result.ignoradas.length} ignorada(s).`);
   };
 
   // Converte uma linha M3 para o formato LinhaLida usado pelo restante do fluxo.
@@ -482,7 +482,7 @@ export default function ImportarMedicao() {
     const result = parseM3(wb, sheetName);
     if (!result.ok) {
       setHeaderError(result.motivo ?? "Não foi possível ler M3");
-      toast.error(result.motivo ?? "Não foi possível ler M3");
+      notify.error(result.motivo ?? "Não foi possível ler M3");
       return;
     }
     setModelo("M3");
@@ -527,7 +527,7 @@ export default function ImportarMedicao() {
 
     setLinhas(lidas);
     setIgnoradas(result.ignoradas.map((i) => ({ rowExcel: i.rowExcel, motivo: i.motivo, preview: i.preview })));
-    toast.success(`Modelo M3 • ${lidas.length} linha(s) lidas, ${result.ignoradas.length} ignorada(s).`);
+    notify.success(`Modelo M3 • ${lidas.length} linha(s) lidas, ${result.ignoradas.length} ignorada(s).`);
   };
 
   const onFile = async (file: File) => {
@@ -585,7 +585,7 @@ export default function ImportarMedicao() {
           } else {
             const msg = `Não foi possível identificar o layout da planilha. Esperadas as abas "${SHEET_MODELO_1}" ou "${SHEET_MODELO_2}", ou um cabeçalho reconhecível.`;
             setHeaderError(msg);
-            toast.error(msg);
+            notify.error(msg);
             setHeaderInfo(tryM1.missingRequired.length <= tryM2.missingRequired.length ? tryM1 : tryM2);
             return;
           }
@@ -601,7 +601,7 @@ export default function ImportarMedicao() {
       if (hdr.rowIndex < 0 || hdr.missingRequired.length > 0) {
         const msg = `Modelo ${modeloDetectado} (aba "${sheetName}"): cabeçalho não localizado. Colunas obrigatórias ausentes: ${hdr.missingRequired.join(", ")}`;
         setHeaderError(msg);
-        toast.error(msg);
+        notify.error(msg);
         return;
       }
 
@@ -768,9 +768,9 @@ export default function ImportarMedicao() {
 
       setLinhas(lidas);
       setIgnoradas(ign);
-      toast.success(`Modelo ${modeloDetectado} • ${lidas.length} linha(s) lidas, ${ign.length} ignorada(s).`);
+      notify.success(`Modelo ${modeloDetectado} • ${lidas.length} linha(s) lidas, ${ign.length} ignorada(s).`);
     } catch (e: any) {
-      toast.error("Erro ao ler planilha: " + e.message);
+      notify.error("Erro ao ler planilha: " + e.message);
     }
   };
 
@@ -902,7 +902,7 @@ export default function ImportarMedicao() {
   const normCNPJ = (s: string) => (s || "").replace(/\D/g, "");
 
   const confirmar = async () => {
-    if (!podeImportar) { toast.error("Não é possível importar"); return; }
+    if (!podeImportar) { notify.error("Não é possível importar"); return; }
     setImporting(true);
     try {
       // Etapa 1: preparar caches e resolver cliente/contrato (sem gravar itens ainda)
@@ -1071,7 +1071,7 @@ export default function ImportarMedicao() {
         new Set(),
       );
     } catch (e: any) {
-      toast.error("Erro: " + e.message);
+      notify.error("Erro: " + e.message);
       setImporting(false);
     }
   };
@@ -1113,7 +1113,7 @@ export default function ImportarMedicao() {
 
       await executarImportacao(pendingCtx, medicaoIdsResolvidos, skipChaves);
     } catch (e: any) {
-      toast.error("Erro: " + e.message);
+      notify.error("Erro: " + e.message);
       setImporting(false);
     } finally {
       setPendingCtx(null);
@@ -1126,7 +1126,7 @@ export default function ImportarMedicao() {
     setConflitos([]);
     setPendingCtx(null);
     setImporting(false);
-    toast.info("Importação cancelada pelo usuário.");
+    notify.info("Importação cancelada pelo usuário.");
   };
 
   const executarImportacao = async (
@@ -1400,10 +1400,10 @@ export default function ImportarMedicao() {
       }
 
       const skipMsg = skippedItens > 0 ? ` (${skippedItens} linha(s) puladas por escolha do usuário)` : "";
-      toast.success(`Importação concluída: ${createdItens} itens em ${medicoesCache.size} medição(ões)${skipMsg}. ${createdCli} clientes, ${createdCtr} contratos, ${createdEqp} equipamentos novos.`);
+      notify.success(`Importação concluída: ${createdItens} itens em ${medicoesCache.size} medição(ões)${skipMsg}. ${createdCli} clientes, ${createdCtr} contratos, ${createdEqp} equipamentos novos.`);
       navigate("/medicoes");
     } catch (e: any) {
-      toast.error("Erro: " + e.message);
+      notify.error("Erro: " + e.message);
     } finally { setImporting(false); }
   };
 

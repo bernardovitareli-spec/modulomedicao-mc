@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 
 interface CampoConfig {
   name: string;
@@ -43,12 +43,12 @@ export function AcaoMedicaoDialog({
 
   const handle = async () => {
     if (motivoObrigatorio && motivo.trim().length < 5) {
-      toast.error("Motivo obrigatório (mínimo 5 caracteres)");
+      notify.error("Motivo obrigatório (mínimo 5 caracteres)");
       return;
     }
     for (const c of campos) {
       if (c.required && !String(values[c.name] ?? "").trim()) {
-        toast.error(`${c.label} é obrigatório`);
+        notify.error(`${c.label} é obrigatório`);
         return;
       }
     }
@@ -58,7 +58,7 @@ export function AcaoMedicaoDialog({
       reset();
       onOpenChange(false);
     } catch (e: any) {
-      toast.error(e.message ?? "Falha na operação");
+      notify.error(e.message ?? "Falha na operação");
     } finally {
       setBusy(false);
     }

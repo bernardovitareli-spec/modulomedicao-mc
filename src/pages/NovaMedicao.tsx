@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Save } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 
 export default function NovaMedicao() {
   const navigate = useNavigate();
@@ -52,8 +52,8 @@ export default function NovaMedicao() {
   }, [form.competencia]);
 
   const submit = async () => {
-    if (!form.contrato_id) return toast.error("Selecione um contrato");
-    if (!form.periodo_inicio || !form.periodo_fim) return toast.error("Defina o período");
+    if (!form.contrato_id) return notify.error("Selecione um contrato");
+    if (!form.periodo_inicio || !form.periodo_fim) return notify.error("Defina o período");
     setSaving(true);
     const { data, error } = await supabase
       .from("medicoes")
@@ -69,8 +69,8 @@ export default function NovaMedicao() {
       .select("id")
       .single();
     setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("Medição criada");
+    if (error) return notify.error(error.message);
+    notify.success("Medição criada");
     navigate(`/medicoes/${data!.id}`);
   };
 

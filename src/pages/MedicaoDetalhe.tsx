@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { usePermissions } from "@/lib/permissions";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { gerarBoletimPDF } from "@/lib/boletimPdf";
 import { MedicaoItensEditor } from "@/components/medicao/MedicaoItensEditor";
 import { MedicaoHistoricoTab } from "@/components/medicao/MedicaoHistoricoTab";
@@ -62,8 +62,8 @@ export default function MedicaoDetalhe() {
     setBusy(true);
     const { error } = await supabase.rpc("delete_medicao_safe", { _medicao_id: id, _motivo: motivo });
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Medição excluída.");
+    if (error) { notify.error(error.message); return; }
+    notify.success("Medição excluída.");
     navigate("/medicoes");
   };
 
@@ -72,8 +72,8 @@ export default function MedicaoDetalhe() {
     setBusy(true);
     const { error } = await supabase.rpc("cancel_medicao", { _medicao_id: id, _motivo: motivo });
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Medição cancelada.");
+    if (error) { notify.error(error.message); return; }
+    notify.success("Medição cancelada.");
     load();
   };
 
@@ -84,21 +84,21 @@ export default function MedicaoDetalhe() {
       _medicao_id: id,
       _motivo: motivo,
     });
-    if (error) { toast.error(error.message); throw error; }
-    toast.success("Medição reaberta como rascunho.");
+    if (error) { notify.error(error.message); throw error; }
+    notify.success("Medição reaberta como rascunho.");
     load();
   };
 
   const exportarPDF = async (preview = false, modo: "interno" | "cliente" = "interno") => {
     if (!id) return;
     if (med?.status === "cancelada") {
-      toast.error("Não é permitido gerar PDF de medição cancelada.");
+      notify.error("Não é permitido gerar PDF de medição cancelada.");
       return;
     }
     try {
       await gerarBoletimPDF(id, { preview, modo });
     } catch (e: any) {
-      toast.error(e.message ?? "Falha ao gerar PDF");
+      notify.error(e.message ?? "Falha ao gerar PDF");
     }
   };
 

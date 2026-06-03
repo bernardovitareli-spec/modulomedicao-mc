@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, FileText, Save, AlertTriangle } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { fmtBRL, fmtDate, fmtCompetencia } from "@/lib/format";
 import { gerarNotaLocacaoPDF, getLogoDataUrl } from "@/lib/notaLocacaoPdf";
 import { usePermissions } from "@/lib/permissions";
@@ -59,7 +59,7 @@ export default function GerarNotaLocacao() {
         .eq("id", id).single(),
       supabase.from("empresa_emissora").select("*").order("padrao", { ascending: false }).limit(1).maybeSingle(),
     ]);
-    if (r1.error || !r1.data) { toast.error("Faturamento não encontrado"); setLoading(false); return; }
+    if (r1.error || !r1.data) { notify.error("Faturamento não encontrado"); setLoading(false); return; }
     const f = r1.data as any;
     const med = f.medicoes;
     const ctr = med?.contratos;
@@ -179,7 +179,7 @@ export default function GerarNotaLocacao() {
 
   const previewPDF = async () => {
     if (vencAntesEmissao) {
-      toast.error("A data de vencimento não pode ser anterior à data de emissão.");
+      notify.error("A data de vencimento não pode ser anterior à data de emissão.");
       return;
     }
     const doc = await buildPDF();
@@ -188,7 +188,7 @@ export default function GerarNotaLocacao() {
 
   const salvarRascunho = async () => {
     if (vencAntesEmissao) {
-      toast.error("A data de vencimento não pode ser anterior à data de emissão.");
+      notify.error("A data de vencimento não pode ser anterior à data de emissão.");
       return;
     }
     setBusy(true);
@@ -198,32 +198,32 @@ export default function GerarNotaLocacao() {
       empresa_emissora_id: emissora?.id ?? null,
     } as any).eq("id", id!);
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) { notify.error(error.message); return; }
     await supabase.from("faturamento_historico").insert({
       fatura_id: id!,
       medicao_id: data.fatura.medicao_id,
       acao: "rascunho_nota_salvo",
       motivo: "Rascunho da Nota de Locação",
     } as any);
-    toast.success("Rascunho da nota salvo");
+    notify.success("Rascunho da nota salvo");
   };
 
   const confirmarEmissao = async () => {
     if (vencAntesEmissao) {
-      toast.error("A data de vencimento não pode ser anterior à data de emissão.");
+      notify.error("A data de vencimento não pode ser anterior à data de emissão.");
       return;
     }
     if (camposClienteFaltando.length) {
-      toast.error("Dados cadastrais do cliente incompletos. Atualize o cadastro do cliente antes de emitir a nota.");
+      notify.error("Dados cadastrais do cliente incompletos. Atualize o cadastro do cliente antes de emitir a nota.");
       return;
     }
     if (!form.local_servico) {
-      toast.error("Informe o Local do Serviço antes de emitir a nota.");
+      notify.error("Informe o Local do Serviço antes de emitir a nota.");
       return;
     }
-    if (pendentes.length) { toast.error("Preencha os campos pendentes"); return; }
+    if (pendentes.length) { notify.error("Preencha os campos pendentes"); return; }
     if (valorDifere && motivoDif.trim().length < 5) {
-      toast.error("Informe o motivo da diferença de valor (mín. 5 caracteres)");
+      notify.error("Informe o motivo da diferença de valor (mín. 5 caracteres)");
       return;
     }
     setBusy(true);
@@ -263,10 +263,10 @@ export default function GerarNotaLocacao() {
       } as any);
 
       doc.save(`nota-${form.numero_nf}.pdf`);
-      toast.success("Nota de Locação emitida e anexada ao faturamento");
+      notify.success("Nota de Locação emitida e anexada ao faturamento");
       nav(`/faturamento/${id}`);
     } catch (e: any) {
-      toast.error(e.message ?? "Falha ao gerar nota");
+      notify.error(e.message ?? "Falha ao gerar nota");
     } finally {
       setBusy(false);
     }

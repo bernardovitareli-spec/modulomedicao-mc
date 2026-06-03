@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, Pencil } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { fmtDate } from "@/lib/format";
 import { TIPOS_REGRA, labelTipo } from "@/lib/regras";
 
@@ -93,16 +93,16 @@ export default function ContratoRegrasTab({ contratoId }: { contratoId: string }
 
   const save = async () => {
     if (!form.tipo || !form.vigencia_inicio) {
-      toast.error("Tipo e vigência início são obrigatórios"); return;
+      notify.error("Tipo e vigência início são obrigatórios"); return;
     }
     if (form.vigencia_fim && form.vigencia_fim < form.vigencia_inicio) {
-      toast.error("Vigência fim deve ser posterior ao início"); return;
+      notify.error("Vigência fim deve ser posterior ao início"); return;
     }
     if (form.escopo === "tipo" && !form.tipo_equipamento) {
-      toast.error("Selecione o tipo de equipamento"); return;
+      notify.error("Selecione o tipo de equipamento"); return;
     }
     if (form.escopo === "equipamento" && !form.equipamento_id) {
-      toast.error("Selecione o equipamento"); return;
+      notify.error("Selecione o equipamento"); return;
     }
 
     const payload: any = {
@@ -125,13 +125,13 @@ export default function ContratoRegrasTab({ contratoId }: { contratoId: string }
     }
     if (error) {
       if (String(error.message).includes("uniq_contrato_regra_escopo")) {
-        toast.error("Já existe uma regra ativa com o mesmo tipo, escopo e vigência.");
+        notify.error("Já existe uma regra ativa com o mesmo tipo, escopo e vigência.");
       } else {
-        toast.error(error.message);
+        notify.error(error.message);
       }
       return;
     }
-    toast.success(editId ? "Regra atualizada" : "Regra criada");
+    notify.success(editId ? "Regra atualizada" : "Regra criada");
     setOpen(false); load();
   };
 

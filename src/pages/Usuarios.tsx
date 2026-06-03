@@ -15,7 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { fmtDate } from "@/lib/format";
 import { usePermissions, ROLE_LABELS, AppRole } from "@/lib/permissions";
 import { Navigate } from "react-router-dom";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { Check, X, Users as UsersIcon } from "lucide-react";
 
 type Pendente = { user_id: string; email: string; solicitado_em: string };
@@ -49,8 +49,8 @@ export default function Usuarios() {
       supabase.rpc("admin_list_pendentes"),
       supabase.from("clientes").select("id, razao_social").order("razao_social"),
     ]);
-    if (u.error) toast.error(u.error.message); else setUsers((u.data as any) ?? []);
-    if (p.error) toast.error(p.error.message); else setPendentes((p.data as any) ?? []);
+    if (u.error) notify.error(u.error.message); else setUsers((u.data as any) ?? []);
+    if (p.error) notify.error(p.error.message); else setPendentes((p.data as any) ?? []);
     if (!c.error) setClientes((c.data as any) ?? []);
   };
 
@@ -60,8 +60,8 @@ export default function Usuarios() {
 
   const setRole = async (uid: string, role: AppRole) => {
     const { error } = await supabase.rpc("admin_set_user_role", { _target_user: uid, _role: role });
-    if (error) return toast.error(error.message);
-    toast.success("Perfil atualizado");
+    if (error) return notify.error(error.message);
+    notify.success("Perfil atualizado");
     load();
   };
 
@@ -75,8 +75,8 @@ export default function Usuarios() {
       _role: aprovRole,
       _cliente_ids: aprovRole === "visualizacao" ? aprovClientes : null,
     });
-    if (error) return toast.error(error.message);
-    toast.success("Usuário aprovado");
+    if (error) return notify.error(error.message);
+    notify.success("Usuário aprovado");
     setAprovOpen(false); load();
   };
 
@@ -84,8 +84,8 @@ export default function Usuarios() {
   const confirmRejeitar = async () => {
     if (!rejUser) return;
     const { error } = await supabase.rpc("admin_rejeitar_usuario", { _user_id: rejUser.user_id, _motivo: rejMotivo });
-    if (error) return toast.error(error.message);
-    toast.success("Cadastro rejeitado");
+    if (error) return notify.error(error.message);
+    notify.success("Cadastro rejeitado");
     setRejOpen(false); load();
   };
 
@@ -98,8 +98,8 @@ export default function Usuarios() {
   const confirmVinculos = async () => {
     if (!vincUser) return;
     const { error } = await supabase.rpc("admin_set_user_clientes", { _user_id: vincUser.user_id, _cliente_ids: vincClientes });
-    if (error) return toast.error(error.message);
-    toast.success("Vínculos atualizados");
+    if (error) return notify.error(error.message);
+    notify.success("Vínculos atualizados");
     setVincOpen(false);
   };
 
