@@ -66,6 +66,7 @@ const App = () => (
               <Route path="/faturamento/:id/nota-locacao" element={<GerarNotaLocacao />} />
               <Route path="/empresa-emissora" element={<EmpresaEmissora />} />
               <Route path="/relatorios" element={<Relatorios />} />
+              <Route path="/relatorios/status-competencia" element={<RelatorioStatusCompetencia />} />
               <Route path="/historico" element={<Historico />} />
               <Route path="/auditoria" element={<Auditoria />} />
               <Route path="/admin/limpar-importacao" element={<LimparImportacao />} />
