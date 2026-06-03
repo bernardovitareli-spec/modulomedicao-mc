@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIdleLogout } from "@/hooks/useIdleLogout";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { RouteErrorBoundary } from "./RouteErrorBoundary";
 
 export default function AppLayout() {
   const { user, session, loading, roles } = useAuth();
@@ -65,7 +66,9 @@ export default function AppLayout() {
             </div>
           </header>
           <main className="flex-1 overflow-x-hidden p-4 md:p-6">
-            <Outlet />
+            <RouteErrorBoundary>
+              <Outlet />
+            </RouteErrorBoundary>
           </main>
         </div>
       </div>
