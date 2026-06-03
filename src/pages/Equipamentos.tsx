@@ -43,7 +43,7 @@ export default function Equipamentos() {
     setOpen(false);
   });
 
-  const filtered = list.filter((e: Record<string, string>) =>
+  const filtered = list.filter((e) =>
     !search || e.tag.toLowerCase().includes(search.toLowerCase()) || e.modelo.toLowerCase().includes(search.toLowerCase()),
   );
 
@@ -68,7 +68,7 @@ export default function Equipamentos() {
               </TableRow></TableHeader>
               <TableBody>
                 {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-sm text-muted-foreground">Nenhum equipamento.</TableCell></TableRow>}
-                {filtered.map((e: Record<string, string | number>) => (
+                {filtered.map((e) => (
                   <TableRow key={e.id}>
                     <TableCell className="font-mono font-semibold">{e.tag}</TableCell>
                     <TableCell>{e.tipo}</TableCell>
@@ -76,7 +76,7 @@ export default function Equipamentos() {
                     <TableCell className="text-sm">{e.serie ?? "—"}</TableCell>
                     <TableCell>{e.ano ?? "—"}</TableCell>
                     <TableCell><Badge variant={e.status === "ativo" ? "default" : e.status === "manutencao" ? "secondary" : "outline"}>{e.status}</Badge></TableCell>
-                    <TableCell><Button size="icon" variant="ghost" onClick={() => openEdit(e)}><Pencil className="h-4 w-4" /></Button></TableCell>
+                    <TableCell><Button size="icon" variant="ghost" onClick={() => openEdit(e as unknown as Record<string, unknown>)}><Pencil className="h-4 w-4" /></Button></TableCell>
                   </TableRow>
                 ))}
               </TableBody>

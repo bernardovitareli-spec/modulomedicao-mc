@@ -31,7 +31,7 @@ const novaMedicaoSchema = z.object({
   }
 });
 
-type NovaMedicaoData = z.infer<typeof novaMedicaoSchema>;
+type NovaMedicaoData = z.input<typeof novaMedicaoSchema>;
 
 export default function NovaMedicao() {
   const navigate = useNavigate();
