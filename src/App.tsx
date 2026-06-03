@@ -8,6 +8,7 @@ import AppLayout from "@/components/AppLayout";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
+import AguardandoAprovacao from "./pages/AguardandoAprovacao";
 import Clientes from "./pages/Clientes";
 import Equipamentos from "./pages/Equipamentos";
 import Contratos from "./pages/Contratos";
