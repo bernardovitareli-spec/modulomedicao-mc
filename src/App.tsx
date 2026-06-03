@@ -33,6 +33,7 @@ import NotFound from "./pages/NotFound";
 import Auditoria from "./pages/Auditoria";
 import LimparImportacao from "./pages/LimparImportacao";
 import Usuarios from "./pages/Usuarios";
+import ContaSeguranca from "./pages/ContaSeguranca";
 
 const queryClient = new QueryClient();
 
