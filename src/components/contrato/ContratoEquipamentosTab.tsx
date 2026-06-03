@@ -42,8 +42,18 @@ export default function ContratoEquipamentosTab({ contratoId }: { contratoId: st
   };
 
   const remove = async (id: string) => {
-    if (!confirm("Remover vínculo?")) return;
-    await supabase.from("contrato_equipamentos").delete().eq("id", id);
+    const reason = await confirm({
+      title: "Remover vínculo do equipamento?",
+      description: "O equipamento será desvinculado deste contrato. Medições já existentes não serão afetadas.",
+      variant: "destructive",
+      confirmLabel: "Remover",
+      requireReason: true,
+      reasonPlaceholder: "Ex.: equipamento substituído pelo cliente",
+    });
+    if (reason === null) return;
+    const { error } = await supabase.from("contrato_equipamentos").delete().eq("id", id);
+    if (error) { notify.error(error.message); return; }
+    notify.success("Vínculo removido.");
     load();
   };
 
