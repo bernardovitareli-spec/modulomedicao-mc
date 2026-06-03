@@ -1,21 +1,15 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { fmtDate } from "@/lib/format";
+import { useAuditList } from "@/data/audit";
+import { TableSkeleton } from "@/components/skeletons";
 
 export default function Historico() {
-  const [list, setList] = useState<any[]>([]);
   const [ent, setEnt] = useState("todas");
-
-  useEffect(() => {
-    let q = supabase.from("audit_log").select("*").order("created_at", { ascending: false }).limit(200);
-    if (ent !== "todas") q = q.eq("entidade", ent);
-    q.then(({ data }) => setList(data ?? []));
-  }, [ent]);
+  const { data: list = [], isLoading } = useAuditList({ entidade: ent, limit: 200 });
 
   return (
     <div>
@@ -36,11 +30,12 @@ export default function Historico() {
             </SelectContent>
           </Select>
         </div>
+        {isLoading ? <TableSkeleton cols={4} rows={8} /> : (
         <Table>
           <TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Entidade</TableHead><TableHead>Ação</TableHead><TableHead>ID</TableHead></TableRow></TableHeader>
           <TableBody>
             {list.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-8 text-sm text-muted-foreground">Sem registros.</TableCell></TableRow>}
-            {list.map((l) => (
+            {list.map((l: any) => (
               <TableRow key={l.id}>
                 <TableCell className="text-xs num">{new Date(l.created_at).toLocaleString("pt-BR")}</TableCell>
                 <TableCell className="text-sm">{l.entidade}</TableCell>
@@ -50,6 +45,7 @@ export default function Historico() {
             ))}
           </TableBody>
         </Table>
+        )}
       </CardContent></Card>
     </div>
   );

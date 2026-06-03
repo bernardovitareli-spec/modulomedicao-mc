@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,63 +13,45 @@ import { StatusBadge } from "@/components/contrato/ContratoMedicoesTab";
 import { Badge } from "@/components/ui/badge";
 import { usePermissions } from "@/lib/permissions";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
-import { notify } from "@/lib/notify";
+import {
+  useMedicoesList,
+  useMedicoesVersionCounts,
+  useDeletarMedicao,
+  useCancelarMedicao,
+} from "@/data/medicoes";
+import { TableSkeleton } from "@/components/skeletons";
 
 export default function Medicoes() {
   const navigate = useNavigate();
   const perms = usePermissions();
-  const [list, setList] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("todos");
   const [versaoFilter, setVersaoFilter] = useState<"ativas" | "todas" | "inativas" | "canceladas">("ativas");
   const [delTarget, setDelTarget] = useState<any>(null);
   const [cancelTarget, setCancelTarget] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
 
-  const [versionCounts, setVersionCounts] = useState<Record<string, number>>({});
+  const { data: list = [], isLoading } = useMedicoesList({ status, versao: versaoFilter });
+  const { data: versionCounts = {} } = useMedicoesVersionCounts();
+  const deletar = useDeletarMedicao();
+  const cancelar = useCancelarMedicao();
 
-  const load = async () => {
-    let q = supabase.from("medicoes").select("*, contratos(numero_dj, clientes(razao_social))").order("competencia", { ascending: false });
-    if (status !== "todos") q = q.eq("status", status as any);
-    if (versaoFilter === "ativas") q = q.eq("ativa", true);
-    else if (versaoFilter === "inativas") q = q.eq("ativa", false);
-    else if (versaoFilter === "canceladas") q = q.eq("status", "cancelada" as any);
-    const { data } = await q;
-    setList(data ?? []);
-
-    // Calcula contagem de versões por cadeia (medicao_original_id ou id)
-    const { data: all } = await supabase.from("medicoes").select("id, medicao_original_id");
-    const counts: Record<string, number> = {};
-    (all ?? []).forEach((m: any) => {
-      const k = m.medicao_original_id ?? m.id;
-      counts[k] = (counts[k] ?? 0) + 1;
-    });
-    setVersionCounts(counts);
-  };
-  useEffect(() => { load(); }, [status, versaoFilter]);
-
-  const filtered = list.filter((m) =>
+  const filtered = list.filter((m: any) =>
     !search || m.contratos?.numero_dj?.toLowerCase().includes(search.toLowerCase()) || m.contratos?.clientes?.razao_social?.toLowerCase().includes(search.toLowerCase()),
   );
 
   const onDelete = async (motivo: string): Promise<void> => {
     if (!delTarget) return;
-    setLoading(true);
-    const { error } = await supabase.rpc("delete_medicao_safe", { _medicao_id: delTarget.id, _motivo: motivo });
-    setLoading(false);
-    if (error) { notify.error(error.message); return; }
-    notify.success("Medição excluída");
-    setDelTarget(null); load();
+    try {
+      await deletar.mutateAsync({ id: delTarget.id, motivo });
+      setDelTarget(null);
+    } catch { /* notify já feito */ }
   };
-
   const onCancel = async (motivo: string): Promise<void> => {
     if (!cancelTarget) return;
-    setLoading(true);
-    const { error } = await supabase.rpc("cancel_medicao", { _medicao_id: cancelTarget.id, _motivo: motivo });
-    setLoading(false);
-    if (error) { notify.error(error.message); return; }
-    notify.success("Medição cancelada");
-    setCancelTarget(null); load();
+    try {
+      await cancelar.mutateAsync({ id: cancelTarget.id, motivo });
+      setCancelTarget(null);
+    } catch { /* notify já feito */ }
   };
 
   return (
@@ -115,6 +96,7 @@ export default function Medicoes() {
           </Select>
           <span className="ml-auto text-xs text-muted-foreground">{filtered.length} medição(ões)</span>
         </div>
+        {isLoading ? <TableSkeleton cols={7} rows={8} /> : (
         <Table>
           <TableHeader><TableRow>
             <TableHead>Competência</TableHead><TableHead>Contrato</TableHead><TableHead>Cliente</TableHead>
@@ -123,7 +105,7 @@ export default function Medicoes() {
           </TableRow></TableHeader>
           <TableBody>
             {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-sm text-muted-foreground">Nenhuma medição.</TableCell></TableRow>}
-            {filtered.map((m) => {
+            {filtered.map((m: any) => {
               const podeExcluir = perms.canDeleteMedicao(m.status);
               const podeCancelar = perms.canCancelMedicao(m.status);
               const podeEditar = perms.canEditMedicao(m.status);
@@ -184,6 +166,7 @@ export default function Medicoes() {
             })}
           </TableBody>
         </Table>
+        )}
       </CardContent></Card>
 
       <DeleteConfirmDialog
@@ -192,7 +175,7 @@ export default function Medicoes() {
         title="Excluir medição"
         message="Tem certeza que deseja excluir esta medição? Esta ação removerá todos os itens da medição e não poderá ser desfeita."
         confirmWord="EXCLUIR"
-        loading={loading}
+        loading={deletar.isPending}
         onConfirm={onDelete}
       />
       <DeleteConfirmDialog
@@ -201,7 +184,7 @@ export default function Medicoes() {
         title="Cancelar medição"
         message="Cancelar mantém o histórico e marca o status como 'cancelada'. Informe o motivo."
         confirmWord="CANCELAR"
-        loading={loading}
+        loading={cancelar.isPending}
         onConfirm={onCancel}
       />
     </div>

@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,16 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Search } from "lucide-react";
 import { notify } from "@/lib/notify";
 import { fmtCNPJ } from "@/lib/format";
-
-type Cliente = {
-  id: string; razao_social: string; nome_fantasia: string | null; cnpj: string;
-  cidade: string | null; uf: string | null; status: string; contato_email: string | null;
-};
+import { useClientesList, useSalvarCliente } from "@/data/clientes";
+import { TableSkeleton } from "@/components/skeletons";
 
 const empty = {
   razao_social: "", nome_fantasia: "", cnpj: "", inscricao_estadual: "",
@@ -25,33 +21,27 @@ const empty = {
 };
 
 export default function Clientes() {
-  const [list, setList] = useState<Cliente[]>([]);
+  const { data: list = [], isLoading } = useClientesList();
+  const salvar = useSalvarCliente();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState(empty);
-
-  const load = async () => {
-    const { data } = await supabase.from("clientes").select("*").order("razao_social");
-    setList((data ?? []) as Cliente[]);
-  };
-  useEffect(() => { load(); }, []);
+  const [form, setForm] = useState<any>(empty);
 
   const openNew = () => { setEditing(null); setForm(empty); setOpen(true); };
   const openEdit = (c: any) => { setEditing(c); setForm({ ...empty, ...c }); setOpen(true); };
 
-  const save = async () => {
+  const handleSave = async () => {
     if (!form.razao_social || !form.cnpj) { notify.error("Razão social e CNPJ obrigatórios"); return; }
     const cnpjLimpo = form.cnpj.replace(/\D/g, "");
     const payload: any = { ...form, cnpj: cnpjLimpo };
-    const r = editing
-      ? await supabase.from("clientes").update(payload).eq("id", editing.id)
-      : await supabase.from("clientes").insert(payload);
-    if (r.error) notify.error(r.error.message);
-    else { notify.success("Cliente salvo"); setOpen(false); load(); }
+    try {
+      await salvar.mutateAsync({ id: editing?.id, payload });
+      setOpen(false);
+    } catch { /* notify já feito */ }
   };
 
-  const filtered = list.filter((c) =>
+  const filtered = list.filter((c: any) =>
     !search || c.razao_social.toLowerCase().includes(search.toLowerCase()) || c.cnpj.includes(search.replace(/\D/g, "")),
   );
 
@@ -70,6 +60,9 @@ export default function Clientes() {
             </div>
             <span className="ml-auto text-xs text-muted-foreground">{filtered.length} cliente(s)</span>
           </div>
+          {isLoading ? (
+            <TableSkeleton cols={6} rows={6} />
+          ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -84,7 +77,7 @@ export default function Clientes() {
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">Nenhum cliente cadastrado.</TableCell></TableRow>}
-                {filtered.map((c) => (
+                {filtered.map((c: any) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-medium">{c.razao_social}{c.nome_fantasia && <div className="text-xs text-muted-foreground">{c.nome_fantasia}</div>}</TableCell>
                     <TableCell className="num">{fmtCNPJ(c.cnpj)}</TableCell>
@@ -97,6 +90,7 @@ export default function Clientes() {
               </TableBody>
             </Table>
           </div>
+          )}
         </CardContent>
       </Card>
 
@@ -119,7 +113,7 @@ export default function Clientes() {
             <Field label="Telefone" v={form.contato_telefone} on={(v) => setForm({ ...form, contato_telefone: v })} />
             <div className="md:col-span-2"><Label>Observações</Label><Textarea value={form.observacoes ?? ""} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} /></div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button onClick={save}>Salvar</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button onClick={handleSave} disabled={salvar.isPending}>Salvar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

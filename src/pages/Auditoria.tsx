@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,24 +8,19 @@ import { fmtDate } from "@/lib/format";
 import { usePermissions } from "@/lib/permissions";
 import { Navigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { useAuditList } from "@/data/audit";
+import { TableSkeleton } from "@/components/skeletons";
 
 export default function Auditoria() {
   const { canViewAudit } = usePermissions();
-  const [list, setList] = useState<any[]>([]);
   const [search, setSearch] = useState("");
-
-  useEffect(() => {
-    if (!canViewAudit) return;
-    supabase.from("audit_log").select("*").order("created_at", { ascending: false }).limit(500)
-      .then(({ data }) => setList(data ?? []));
-  }, [canViewAudit]);
+  const { data: list = [], isLoading } = useAuditList({ limit: 500 });
 
   if (!canViewAudit) return <Navigate to="/" replace />;
 
-  const filtered = list.filter((l) => {
+  const filtered = list.filter((l: any) => {
     if (!search) return true;
-    const s = search.toLowerCase();
-    return JSON.stringify(l).toLowerCase().includes(s);
+    return JSON.stringify(l).toLowerCase().includes(search.toLowerCase());
   });
 
   return (
@@ -40,6 +34,7 @@ export default function Auditoria() {
           </div>
           <span className="ml-auto text-xs text-muted-foreground">{filtered.length} registro(s)</span>
         </div>
+        {isLoading ? <TableSkeleton cols={7} rows={8} /> : (
         <Table>
           <TableHeader><TableRow>
             <TableHead>Data/hora</TableHead>
@@ -54,7 +49,7 @@ export default function Auditoria() {
             {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-sm text-muted-foreground">
               <ShieldAlert className="mx-auto mb-2 h-6 w-6" />Nenhum registro
             </TableCell></TableRow>}
-            {filtered.map((l) => {
+            {filtered.map((l: any) => {
               const ctx = l.contexto || {};
               return (
                 <TableRow key={l.id}>
@@ -75,6 +70,7 @@ export default function Auditoria() {
             })}
           </TableBody>
         </Table>
+        )}
       </CardContent></Card>
     </div>
   );

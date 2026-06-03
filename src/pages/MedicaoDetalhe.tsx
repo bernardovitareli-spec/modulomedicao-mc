@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,74 +24,63 @@ import { MedicaoVersoesTab } from "@/components/medicao/MedicaoVersoesTab";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { labelStatus } from "@/lib/medicaoStatus";
 import { CriarFaturamentoButton } from "@/components/faturamento/CriarFaturamentoButton";
+import { useMedicao, useMedicaoVersoes, useDeletarMedicao, useCancelarMedicao, useReabrirMedicao } from "@/data/medicoes";
+import { qk } from "@/lib/queryKeys";
+import { DetalheSkeleton } from "@/components/skeletons";
 
 export default function MedicaoDetalhe() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const perms = usePermissions();
-  const [med, setMed] = useState<any>(null);
-  const [itens, setItens] = useState<any[]>([]);
-  const [versoes, setVersoes] = useState<any[]>([]);
+  const qc = useQueryClient();
+
+  const { data: med, isLoading } = useMedicao(id);
+  const originalId = useMemo(() => {
+    if (!med) return undefined;
+    return (med as any).medicao_original_id ?? med.id;
+  }, [med]);
+  const { data: versoes = [] } = useMedicaoVersoes(originalId);
+
   const [delOpen, setDelOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reabrirOpen, setReabrirOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
 
-  const load = async () => {
-    if (!id) return;
-    const [m, i] = await Promise.all([
-      supabase.from("medicoes").select("*, contratos(numero_dj, tipo_servico, centro_custo, fornecedor_nome, fornecedor_codigo, fornecedor_cnpj, clientes(razao_social, cnpj))").eq("id", id).single(),
-      supabase.from("medicao_itens").select("*, equipamentos(tag, tipo, modelo)").eq("medicao_id", id).order("created_at"),
-    ]);
-    setMed(m.data); setItens(i.data ?? []);
-    // Carrega outras versões da mesma cadeia
-    if (m.data) {
-      const original = (m.data as any).medicao_original_id ?? m.data.id;
-      const { data: vs } = await supabase
-        .from("medicoes")
-        .select("id, versao, status, ativa, valor_final, created_at, arquivo_origem, motivo_reimportacao")
-        .or(`id.eq.${original},medicao_original_id.eq.${original}`)
-        .order("versao", { ascending: false });
-      setVersoes(vs ?? []);
-    }
+  const deletar = useDeletarMedicao();
+  const cancelar = useCancelarMedicao();
+  const reabrir = useReabrirMedicao();
+
+  const reloadAll = () => {
+    if (id) qc.invalidateQueries({ queryKey: qk.medicoes.byId(id) });
+    qc.invalidateQueries({ queryKey: qk.medicoes.all });
   };
-  useEffect(() => { load(); }, [id]);
 
   const onDelete = async (motivo: string): Promise<void> => {
     if (!id) return;
-    setBusy(true);
-    const { error } = await supabase.rpc("delete_medicao_safe", { _medicao_id: id, _motivo: motivo });
-    setBusy(false);
-    if (error) { notify.error(error.message); return; }
-    notify.success("Medição excluída.");
-    navigate("/medicoes");
+    try {
+      await deletar.mutateAsync({ id, motivo });
+      navigate("/medicoes");
+    } catch { /* notify */ }
   };
 
   const onCancel = async (motivo: string): Promise<void> => {
     if (!id) return;
-    setBusy(true);
-    const { error } = await supabase.rpc("cancel_medicao", { _medicao_id: id, _motivo: motivo });
-    setBusy(false);
-    if (error) { notify.error(error.message); return; }
-    notify.success("Medição cancelada.");
-    load();
+    try {
+      await cancelar.mutateAsync({ id, motivo });
+    } catch { /* notify */ }
   };
 
   const onReabrir = async (values: Record<string, string>): Promise<void> => {
     if (!id) return;
-    const motivo = values._motivo;
-    const { error } = await supabase.rpc("reabrir_medicao_cancelada" as any, {
-      _medicao_id: id,
-      _motivo: motivo,
-    });
-    if (error) { notify.error(error.message); throw error; }
-    notify.success("Medição reaberta como rascunho.");
-    load();
+    try {
+      await reabrir.mutateAsync({ id, motivo: values._motivo });
+    } catch (e) {
+      throw e;
+    }
   };
 
   const exportarPDF = async (preview = false, modo: "interno" | "cliente" = "interno") => {
     if (!id) return;
-    if (med?.status === "cancelada") {
+    if ((med as any)?.status === "cancelada") {
       notify.error("Não é permitido gerar PDF de medição cancelada.");
       return;
     }
@@ -102,8 +91,8 @@ export default function MedicaoDetalhe() {
     }
   };
 
-  if (!med) return <div className="text-sm text-muted-foreground">Carregando...</div>;
-  const status = med.status as string;
+  if (isLoading || !med) return <DetalheSkeleton />;
+  const status = (med as any).status as string;
   const podeEditar = perms.canEditMedicao(status);
   const isReadOnly = !podeEditar;
 
@@ -113,8 +102,8 @@ export default function MedicaoDetalhe() {
         <ArrowLeft className="mr-1 h-4 w-4" />Voltar
       </Button>
       <PageHeader
-        title={`Medição ${fmtCompetencia(med.competencia)}`}
-        description={`${med.contratos.numero_dj} — ${med.contratos.clientes.razao_social}`}
+        title={`Medição ${fmtCompetencia((med as any).competencia)}`}
+        description={`${(med as any).contratos.numero_dj} — ${(med as any).contratos.clientes.razao_social}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={status} />
@@ -136,20 +125,20 @@ export default function MedicaoDetalhe() {
             </DropdownMenu>
 
             {perms.canRecalcular(status) && (
-              <MedicaoRegrasActions medicaoId={med.id} status={status} onApplied={load} />
+              <MedicaoRegrasActions medicaoId={(med as any).id} status={status} onApplied={reloadAll} />
             )}
 
-            <FluxoAcoes medicaoId={med.id} status={status} onChanged={load} />
+            <FluxoAcoes medicaoId={(med as any).id} status={status} onChanged={reloadAll} />
 
             <CriarFaturamentoButton
-              medicaoId={med.id}
+              medicaoId={(med as any).id}
               status={status}
-              valorFinal={Number(med.valor_final ?? 0)}
-              competencia={med.competencia}
-              contratoNumero={med.contratos?.numero_dj}
-              cliente={med.contratos?.clientes?.razao_social}
+              valorFinal={Number((med as any).valor_final ?? 0)}
+              competencia={(med as any).competencia}
+              contratoNumero={(med as any).contratos?.numero_dj}
+              cliente={(med as any).contratos?.clientes?.razao_social}
               canCreate={perms.canFaturar(status)}
-              onCreated={load}
+              onCreated={reloadAll}
             />
 
             {perms.canCancelMedicao(status) && (
@@ -183,34 +172,34 @@ export default function MedicaoDetalhe() {
 
       <Card className="mb-4">
         <CardContent className="p-4 grid gap-3 md:grid-cols-3 lg:grid-cols-5 text-sm">
-          <Info l="Cliente / Contratante" v={med.contratos?.clientes?.razao_social ?? "-"} />
+          <Info l="Cliente / Contratante" v={(med as any).contratos?.clientes?.razao_social ?? "-"} />
           <Info l="Fornecedor / Locadora" v={
-            med.contratos?.fornecedor_nome
-              ? `${med.contratos.fornecedor_nome}${med.contratos.fornecedor_codigo ? ` (${med.contratos.fornecedor_codigo})` : ""}`
+            (med as any).contratos?.fornecedor_nome
+              ? `${(med as any).contratos.fornecedor_nome}${(med as any).contratos.fornecedor_codigo ? ` (${(med as any).contratos.fornecedor_codigo})` : ""}`
               : "MC TERRAPLENAGEM E CONSTRUÇÕES LTDA"
           } />
-          <Info l="Contrato / Nº DJ" v={med.contratos?.numero_dj ?? "-"} />
-          <Info l="Tipo de serviço" v={med.contratos?.tipo_servico ?? "-"} />
-          <Info l="Centro de custo" v={med.contratos?.centro_custo ?? "-"} />
-          <Info l="Competência" v={fmtCompetencia(med.competencia)} />
-          <Info l="Período início" v={fmtDate(med.periodo_inicio)} />
-          <Info l="Período fim" v={fmtDate(med.periodo_fim)} />
+          <Info l="Contrato / Nº DJ" v={(med as any).contratos?.numero_dj ?? "-"} />
+          <Info l="Tipo de serviço" v={(med as any).contratos?.tipo_servico ?? "-"} />
+          <Info l="Centro de custo" v={(med as any).contratos?.centro_custo ?? "-"} />
+          <Info l="Competência" v={fmtCompetencia((med as any).competencia)} />
+          <Info l="Período início" v={fmtDate((med as any).periodo_inicio)} />
+          <Info l="Período fim" v={fmtDate((med as any).periodo_fim)} />
           <div>
             <p className="text-xs text-muted-foreground">Status</p>
             <div className="mt-1 flex items-center gap-1.5">
               <StatusBadge status={status} />
-              {Number(med.versao ?? 1) > 1 && <span className="text-xs px-1.5 py-0.5 rounded border">v{med.versao}</span>}
-              {med.ativa === false && <span className="text-xs px-1.5 py-0.5 rounded bg-muted">inativa</span>}
+              {Number((med as any).versao ?? 1) > 1 && <span className="text-xs px-1.5 py-0.5 rounded border">v{(med as any).versao}</span>}
+              {(med as any).ativa === false && <span className="text-xs px-1.5 py-0.5 rounded bg-muted">inativa</span>}
             </div>
           </div>
-          {med.enviada_cliente_em && (
-            <Info l="Enviada ao cliente em" v={fmtDate(med.enviada_cliente_em)} />
+          {(med as any).enviada_cliente_em && (
+            <Info l="Enviada ao cliente em" v={fmtDate((med as any).enviada_cliente_em)} />
           )}
-          {med.aprovada_cliente_em && (
-            <Info l="Aprovada pelo cliente em" v={fmtDate(med.aprovada_cliente_em)} />
+          {(med as any).aprovada_cliente_em && (
+            <Info l="Aprovada pelo cliente em" v={fmtDate((med as any).aprovada_cliente_em)} />
           )}
-          {med.aprovador_cliente_nome && (
-            <Info l="Aprovador (cliente)" v={med.aprovador_cliente_nome} />
+          {(med as any).aprovador_cliente_nome && (
+            <Info l="Aprovador (cliente)" v={(med as any).aprovador_cliente_nome} />
           )}
         </CardContent>
       </Card>
@@ -226,7 +215,7 @@ export default function MedicaoDetalhe() {
               <span className="text-xs text-muted-foreground">{versoes.length} versão(ões)</span>
             </div>
             <div className="space-y-1.5">
-              {versoes.map((v) => {
+              {versoes.map((v: any) => {
                 const atual = v.id === id;
                 return (
                   <div
@@ -256,11 +245,11 @@ export default function MedicaoDetalhe() {
       )}
 
       <div className="mb-4 grid gap-3 md:grid-cols-5">
-        <Kpi l="Horas informadas" v={fmtNum(med.total_horas_informadas)} />
-        <Kpi l="Horas líquidas" v={fmtNum(med.total_horas_liquidas)} />
-        <Kpi l="Horas a pagar" v={fmtNum(med.total_horas_pagar)} />
-        <Kpi l="Valor bruto" v={fmtBRL(med.valor_bruto)} />
-        <Kpi l="Valor final" v={fmtBRL(med.valor_final)} accent />
+        <Kpi l="Horas informadas" v={fmtNum((med as any).total_horas_informadas)} />
+        <Kpi l="Horas líquidas" v={fmtNum((med as any).total_horas_liquidas)} />
+        <Kpi l="Horas a pagar" v={fmtNum((med as any).total_horas_pagar)} />
+        <Kpi l="Valor bruto" v={fmtBRL((med as any).valor_bruto)} />
+        <Kpi l="Valor final" v={fmtBRL((med as any).valor_final)} accent />
       </div>
 
       <Tabs defaultValue="itens" className="mt-2">
@@ -276,32 +265,32 @@ export default function MedicaoDetalhe() {
 
         <TabsContent value="itens" className="mt-4">
           <MedicaoItensEditor
-            medicaoId={med.id}
-            contratoId={med.contrato_id}
-            periodoInicio={med.periodo_inicio}
-            periodoFim={med.periodo_fim}
-            competencia={med.competencia}
-            cliente={med.contratos?.clientes?.razao_social}
-            contratoNumero={med.contratos?.numero_dj}
+            medicaoId={(med as any).id}
+            contratoId={(med as any).contrato_id}
+            periodoInicio={(med as any).periodo_inicio}
+            periodoFim={(med as any).periodo_fim}
+            competencia={(med as any).competencia}
+            cliente={(med as any).contratos?.clientes?.razao_social}
+            contratoNumero={(med as any).contratos?.numero_dj}
             status={status}
-            onChanged={load}
+            onChanged={reloadAll}
           />
         </TabsContent>
 
         <TabsContent value="historico" className="mt-4">
-          <MedicaoHistoricoTab medicaoId={med.id} />
+          <MedicaoHistoricoTab medicaoId={(med as any).id} />
         </TabsContent>
 
         <TabsContent value="fluxo" className="mt-4">
-          <FluxoAprovacaoTab medicaoId={med.id} />
+          <FluxoAprovacaoTab medicaoId={(med as any).id} />
         </TabsContent>
 
         <TabsContent value="anexos" className="mt-4">
-          <MedicaoAnexosTab medicaoId={med.id} />
+          <MedicaoAnexosTab medicaoId={(med as any).id} />
         </TabsContent>
 
         <TabsContent value="versoes" className="mt-4">
-          <MedicaoVersoesTab medicaoId={med.id} />
+          <MedicaoVersoesTab medicaoId={(med as any).id} />
         </TabsContent>
       </Tabs>
 
@@ -311,7 +300,7 @@ export default function MedicaoDetalhe() {
         title="Excluir medição"
         message="Tem certeza que deseja excluir esta medição? Esta ação removerá todos os itens da medição e não poderá ser desfeita."
         confirmWord="EXCLUIR"
-        loading={busy}
+        loading={deletar.isPending}
         onConfirm={onDelete}
       />
       <DeleteConfirmDialog
@@ -320,7 +309,7 @@ export default function MedicaoDetalhe() {
         title="Cancelar medição"
         message="Cancelar mantém o histórico e marca o status como 'cancelada'. Informe o motivo (mínimo 5 caracteres)."
         confirmWord="CANCELAR"
-        loading={busy}
+        loading={cancelar.isPending}
         onConfirm={onCancel}
       />
       <AcaoMedicaoDialog
