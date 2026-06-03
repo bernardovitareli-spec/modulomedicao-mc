@@ -33,6 +33,12 @@ const groups = [
     ],
   },
   {
+    label: "Relatórios",
+    items: [
+      { title: "Status por Competência", url: "/relatorios/status-competencia", icon: BarChart3 },
+    ],
+  },
+  {
     label: "Financeiro",
     items: [
       { title: "Faturamento", url: "/faturamento", icon: Receipt },
