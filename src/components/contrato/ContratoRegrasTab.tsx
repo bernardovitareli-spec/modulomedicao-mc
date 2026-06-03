@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, Pencil } from "lucide-react";
 import { notify } from "@/lib/notify";
+import { useConfirmAction } from "@/hooks/useConfirmAction";
 import { fmtDate } from "@/lib/format";
 import { TIPOS_REGRA, labelTipo } from "@/lib/regras";
 
@@ -23,6 +24,7 @@ const normTipo = (t: string) =>
   (t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 
 export default function ContratoRegrasTab({ contratoId }: { contratoId: string }) {
+  const confirm = useConfirmAction();
   const [list, setList] = useState<any[]>([]);
   const [equips, setEquips] = useState<Equip[]>([]);
   const [open, setOpen] = useState(false);
@@ -141,8 +143,18 @@ export default function ContratoRegrasTab({ contratoId }: { contratoId: string }
   };
 
   const remove = async (id: string) => {
-    if (!confirm("Remover regra?")) return;
-    await supabase.from("contrato_regras").delete().eq("id", id);
+    const reason = await confirm({
+      title: "Remover regra do contrato?",
+      description: "Isso afeta apenas medições futuras. Medições já geradas mantêm o snapshot da regra aplicada.",
+      variant: "destructive",
+      confirmLabel: "Remover",
+      requireReason: true,
+      reasonPlaceholder: "Motivo da remoção",
+    });
+    if (reason === null) return;
+    const { error } = await supabase.from("contrato_regras").delete().eq("id", id);
+    if (error) { notify.error(error.message); return; }
+    notify.success("Regra removida.");
     load();
   };
 

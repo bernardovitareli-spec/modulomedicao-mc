@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Download, Trash2, Upload, Paperclip, Loader2 } from "lucide-react";
 import { notify } from "@/lib/notify";
+import { useConfirmAction } from "@/hooks/useConfirmAction";
 import { fmtDate } from "@/lib/format";
 import { usePermissions } from "@/lib/permissions";
 
