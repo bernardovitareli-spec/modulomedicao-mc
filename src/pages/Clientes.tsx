@@ -1,20 +1,24 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Search } from "lucide-react";
-import { notify } from "@/lib/notify";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CnpjInput, CepInput, TelefoneInput, FormSubmitButton } from "@/components/inputs";
 import { fmtCNPJ } from "@/lib/format";
 import { useClientesList, useSalvarCliente } from "@/data/clientes";
 import { TableSkeleton } from "@/components/skeletons";
+import { clienteSchema, ClienteFormData, UFS } from "@/lib/schemas/cliente";
 
-const empty = {
+const empty: ClienteFormData = {
   razao_social: "", nome_fantasia: "", cnpj: "", inscricao_estadual: "",
   endereco: "", bairro: "", endereco_complemento: "", cidade: "", uf: "", cep: "",
   contato_nome: "", contato_email: "", contato_telefone: "", observacoes: "", status: "ativo",
@@ -25,24 +29,30 @@ export default function Clientes() {
   const salvar = useSalvarCliente();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState<any>(empty);
+  const [editing, setEditing] = useState<{ id?: string } | null>(null);
 
-  const openNew = () => { setEditing(null); setForm(empty); setOpen(true); };
-  const openEdit = (c: any) => { setEditing(c); setForm({ ...empty, ...c }); setOpen(true); };
+  const form = useForm<ClienteFormData>({
+    resolver: zodResolver(clienteSchema),
+    defaultValues: empty,
+    mode: "onBlur",
+  });
 
-  const handleSave = async () => {
-    if (!form.razao_social || !form.cnpj) { notify.error("Razão social e CNPJ obrigatórios"); return; }
-    const cnpjLimpo = form.cnpj.replace(/\D/g, "");
-    const payload: any = { ...form, cnpj: cnpjLimpo };
-    try {
-      await salvar.mutateAsync({ id: editing?.id, payload });
-      setOpen(false);
-    } catch { /* notify já feito */ }
+  const openNew = () => { setEditing(null); form.reset(empty); setOpen(true); };
+  const openEdit = (c: Record<string, unknown>) => {
+    setEditing({ id: c.id as string });
+    form.reset({ ...empty, ...c } as ClienteFormData);
+    setOpen(true);
   };
 
-  const filtered = list.filter((c: any) =>
-    !search || c.razao_social.toLowerCase().includes(search.toLowerCase()) || c.cnpj.includes(search.replace(/\D/g, "")),
+  const onSubmit = form.handleSubmit(async (values) => {
+    await salvar.mutateAsync({ id: editing?.id, payload: values as Record<string, unknown> });
+    setOpen(false);
+  });
+
+  const filtered = list.filter((c: Record<string, string>) =>
+    !search ||
+    c.razao_social.toLowerCase().includes(search.toLowerCase()) ||
+    c.cnpj.includes(search.replace(/\D/g, "")),
   );
 
   return (
@@ -63,33 +73,33 @@ export default function Clientes() {
           {isLoading ? (
             <TableSkeleton cols={6} rows={6} />
           ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Razão Social</TableHead>
-                  <TableHead>CNPJ</TableHead>
-                  <TableHead>Cidade/UF</TableHead>
-                  <TableHead>Contato</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">Nenhum cliente cadastrado.</TableCell></TableRow>}
-                {filtered.map((c: any) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-medium">{c.razao_social}{c.nome_fantasia && <div className="text-xs text-muted-foreground">{c.nome_fantasia}</div>}</TableCell>
-                    <TableCell className="num">{fmtCNPJ(c.cnpj)}</TableCell>
-                    <TableCell>{[c.cidade, c.uf].filter(Boolean).join(" / ") || "—"}</TableCell>
-                    <TableCell className="text-sm">{c.contato_email ?? "—"}</TableCell>
-                    <TableCell><Badge variant={c.status === "ativo" ? "default" : "secondary"}>{c.status}</Badge></TableCell>
-                    <TableCell><Button size="icon" variant="ghost" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button></TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Razão Social</TableHead>
+                    <TableHead>CNPJ</TableHead>
+                    <TableHead>Cidade/UF</TableHead>
+                    <TableHead>Contato</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-12"></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {filtered.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">Nenhum cliente cadastrado.</TableCell></TableRow>}
+                  {filtered.map((c: Record<string, string>) => (
+                    <TableRow key={c.id}>
+                      <TableCell className="font-medium">{c.razao_social}{c.nome_fantasia && <div className="text-xs text-muted-foreground">{c.nome_fantasia}</div>}</TableCell>
+                      <TableCell className="num">{fmtCNPJ(c.cnpj)}</TableCell>
+                      <TableCell>{[c.cidade, c.uf].filter(Boolean).join(" / ") || "—"}</TableCell>
+                      <TableCell className="text-sm">{c.contato_email ?? "—"}</TableCell>
+                      <TableCell><Badge variant={c.status === "ativo" ? "default" : "secondary"}>{c.status}</Badge></TableCell>
+                      <TableCell><Button size="icon" variant="ghost" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button></TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -97,34 +107,80 @@ export default function Clientes() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>{editing ? "Editar cliente" : "Novo cliente"}</DialogTitle></DialogHeader>
-          <div className="grid gap-3 md:grid-cols-2">
-            <Field label="Razão Social *" v={form.razao_social} on={(v) => setForm({ ...form, razao_social: v })} />
-            <Field label="Nome Fantasia" v={form.nome_fantasia} on={(v) => setForm({ ...form, nome_fantasia: v })} />
-            <Field label="CNPJ *" v={form.cnpj} on={(v) => setForm({ ...form, cnpj: v })} />
-            <Field label="Inscrição Estadual" v={form.inscricao_estadual} on={(v) => setForm({ ...form, inscricao_estadual: v })} />
-            <Field label="Endereço" v={form.endereco} on={(v) => setForm({ ...form, endereco: v })} className="md:col-span-2" />
-            <Field label="Bairro" v={form.bairro} on={(v) => setForm({ ...form, bairro: v })} />
-            <Field label="Complemento" v={form.endereco_complemento} on={(v) => setForm({ ...form, endereco_complemento: v })} />
-            <Field label="CEP" v={form.cep} on={(v) => setForm({ ...form, cep: v })} />
-            <Field label="Cidade" v={form.cidade} on={(v) => setForm({ ...form, cidade: v })} />
-            <Field label="UF" v={form.uf} on={(v) => setForm({ ...form, uf: v })} />
-            <Field label="Contato" v={form.contato_nome} on={(v) => setForm({ ...form, contato_nome: v })} />
-            <Field label="Email" v={form.contato_email} on={(v) => setForm({ ...form, contato_email: v })} />
-            <Field label="Telefone" v={form.contato_telefone} on={(v) => setForm({ ...form, contato_telefone: v })} />
-            <div className="md:col-span-2"><Label>Observações</Label><Textarea value={form.observacoes ?? ""} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} /></div>
-          </div>
-          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button onClick={handleSave} disabled={salvar.isPending}>Salvar</Button></DialogFooter>
+          <Form {...form}>
+            <form onSubmit={onSubmit} className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <FormField control={form.control} name="razao_social" render={({ field }) => (
+                  <FormItem className="md:col-span-2"><FormLabel>Razão Social *</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="nome_fantasia" render={({ field }) => (
+                  <FormItem><FormLabel>Nome Fantasia</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="cnpj" render={({ field }) => (
+                  <FormItem><FormLabel>CNPJ *</FormLabel><FormControl><CnpjInput value={field.value} onChange={field.onChange} onBlur={field.onBlur} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="inscricao_estadual" render={({ field }) => (
+                  <FormItem><FormLabel>Inscrição Estadual</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="status" render={({ field }) => (
+                  <FormItem><FormLabel>Status</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="ativo">Ativo</SelectItem>
+                        <SelectItem value="inativo">Inativo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="endereco" render={({ field }) => (
+                  <FormItem className="md:col-span-2"><FormLabel>Endereço</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="bairro" render={({ field }) => (
+                  <FormItem><FormLabel>Bairro</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="endereco_complemento" render={({ field }) => (
+                  <FormItem><FormLabel>Complemento</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="cep" render={({ field }) => (
+                  <FormItem><FormLabel>CEP</FormLabel><FormControl><CepInput value={field.value} onChange={field.onChange} onBlur={field.onBlur} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="cidade" render={({ field }) => (
+                  <FormItem><FormLabel>Cidade</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="uf" render={({ field }) => (
+                  <FormItem><FormLabel>UF</FormLabel>
+                    <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="UF" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {UFS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="contato_nome" render={({ field }) => (
+                  <FormItem><FormLabel>Contato</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="contato_email" render={({ field }) => (
+                  <FormItem><FormLabel>E-mail</FormLabel><FormControl><Input type="email" inputMode="email" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="contato_telefone" render={({ field }) => (
+                  <FormItem><FormLabel>Telefone</FormLabel><FormControl><TelefoneInput value={field.value} onChange={field.onChange} onBlur={field.onBlur} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="observacoes" render={({ field }) => (
+                  <FormItem className="md:col-span-2"><FormLabel>Observações</FormLabel><FormControl><Textarea {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
+                )} />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+                <FormSubmitButton requireDirty={!!editing} />
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-function Field({ label, v, on, className = "" }: { label: string; v: string | null | undefined; on: (v: string) => void; className?: string }) {
-  return (
-    <div className={className}>
-      <Label>{label}</Label>
-      <Input value={v ?? ""} onChange={(e) => on(e.target.value)} />
     </div>
   );
 }

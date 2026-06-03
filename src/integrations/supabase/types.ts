@@ -1559,6 +1559,7 @@ export type Database = {
         Returns: undefined
       }
       simular_regras_medicao: { Args: { _medicao_id: string }; Returns: Json }
+      traduzir_erro_constraint: { Args: { message: string }; Returns: string }
       update_medicao_item:
         | {
             Args: {
