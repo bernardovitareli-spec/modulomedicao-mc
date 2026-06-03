@@ -10,9 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2 } from "lucide-react";
 import { notify } from "@/lib/notify";
+import { useConfirmAction } from "@/hooks/useConfirmAction";
 import { fmtBRL, fmtDate, fmtNum } from "@/lib/format";
 
 export default function ContratoEquipamentosTab({ contratoId }: { contratoId: string }) {
+  const confirm = useConfirmAction();
   const [list, setList] = useState<any[]>([]);
   const [equipamentos, setEquipamentos] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
