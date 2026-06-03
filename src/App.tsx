@@ -26,6 +26,7 @@ import FaturamentoDetalhe from "./pages/FaturamentoDetalhe";
 import EmpresaEmissora from "./pages/EmpresaEmissora";
 import GerarNotaLocacao from "./pages/GerarNotaLocacao";
 import Relatorios from "./pages/Relatorios";
+import RelatorioStatusCompetencia from "./pages/RelatorioStatusCompetencia";
 import Historico from "./pages/Historico";
 import NotFound from "./pages/NotFound";
 import Auditoria from "./pages/Auditoria";
@@ -65,6 +66,7 @@ const App = () => (
               <Route path="/faturamento/:id/nota-locacao" element={<GerarNotaLocacao />} />
               <Route path="/empresa-emissora" element={<EmpresaEmissora />} />
               <Route path="/relatorios" element={<Relatorios />} />
+              <Route path="/relatorios/status-competencia" element={<RelatorioStatusCompetencia />} />
               <Route path="/historico" element={<Historico />} />
               <Route path="/auditoria" element={<Auditoria />} />
               <Route path="/admin/limpar-importacao" element={<LimparImportacao />} />
