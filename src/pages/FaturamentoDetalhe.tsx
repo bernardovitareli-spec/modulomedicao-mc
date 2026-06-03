@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,21 +12,27 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Save, Ban, DollarSign, Upload, Download, FileText } from "lucide-react";
+import { ArrowLeft, Save, Ban, DollarSign, Download, FileText } from "lucide-react";
 import { fmtBRL, fmtDate, fmtCompetencia } from "@/lib/format";
-import { FATURAMENTO_STATUS_LABELS, FATURAMENTO_STATUS_VARIANT, labelFatStatus, FaturamentoStatus } from "@/lib/faturamentoStatus";
+import { FATURAMENTO_STATUS_VARIANT, labelFatStatus, FaturamentoStatus } from "@/lib/faturamentoStatus";
 import { usePermissions } from "@/lib/permissions";
 import { notify } from "@/lib/notify";
+import { useFatura, useFaturaHistorico, useAtualizarFatura, useRegistrarPagamento, useCancelarFatura } from "@/data/faturas";
+import { qk } from "@/lib/queryKeys";
+import { DetalheSkeleton } from "@/components/skeletons";
 
 export default function FaturamentoDetalhe() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const perms = usePermissions();
+  const qc = useQueryClient();
   const podeEditar = perms.isAdmin || perms.isFinanceiro;
 
-  const [f, setF] = useState<any>(null);
-  const [hist, setHist] = useState<any[]>([]);
-  const [busy, setBusy] = useState(false);
+  const { data: f, isLoading } = useFatura(id);
+  const { data: hist = [] } = useFaturaHistorico(id);
+  const atualizar = useAtualizarFatura();
+  const registrar = useRegistrarPagamento();
+  const cancelarMut = useCancelarFatura();
 
   // form NF
   const [form, setForm] = useState<any>({});
@@ -40,86 +47,63 @@ export default function FaturamentoDetalhe() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelMotivo, setCancelMotivo] = useState("");
 
-  const load = async () => {
-    if (!id) return;
-    const [r1, r2] = await Promise.all([
-      supabase.from("faturas")
-        .select("*, medicoes(competencia, periodo_inicio, periodo_fim, valor_final, contratos(numero_dj, fornecedor_nome, fornecedor_cnpj, clientes(razao_social, cnpj)))")
-        .eq("id", id).single(),
-      supabase.from("faturamento_historico").select("*").eq("fatura_id", id).order("created_at", { ascending: false }),
-    ]);
-    if (r1.data) {
-      setF(r1.data);
-      setForm({
-        numero_nf: r1.data.numero_nf ?? "",
-        serie_nf: r1.data.serie_nf ?? "",
-        data_emissao: r1.data.data_emissao ?? "",
-        valor_bruto: r1.data.valor_bruto ?? "",
-        valor_liquido: r1.data.valor_liquido ?? "",
-        data_vencimento: r1.data.data_vencimento ?? "",
-        data_prevista_recebimento: r1.data.data_prevista_recebimento ?? "",
-        observacoes_fiscais: r1.data.observacoes_fiscais ?? "",
-        observacoes_financeiras: r1.data.observacoes_financeiras ?? "",
-      });
-      setPagForm({
-        data_pagamento: r1.data.data_pagamento ?? "",
-        valor_recebido: r1.data.valor_recebido ?? "",
-        motivo_diferenca: r1.data.motivo_diferenca ?? "",
-      });
-    }
-    setHist(r2.data ?? []);
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [id]);
+  useEffect(() => {
+    if (!f) return;
+    setForm({
+      numero_nf: (f as any).numero_nf ?? "",
+      serie_nf: (f as any).serie_nf ?? "",
+      data_emissao: (f as any).data_emissao ?? "",
+      valor_bruto: (f as any).valor_bruto ?? "",
+      valor_liquido: (f as any).valor_liquido ?? "",
+      data_vencimento: (f as any).data_vencimento ?? "",
+      data_prevista_recebimento: (f as any).data_prevista_recebimento ?? "",
+      observacoes_fiscais: (f as any).observacoes_fiscais ?? "",
+      observacoes_financeiras: (f as any).observacoes_financeiras ?? "",
+    });
+    setPagForm({
+      data_pagamento: (f as any).data_pagamento ?? "",
+      valor_recebido: (f as any).valor_recebido ?? "",
+      motivo_diferenca: (f as any).motivo_diferenca ?? "",
+    });
+  }, [f]);
 
   const salvar = async () => {
+    if (!id) return;
     if (!motivo || motivo.trim().length < 3) { notify.error("Informe o motivo da alteração"); return; }
-    setBusy(true);
-    const { error } = await supabase.rpc("atualizar_faturamento", {
-      _fatura_id: id!,
-      _numero_nf: form.numero_nf || null,
-      _serie_nf: form.serie_nf || null,
-      _data_emissao: form.data_emissao || null,
-      _valor_bruto: form.valor_bruto === "" ? null : Number(form.valor_bruto),
-      _valor_liquido: form.valor_liquido === "" ? null : Number(form.valor_liquido),
-      _data_vencimento: form.data_vencimento || null,
-      _data_prevista_recebimento: form.data_prevista_recebimento || null,
-      _observacoes_fiscais: form.observacoes_fiscais || null,
-      _observacoes_financeiras: form.observacoes_financeiras || null,
-      _anexo_nf_storage_path: f?.anexo_nf_storage_path ?? null,
-      _anexo_nf_nome: f?.anexo_nf_nome ?? null,
-      _motivo: motivo,
-    });
-    setBusy(false);
-    if (error) { notify.error(error.message); return; }
-    notify.success("Faturamento atualizado");
-    setMotivo(""); load();
+    try {
+      await atualizar.mutateAsync({
+        id, payload: form, motivo,
+        anexo_path: (f as any)?.anexo_nf_storage_path ?? null,
+        anexo_nome: (f as any)?.anexo_nf_nome ?? null,
+      });
+      setMotivo("");
+    } catch { /* notify */ }
   };
 
   const registrarPagamento = async () => {
-    setBusy(true);
-    const { error } = await supabase.rpc("registrar_pagamento_faturamento", {
-      _fatura_id: id!,
-      _data_pagamento: pagForm.data_pagamento,
-      _valor_recebido: Number(pagForm.valor_recebido),
-      _motivo_diferenca: pagForm.motivo_diferenca || null,
-      _motivo: pagMotivo || "Registro de pagamento",
-    });
-    setBusy(false);
-    if (error) { notify.error(error.message); return; }
-    notify.success("Pagamento registrado");
-    setPagOpen(false); setPagMotivo(""); load();
+    if (!id) return;
+    try {
+      await registrar.mutateAsync({
+        id,
+        data_pagamento: pagForm.data_pagamento,
+        valor_recebido: Number(pagForm.valor_recebido),
+        motivo_diferenca: pagForm.motivo_diferenca || null,
+        motivo: pagMotivo,
+      });
+      setPagOpen(false); setPagMotivo("");
+    } catch { /* notify */ }
   };
 
   const cancelar = async () => {
+    if (!id) return;
     if (cancelMotivo.trim().length < 5) { notify.error("Motivo (mínimo 5 caracteres)"); return; }
-    setBusy(true);
-    const { error } = await supabase.rpc("cancelar_faturamento", { _fatura_id: id!, _motivo: cancelMotivo });
-    setBusy(false);
-    if (error) { notify.error(error.message); return; }
-    notify.success("Faturamento cancelado");
-    setCancelOpen(false); setCancelMotivo(""); load();
+    try {
+      await cancelarMut.mutateAsync({ id, motivo: cancelMotivo });
+      setCancelOpen(false); setCancelMotivo("");
+    } catch { /* notify */ }
   };
 
+  // Storage permanece direto (exceção documentada para upload/download de arquivos)
   const uploadAnexo = async (file: File) => {
     if (!id) return;
     const path = `${id}/${Date.now()}-${file.name}`;
@@ -130,23 +114,23 @@ export default function FaturamentoDetalhe() {
     } as any).eq("id", id);
     if (e2) { notify.error(e2.message); return; }
     notify.success("Anexo enviado");
-    load();
+    qc.invalidateQueries({ queryKey: qk.faturas.byId(id) });
   };
 
   const baixarAnexo = async () => {
-    if (!f?.anexo_nf_storage_path) return;
+    if (!(f as any)?.anexo_nf_storage_path) return;
     const { data, error } = await supabase.storage.from("medicao-anexos")
-      .createSignedUrl(f.anexo_nf_storage_path, 60);
+      .createSignedUrl((f as any).anexo_nf_storage_path, 60);
     if (error || !data) { notify.error("Falha ao baixar"); return; }
     window.open(data.signedUrl, "_blank");
   };
 
-  if (!f) return <div className="text-sm text-muted-foreground">Carregando...</div>;
-  const status = f.status as FaturamentoStatus;
+  if (isLoading || !f) return <DetalheSkeleton />;
+  const status = (f as any).status as FaturamentoStatus;
   const cancelled = status === "cancelado";
-  const valorMed = Number(f.medicoes?.valor_final ?? 0);
-  const valorNf = Number(f.valor_liquido ?? f.valor ?? 0);
-  const recebido = Number(f.valor_recebido ?? 0);
+  const valorMed = Number((f as any).medicoes?.valor_final ?? 0);
+  const valorNf = Number((f as any).valor_liquido ?? (f as any).valor ?? 0);
+  const recebido = Number((f as any).valor_recebido ?? 0);
   const saldo = Math.max(0, valorNf - recebido);
   const difer = recebido - valorNf;
 
@@ -156,8 +140,8 @@ export default function FaturamentoDetalhe() {
         <ArrowLeft className="mr-1 h-4 w-4" />Voltar
       </Button>
       <PageHeader
-        title={`Faturamento ${f.numero_nf ? `NF ${f.numero_nf}` : "(sem NF)"}`}
-        description={`${f.medicoes?.contratos?.numero_dj ?? "-"} — ${f.medicoes?.contratos?.clientes?.razao_social ?? "-"}`}
+        title={`Faturamento ${(f as any).numero_nf ? `NF ${(f as any).numero_nf}` : "(sem NF)"}`}
+        description={`${(f as any).medicoes?.contratos?.numero_dj ?? "-"} — ${(f as any).medicoes?.contratos?.clientes?.razao_social ?? "-"}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={FATURAMENTO_STATUS_VARIANT[status]}>{labelFatStatus(status)}</Badge>
@@ -198,15 +182,15 @@ export default function FaturamentoDetalhe() {
 
         <TabsContent value="medicao" className="mt-4">
           <Card><CardContent className="p-4 grid gap-3 md:grid-cols-3 text-sm">
-            <Info l="Cliente / Contratante" v={f.medicoes?.contratos?.clientes?.razao_social ?? "-"} />
-            <Info l="Fornecedor / Locadora" v={f.medicoes?.contratos?.fornecedor_nome ?? "-"} />
-            <Info l="Contrato / Nº DJ" v={f.medicoes?.contratos?.numero_dj ?? "-"} />
-            <Info l="Competência" v={fmtCompetencia(f.medicoes?.competencia)} />
-            <Info l="Período início" v={fmtDate(f.medicoes?.periodo_inicio)} />
-            <Info l="Período fim" v={fmtDate(f.medicoes?.periodo_fim)} />
-            <Info l="Valor aprovado da medição" v={fmtBRL(f.medicoes?.valor_final)} />
+            <Info l="Cliente / Contratante" v={(f as any).medicoes?.contratos?.clientes?.razao_social ?? "-"} />
+            <Info l="Fornecedor / Locadora" v={(f as any).medicoes?.contratos?.fornecedor_nome ?? "-"} />
+            <Info l="Contrato / Nº DJ" v={(f as any).medicoes?.contratos?.numero_dj ?? "-"} />
+            <Info l="Competência" v={fmtCompetencia((f as any).medicoes?.competencia)} />
+            <Info l="Período início" v={fmtDate((f as any).medicoes?.periodo_inicio)} />
+            <Info l="Período fim" v={fmtDate((f as any).medicoes?.periodo_fim)} />
+            <Info l="Valor aprovado da medição" v={fmtBRL((f as any).medicoes?.valor_final)} />
             <div className="md:col-span-3">
-              <Button variant="link" className="px-0" onClick={() => navigate(`/medicoes/${f.medicao_id}`)}>
+              <Button variant="link" className="px-0" onClick={() => navigate(`/medicoes/${(f as any).medicao_id}`)}>
                 Ver medição original
               </Button>
             </div>
@@ -231,7 +215,7 @@ export default function FaturamentoDetalhe() {
                 <Label className="text-xs">Motivo da alteração *</Label>
                 <Input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex: emissão da NF, correção de valor..." />
                 <div className="flex justify-end">
-                  <Button onClick={salvar} disabled={busy}><Save className="mr-1 h-4 w-4" />Salvar alterações</Button>
+                  <Button onClick={salvar} disabled={atualizar.isPending}><Save className="mr-1 h-4 w-4" />Salvar alterações</Button>
                 </div>
               </div>
             )}
@@ -242,11 +226,11 @@ export default function FaturamentoDetalhe() {
           <Card><CardContent className="p-4 grid gap-3 md:grid-cols-3">
             <Field l="Data prevista de recebimento" type="date" v={form.data_prevista_recebimento}
               on={(v) => setForm({ ...form, data_prevista_recebimento: v })} disabled={!podeEditar || cancelled} />
-            <Info l="Data do pagamento" v={fmtDate(f.data_pagamento)} />
+            <Info l="Data do pagamento" v={fmtDate((f as any).data_pagamento)} />
             <Info l="Valor recebido" v={fmtBRL(recebido)} />
             <Info l="Diferença (recebido − líquido)" v={fmtBRL(difer)} />
             <div className="md:col-span-3">
-              <Info l="Motivo da diferença" v={f.motivo_diferenca ?? "-"} />
+              <Info l="Motivo da diferença" v={(f as any).motivo_diferenca ?? "-"} />
             </div>
             <div className="md:col-span-3">
               <Label className="text-xs">Observações financeiras</Label>
@@ -258,9 +242,9 @@ export default function FaturamentoDetalhe() {
 
         <TabsContent value="anexos" className="mt-4">
           <Card><CardContent className="p-4 space-y-3">
-            {f.anexo_nf_storage_path ? (
+            {(f as any).anexo_nf_storage_path ? (
               <div className="flex items-center justify-between border rounded-md p-3">
-                <span className="text-sm">{f.anexo_nf_nome ?? "Anexo NF"}</span>
+                <span className="text-sm">{(f as any).anexo_nf_nome ?? "Anexo NF"}</span>
                 <Button size="sm" variant="outline" onClick={baixarAnexo}><Download className="mr-1 h-4 w-4" />Baixar</Button>
               </div>
             ) : <p className="text-sm text-muted-foreground">Sem anexo da NF.</p>}
@@ -284,7 +268,7 @@ export default function FaturamentoDetalhe() {
               </TableRow></TableHeader>
               <TableBody>
                 {hist.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-6 text-sm text-muted-foreground">Sem histórico.</TableCell></TableRow>}
-                {hist.map((h) => (
+                {hist.map((h: any) => (
                   <TableRow key={h.id}>
                     <TableCell className="text-xs num">{new Date(h.created_at).toLocaleString("pt-BR")}</TableCell>
                     <TableCell className="text-xs">{h.user_email ?? "-"}</TableCell>
@@ -317,7 +301,7 @@ export default function FaturamentoDetalhe() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPagOpen(false)}>Cancelar</Button>
-            <Button onClick={registrarPagamento} disabled={busy}>Registrar</Button>
+            <Button onClick={registrarPagamento} disabled={registrar.isPending}>Registrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -330,7 +314,7 @@ export default function FaturamentoDetalhe() {
           <Textarea rows={3} value={cancelMotivo} onChange={(e) => setCancelMotivo(e.target.value)} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setCancelOpen(false)}>Voltar</Button>
-            <Button variant="destructive" onClick={cancelar} disabled={busy}>Confirmar cancelamento</Button>
+            <Button variant="destructive" onClick={cancelar} disabled={cancelarMut.isPending}>Confirmar cancelamento</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -345,11 +329,6 @@ function Kpi({ l, v, accent }: { l: string; v: string; accent?: "primary" | "suc
   const color = accent === "success" ? "text-success" : accent === "primary" ? "text-primary" : "";
   return <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">{l}</p><p className={`mt-1 text-lg font-bold num ${color}`}>{v}</p></CardContent></Card>;
 }
-function Field({ l, v, on, disabled, type = "text" }: { l: string; v: any; on: (v: string) => void; disabled?: boolean; type?: string }) {
-  return (
-    <div>
-      <Label className="text-xs">{l}</Label>
-      <Input type={type} value={v ?? ""} onChange={(e) => on(e.target.value)} disabled={disabled} />
-    </div>
-  );
+function Field({ l, v, on, type, disabled }: { l: string; v: any; on: (v: string) => void; type?: string; disabled?: boolean }) {
+  return <div><Label className="text-xs">{l}</Label><Input type={type ?? "text"} value={v ?? ""} disabled={disabled} onChange={(e) => on(e.target.value)} /></div>;
 }
