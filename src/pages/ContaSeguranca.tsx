@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { notify } from "@/lib/notify";
+import { useConfirmAction } from "@/hooks/useConfirmAction";
 import { Loader2, ShieldCheck, ShieldOff, KeyRound, Smartphone, Monitor, Copy } from "lucide-react";
 import { validarSenha } from "@/lib/passwordPolicy";
 import { PasswordStrengthMeter } from "@/components/auth/PasswordStrengthMeter";
