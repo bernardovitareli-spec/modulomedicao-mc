@@ -6,14 +6,17 @@ import tseslint from "typescript-eslint";
 
 const noNativeDialogs = [
   {
-    selector: 'CallExpression[callee.type="Identifier"][callee.name="confirm"]',
+    // Native confirm/prompt take a string. Our useConfirmAction hook takes an object,
+    // so we only flag calls whose first argument is a string literal or template.
+    selector:
+      'CallExpression[callee.type="Identifier"][callee.name="confirm"][arguments.0.type=/Literal|TemplateLiteral/]',
     message:
-      "Use o hook useConfirmAction() de @/hooks/useConfirmAction em vez de confirm/prompt/alert nativos.",
+      "Use o hook useConfirmAction() de @/hooks/useConfirmAction em vez de confirm nativo.",
   },
   {
     selector: 'CallExpression[callee.type="Identifier"][callee.name="prompt"]',
     message:
-      "Use o hook useConfirmAction() de @/hooks/useConfirmAction em vez de confirm/prompt/alert nativos.",
+      "Use o hook useConfirmAction() de @/hooks/useConfirmAction em vez de prompt nativo.",
   },
   {
     selector: 'CallExpression[callee.type="Identifier"][callee.name="alert"]',
