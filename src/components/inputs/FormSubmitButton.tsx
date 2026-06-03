@@ -1,5 +1,7 @@
 import * as React from "react";
-import { Button, ButtonProps } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+
+type ButtonProps = React.ComponentProps<typeof Button>;
 import { useFormState } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 
