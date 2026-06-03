@@ -128,7 +128,8 @@ export function useReabrirMedicao() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, motivo }: { id: string; motivo: string }) => {
-      const { error } = await supabase.rpc("reabrir_medicao_cancelada" as never, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.rpc as any)("reabrir_medicao_cancelada", {
         _medicao_id: id,
         _motivo: motivo,
       });
