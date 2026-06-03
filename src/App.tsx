@@ -80,6 +80,7 @@ const App = () => (
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </ConfirmActionProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
