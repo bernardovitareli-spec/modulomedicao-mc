@@ -36,11 +36,13 @@ export default function Auth() {
     setLoading(true);
     const { error } = await supabase.auth.signUp({
       email, password,
-      options: { emailRedirectTo: `${window.location.origin}/` },
+      options: { emailRedirectTo: `${window.location.origin}/aguardando-aprovacao` },
     });
     setLoading(false);
     if (error) toast.error(error.message);
-    else { toast.success("Conta criada! Você já pode entrar."); }
+    else {
+      toast.success("Cadastro recebido. Aguarde a aprovação de um administrador para acessar o sistema.", { duration: 8000 });
+    }
   };
 
   const onForgot = async () => {

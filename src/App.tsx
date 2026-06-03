@@ -8,6 +8,7 @@ import AppLayout from "@/components/AppLayout";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
+import AguardandoAprovacao from "./pages/AguardandoAprovacao";
 import Clientes from "./pages/Clientes";
 import Equipamentos from "./pages/Equipamentos";
 import Contratos from "./pages/Contratos";
@@ -45,6 +46,7 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/aguardando-aprovacao" element={<AguardandoAprovacao />} />
             <Route element={<AppLayout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/clientes" element={<Clientes />} />

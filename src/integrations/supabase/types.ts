@@ -1200,6 +1200,71 @@ export type Database = {
           },
         ]
       }
+      user_aprovacoes_pendentes: {
+        Row: {
+          decidido_em: string | null
+          decidido_por: string | null
+          email: string
+          id: string
+          motivo_rejeicao: string | null
+          solicitado_em: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          decidido_em?: string | null
+          decidido_por?: string | null
+          email: string
+          id?: string
+          motivo_rejeicao?: string | null
+          solicitado_em?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          decidido_em?: string | null
+          decidido_por?: string | null
+          email?: string
+          id?: string
+          motivo_rejeicao?: string | null
+          solicitado_em?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_clientes: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_clientes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1304,6 +1369,28 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_aprovar_usuario: {
+        Args: {
+          _cliente_ids?: string[]
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: undefined
+      }
+      admin_list_pendentes: {
+        Args: never
+        Returns: {
+          email: string
+          solicitado_em: string
+          user_id: string
+        }[]
+      }
+      admin_list_user_clientes: {
+        Args: { _user_id: string }
+        Returns: {
+          cliente_id: string
+        }[]
+      }
       admin_list_users: {
         Args: never
         Returns: {
@@ -1312,6 +1399,14 @@ export type Database = {
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }[]
+      }
+      admin_rejeitar_usuario: {
+        Args: { _motivo: string; _user_id: string }
+        Returns: undefined
+      }
+      admin_set_user_clientes: {
+        Args: { _cliente_ids: string[]; _user_id: string }
+        Returns: undefined
       }
       admin_set_user_role: {
         Args: {
@@ -1500,6 +1595,10 @@ export type Database = {
             }
             Returns: Json
           }
+      user_has_cliente_access: {
+        Args: { _cliente_id: string; _uid: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role:
