@@ -87,6 +87,7 @@ function calcProporcionalidade(
 }
 
 export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, periodoFim, competencia, cliente, contratoNumero, status, onChanged }: Props) {
+  const confirm = useConfirmAction();
   const [contratoEqs, setContratoEqs] = useState<any[]>([]);
   const [contrato, setContrato] = useState<any>(null);
   const [itens, setItens] = useState<any[]>([]);
@@ -275,11 +276,18 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
 
   const recalcularMedicao = async () => {
     if (!podeRecalcular) return notify.error("Este status permite apenas simulação de regras, sem alterar a medição.");
-    const motivo = window.prompt("Motivo do recálculo (mínimo 5 caracteres):", "Recálculo manual com base nas regras atuais");
+    const motivo = await confirm({
+      title: "Recalcular item da medição?",
+      description: "O recálculo aplicará as regras vigentes na data da medição. Um snapshot da regra utilizada será preservado.",
+      variant: "warning",
+      confirmLabel: "Recalcular",
+      requireReason: true,
+      reasonMinLength: 5,
+      reasonPlaceholder: "Justificativa do recálculo",
+    });
     if (motivo === null) return;
-    if (motivo.trim().length < 5) return notify.error("Motivo é obrigatório");
     setSaving(true);
-    const { error } = await supabase.rpc("recalcular_medicao", { _medicao_id: medicaoId, _motivo: motivo.trim() });
+    const { error } = await supabase.rpc("recalcular_medicao", { _medicao_id: medicaoId, _motivo: motivo });
     setSaving(false);
     if (error) return notify.error(error.message);
     await load();
@@ -288,12 +296,22 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
   };
 
   const excluir = async (id: string) => {
-    if (!confirm("Excluir este item?")) return;
+    const motivo = await confirm({
+      title: "Excluir item da medição?",
+      description: "Esta ação não pode ser desfeita.",
+      variant: "destructive",
+      confirmLabel: "Excluir",
+      requireTypedConfirmation: "EXCLUIR",
+      requireReason: true,
+      reasonPlaceholder: "Motivo da exclusão (será registrado no audit log)",
+    });
+    if (motivo === null) return;
     const { error } = await supabase.from("medicao_itens").delete().eq("id", id);
     if (error) return notify.error(error.message);
     await load();
     await recalcTotais();
     onChanged?.();
+    notify.success("Item excluído.");
   };
 
   const eqOptions = contratoEqs.filter((ce) =>
