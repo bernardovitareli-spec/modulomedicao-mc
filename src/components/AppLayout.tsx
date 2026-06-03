@@ -1,4 +1,4 @@
-import { Outlet, Navigate, useLocation } from "react-router-dom";
+import { Outlet, Navigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { useAuth } from "@/hooks/useAuth";
@@ -6,7 +6,6 @@ import { Loader2 } from "lucide-react";
 
 export default function AppLayout() {
   const { user, loading, roles } = useAuth();
-  const location = useLocation();
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -16,9 +15,7 @@ export default function AppLayout() {
   }
   if (!user) return <Navigate to="/auth" replace />;
   // Usuário sem papel = pendente de aprovação
-  if (roles.length === 0 && location.pathname !== "/aguardando-aprovacao") {
-    return <Navigate to="/aguardando-aprovacao" replace />;
-  }
+  if (roles.length === 0) return <Navigate to="/aguardando-aprovacao" replace />;
 
   return (
     <SidebarProvider>
