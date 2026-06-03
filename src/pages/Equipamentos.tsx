@@ -106,7 +106,7 @@ export default function Equipamentos() {
                 <FormField control={form.control} name="ano" render={({ field }) => (
                   <FormItem><FormLabel>Ano</FormLabel>
                     <FormControl>
-                      <Input type="number" inputMode="numeric" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))} />
+                      <Input type="number" inputMode="numeric" value={(field.value as number | null | undefined) ?? ""} onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))} />
                     </FormControl><FormMessage />
                   </FormItem>
                 )} />
