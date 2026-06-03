@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, Trash2, Eye, AlertTriangle, RefreshCw } from "lucide-react";
 import { fmtBRL, fmtNum, fmtCompetencia } from "@/lib/format";
 import { notify } from "@/lib/notify";
+import { useConfirmAction } from "@/hooks/useConfirmAction";
 
 interface Props {
   medicaoId: string;

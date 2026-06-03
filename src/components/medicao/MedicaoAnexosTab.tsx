@@ -50,6 +50,7 @@ const fmtSize = (b?: number | null) => {
 
 export function MedicaoAnexosTab({ medicaoId }: { medicaoId: string }) {
   const perms = usePermissions();
+  const confirm = useConfirmAction();
   const podeEnviar = perms.isAdmin || perms.isGestor || perms.isOperacional || perms.isFinanceiro;
 
   const [anexos, setAnexos] = useState<Anexo[]>([]);
@@ -119,7 +120,13 @@ export function MedicaoAnexosTab({ medicaoId }: { medicaoId: string }) {
   };
 
   const remover = async (a: Anexo) => {
-    if (!confirm(`Remover "${a.nome_arquivo}"?`)) return;
+    const reason = await confirm({
+      title: "Remover anexo?",
+      description: `Arquivo: ${a.nome_arquivo}`,
+      variant: "destructive",
+      confirmLabel: "Remover",
+    });
+    if (reason === null) return;
     const r1 = await supabase.storage.from("medicao-anexos").remove([a.storage_path]);
     if (r1.error) { notify.error(r1.error.message); return; }
     const r2 = await supabase.from("medicao_anexos" as any).delete().eq("id", a.id);
