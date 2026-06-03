@@ -46,8 +46,8 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/aguardando-aprovacao" element={<AguardandoAprovacao />} />
             <Route element={<AppLayout />}>
-              <Route path="/aguardando-aprovacao" element={<AguardandoAprovacao />} />
               <Route path="/" element={<Dashboard />} />
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/equipamentos" element={<Equipamentos />} />
