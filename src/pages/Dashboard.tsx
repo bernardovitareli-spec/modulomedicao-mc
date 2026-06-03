@@ -409,6 +409,9 @@ export default function Dashboard() {
       </div>
 
       {/* Cards executivos principais */}
+      {loading ? (
+        <KPISkeleton count={5} />
+      ) : (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <HeroKpi icon={Wallet} label="Valor medido" value={fmtBRL(valorMedido)} desc="Total medido no período filtrado" tone="primary" />
         <HeroKpi icon={CheckCircle2} label="Valor aprovado" value={fmtBRL(valorAprovado)} desc="Medições aprovadas pelo cliente" tone="success" to="/medicoes" />
@@ -416,6 +419,8 @@ export default function Dashboard() {
         <HeroKpi icon={BadgeDollarSign} label="Em aberto" value={fmtBRL(valorEmAberto)} desc="Saldo financeiro a receber" tone="info" to="/faturamento" />
         <HeroKpi icon={AlertCircle} label="Em atraso" value={fmtBRL(valorEmAtraso)} desc="Valores vencidos e não pagos" tone="danger" to="/faturamento" />
       </div>
+      )}
+
 
       {/* Cards operacionais secundários */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
