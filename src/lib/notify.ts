@@ -1,5 +1,4 @@
 import { toast as sonnerToast, type ExternalToast } from "sonner";
-import { notify } from "@/lib/notify";
 
 type Opts = ExternalToast;
 
