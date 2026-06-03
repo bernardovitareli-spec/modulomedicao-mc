@@ -26,6 +26,7 @@ import FaturamentoDetalhe from "./pages/FaturamentoDetalhe";
 import EmpresaEmissora from "./pages/EmpresaEmissora";
 import GerarNotaLocacao from "./pages/GerarNotaLocacao";
 import Relatorios from "./pages/Relatorios";
+import RelatorioStatusCompetencia from "./pages/RelatorioStatusCompetencia";
 import Historico from "./pages/Historico";
 import NotFound from "./pages/NotFound";
 import Auditoria from "./pages/Auditoria";
