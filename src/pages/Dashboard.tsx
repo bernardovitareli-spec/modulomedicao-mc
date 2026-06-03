@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useDashboardSnapshot } from "@/data/dashboard";
+import { KPISkeleton } from "@/components/skeletons";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -80,12 +81,14 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function Dashboard() {
-  const [loading, setLoading] = useState(true);
-  const [updatedAt, setUpdatedAt] = useState<Date>(new Date());
-  const [medicoes, setMedicoes] = useState<Medicao[]>([]);
-  const [contratos, setContratos] = useState<Contrato[]>([]);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [faturas, setFaturas] = useState<Fatura[]>([]);
+  const snap = useDashboardSnapshot();
+  const loading = snap.isLoading;
+  const updatedAt = useMemo(() => new Date(snap.updatedAt || Date.now()), [snap.updatedAt]);
+  const medicoes = snap.medicoes as Medicao[];
+  const contratos = snap.contratos as Contrato[];
+  const clientes = snap.clientes as Cliente[];
+  const faturas = snap.faturas as Fatura[];
+  const load = snap.refetch;
 
   const hoje = new Date();
   const inicioMesISO = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
@@ -99,22 +102,6 @@ export default function Dashboard() {
   });
   const [showAdv, setShowAdv] = useState(false);
 
-  async function load() {
-    setLoading(true);
-    const [m, c, cl, f] = await Promise.all([
-      supabase.from("medicoes").select("id,contrato_id,competencia,periodo_inicio,periodo_fim,status,valor_final,valor_bruto,valor_descontos,valor_complementares,total_horas_informadas,total_horas_liquidas,total_horas_pagar,ativa,versao,medicao_original_id,aprovada_cliente_em,created_at,updated_at,motivo_reimportacao").limit(5000),
-      supabase.from("contratos").select("id,cliente_id,numero_dj,centro_custo,tipo_servico,fornecedor_nome,status,inicio_operacao,termino_contrato").limit(2000),
-      supabase.from("clientes").select("id,razao_social,nome_fantasia,cnpj,endereco,cidade,uf").limit(2000),
-      supabase.from("faturas").select("id,medicao_id,status,valor,valor_recebido,data_emissao,data_vencimento,data_pagamento,numero_nf").limit(5000),
-    ]);
-    setMedicoes((m.data ?? []) as any);
-    setContratos((c.data ?? []) as any);
-    setClientes((cl.data ?? []) as any);
-    setFaturas((f.data ?? []) as any);
-    setUpdatedAt(new Date());
-    setLoading(false);
-  }
-  useEffect(() => { load(); }, []);
 
   const contratosById = useMemo(() => Object.fromEntries(contratos.map(c => [c.id, c])), [contratos]);
   const clientesById = useMemo(() => Object.fromEntries(clientes.map(c => [c.id, c])), [clientes]);
