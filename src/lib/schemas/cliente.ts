@@ -28,5 +28,5 @@ export const clienteSchema = z.object({
   status: z.enum(["ativo", "inativo"]).default("ativo"),
 });
 
-export type ClienteFormData = z.infer<typeof clienteSchema>;
+export type ClienteFormData = z.input<typeof clienteSchema>;
 export const clientePartialSchema = clienteSchema.partial();

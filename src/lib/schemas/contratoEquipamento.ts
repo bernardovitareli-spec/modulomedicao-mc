@@ -18,4 +18,4 @@ export const contratoEquipamentoSchema = z.object({
   }
 });
 
-export type ContratoEquipamentoFormData = z.infer<typeof contratoEquipamentoSchema>;
+export type ContratoEquipamentoFormData = z.input<typeof contratoEquipamentoSchema>;

@@ -29,4 +29,4 @@ export const medicaoItemSchema = z.object({
   }
 });
 
-export type MedicaoItemFormData = z.infer<typeof medicaoItemSchema>;
+export type MedicaoItemFormData = z.input<typeof medicaoItemSchema>;

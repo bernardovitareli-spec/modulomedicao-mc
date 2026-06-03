@@ -23,4 +23,4 @@ export const faturaSchema = z.object({
   }
 });
 
-export type FaturaFormData = z.infer<typeof faturaSchema>;
+export type FaturaFormData = z.input<typeof faturaSchema>;

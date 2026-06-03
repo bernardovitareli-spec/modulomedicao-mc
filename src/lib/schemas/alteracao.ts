@@ -14,4 +14,4 @@ export const alteracaoSchema = z.object({
   }
 });
 
-export type AlteracaoFormData = z.infer<typeof alteracaoSchema>;
+export type AlteracaoFormData = z.input<typeof alteracaoSchema>;

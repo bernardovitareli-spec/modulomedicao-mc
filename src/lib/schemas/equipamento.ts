@@ -15,4 +15,4 @@ export const equipamentoSchema = z.object({
   observacoes: z.string().trim().max(1000).optional().or(z.literal("")),
 });
 
-export type EquipamentoFormData = z.infer<typeof equipamentoSchema>;
+export type EquipamentoFormData = z.input<typeof equipamentoSchema>;

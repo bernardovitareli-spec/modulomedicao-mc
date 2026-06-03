@@ -64,4 +64,4 @@ export const regraSchema = z.object({
   }
 });
 
-export type RegraFormData = z.infer<typeof regraSchema>;
+export type RegraFormData = z.input<typeof regraSchema>;

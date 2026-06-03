@@ -32,4 +32,4 @@ export const empresaEmissoraSchema = z.object({
   padrao: z.coerce.boolean().default(false),
 });
 
-export type EmpresaEmissoraFormData = z.infer<typeof empresaEmissoraSchema>;
+export type EmpresaEmissoraFormData = z.input<typeof empresaEmissoraSchema>;
