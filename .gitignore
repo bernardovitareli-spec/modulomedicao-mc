@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Lovable: secrets locais (hCaptcha etc.)
+.env.local
+.env.*.local
