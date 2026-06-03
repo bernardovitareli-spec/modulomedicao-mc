@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { fmtBRL, fmtDate } from "@/lib/format";
 
 export default function ContratoAlteracoesTab({ contratoId }: { contratoId: string }) {
@@ -23,7 +23,7 @@ export default function ContratoAlteracoesTab({ contratoId }: { contratoId: stri
   useEffect(() => { load(); }, [contratoId]);
 
   const save = async () => {
-    if (!form.descricao || !form.vigencia_inicio) { toast.error("Descrição e vigência obrigatórios"); return; }
+    if (!form.descricao || !form.vigencia_inicio) { notify.error("Descrição e vigência obrigatórios"); return; }
     const payload: any = {
       contrato_id: contratoId, numero_aditivo: form.numero_aditivo, descricao: form.descricao,
       vigencia_inicio: form.vigencia_inicio, vigencia_fim: form.vigencia_fim || null,
@@ -31,8 +31,8 @@ export default function ContratoAlteracoesTab({ contratoId }: { contratoId: stri
       impacto_prazo_dias: form.impacto_prazo_dias ? Number(form.impacto_prazo_dias) : null,
     };
     const { error } = await supabase.from("contrato_alteracoes").insert(payload);
-    if (error) toast.error(error.message);
-    else { toast.success("Alteração registrada"); setOpen(false); setForm({ numero_aditivo: "", descricao: "", vigencia_inicio: "", vigencia_fim: "", impacto_valor: "", impacto_prazo_dias: "" }); load(); }
+    if (error) notify.error(error.message);
+    else { notify.success("Alteração registrada"); setOpen(false); setForm({ numero_aditivo: "", descricao: "", vigencia_inicio: "", vigencia_fim: "", impacto_valor: "", impacto_prazo_dias: "" }); load(); }
   };
 
   return (

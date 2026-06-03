@@ -9,10 +9,12 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
+import { useConfirmAction } from "@/hooks/useConfirmAction";
 import { fmtBRL, fmtDate, fmtNum } from "@/lib/format";
 
 export default function ContratoEquipamentosTab({ contratoId }: { contratoId: string }) {
+  const confirm = useConfirmAction();
   const [list, setList] = useState<any[]>([]);
   const [equipamentos, setEquipamentos] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
@@ -28,7 +30,7 @@ export default function ContratoEquipamentosTab({ contratoId }: { contratoId: st
   }, [contratoId]);
 
   const add = async () => {
-    if (!form.equipamento_id || !form.data_inicio) { toast.error("Equipamento e data início obrigatórios"); return; }
+    if (!form.equipamento_id || !form.data_inicio) { notify.error("Equipamento e data início obrigatórios"); return; }
     const payload: any = {
       contrato_id: contratoId,
       equipamento_id: form.equipamento_id,
@@ -38,12 +40,22 @@ export default function ContratoEquipamentosTab({ contratoId }: { contratoId: st
       valor_hora_override: form.valor_hora_override ? Number(form.valor_hora_override) : null,
     };
     const { error } = await supabase.from("contrato_equipamentos").insert(payload);
-    if (error) toast.error(error.message); else { toast.success("Vinculado"); setOpen(false); load(); }
+    if (error) notify.error(error.message); else { notify.success("Vinculado"); setOpen(false); load(); }
   };
 
   const remove = async (id: string) => {
-    if (!confirm("Remover vínculo?")) return;
-    await supabase.from("contrato_equipamentos").delete().eq("id", id);
+    const reason = await confirm({
+      title: "Remover vínculo do equipamento?",
+      description: "O equipamento será desvinculado deste contrato. Medições já existentes não serão afetadas.",
+      variant: "destructive",
+      confirmLabel: "Remover",
+      requireReason: true,
+      reasonPlaceholder: "Ex.: equipamento substituído pelo cliente",
+    });
+    if (reason === null) return;
+    const { error } = await supabase.from("contrato_equipamentos").delete().eq("id", id);
+    if (error) { notify.error(error.message); return; }
+    notify.success("Vínculo removido.");
     load();
   };
 

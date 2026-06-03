@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { HardHat, Loader2, MailCheck } from "lucide-react";
 import { validarSenha } from "@/lib/passwordPolicy";
 import { PasswordStrengthMeter } from "@/components/auth/PasswordStrengthMeter";
@@ -108,10 +108,10 @@ export default function Auth() {
       });
       if (error) {
         if (import.meta.env.DEV) console.error("[signIn]", error);
-        toast.error("Credenciais inválidas ou conta ainda não confirmada/aprovada.");
+        notify.error("Credenciais inválidas ou conta ainda não confirmada/aprovada.");
         return;
       }
-      toast.success("Bem-vindo!");
+      notify.success("Bem-vindo!");
       navigate("/", { replace: true });
     } finally {
       setLoading(false);
@@ -120,7 +120,7 @@ export default function Auth() {
 
   const onSignUp = async (data: SignUpData) => {
     if (HCAPTCHA_SITEKEY && !captchaSignup) {
-      toast.error("Confirme o captcha antes de criar a conta.");
+      notify.error("Confirme o captcha antes de criar a conta.");
       return;
     }
     setLoading(true);
@@ -135,7 +135,7 @@ export default function Auth() {
       });
       if (error) {
         if (import.meta.env.DEV) console.error("[signUp]", error);
-        toast.error("Não foi possível criar a conta. Verifique os dados e tente novamente.");
+        notify.error("Não foi possível criar a conta. Verifique os dados e tente novamente.");
         capSignupRef.current?.resetCaptcha();
         setCaptchaSignup(null);
         return;
@@ -148,7 +148,7 @@ export default function Auth() {
 
   const onForgot = async (data: ForgotData) => {
     if (HCAPTCHA_SITEKEY && !captchaForgot) {
-      toast.error("Confirme o captcha para continuar.");
+      notify.error("Confirme o captcha para continuar.");
       return;
     }
     setLoading(true);
@@ -168,7 +168,7 @@ export default function Auth() {
   const onGoogle = async () => {
     setLoading(true);
     const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: `${window.location.origin}/` });
-    if (result.error) { toast.error("Erro ao entrar com Google"); setLoading(false); }
+    if (result.error) { notify.error("Erro ao entrar com Google"); setLoading(false); }
     else if (!result.redirected) { navigate("/", { replace: true }); }
   };
 

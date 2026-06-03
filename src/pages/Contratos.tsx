@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Eye, Search } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { fmtBRL, fmtDate } from "@/lib/format";
 
 const empty = {
@@ -39,7 +39,7 @@ export default function Contratos() {
 
   const save = async () => {
     if (!form.cliente_id || !form.numero_dj || !form.tipo_servico || !form.inicio_operacao || !form.termino_contrato) {
-      toast.error("Preencha cliente, número, tipo, início e término"); return;
+      notify.error("Preencha cliente, número, tipo, início e término"); return;
     }
     const payload: any = {
       ...form,
@@ -48,8 +48,8 @@ export default function Contratos() {
       garantia_minima_horas: form.garantia_minima_horas ? Number(form.garantia_minima_horas) : null,
     };
     const { data, error } = await supabase.from("contratos").insert(payload).select().single();
-    if (error) toast.error(error.message);
-    else { toast.success("Contrato criado"); setOpen(false); load(); navigate(`/contratos/${data.id}`); }
+    if (error) notify.error(error.message);
+    else { notify.success("Contrato criado"); setOpen(false); load(); navigate(`/contratos/${data.id}`); }
   };
 
   const filtered = list.filter((c) =>

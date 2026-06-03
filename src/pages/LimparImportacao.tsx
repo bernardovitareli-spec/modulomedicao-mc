@@ -9,7 +9,7 @@ import { fmtDate } from "@/lib/format";
 import { usePermissions } from "@/lib/permissions";
 import { Navigate } from "react-router-dom";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 
 export default function LimparImportacao() {
   const { canPurgeImportacao } = usePermissions();
@@ -32,8 +32,8 @@ export default function LimparImportacao() {
       _importacao_id: target.id, _motivo: motivo,
     });
     setLoading(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success(`Removido: ${(data as any)?.medicoes ?? 0} medições, ${(data as any)?.equipamentos ?? 0} equipamentos, ${(data as any)?.contratos ?? 0} contratos, ${(data as any)?.clientes ?? 0} clientes.`);
+    if (error) { notify.error(error.message); return; }
+    notify.success(`Removido: ${(data as any)?.medicoes ?? 0} medições, ${(data as any)?.equipamentos ?? 0} equipamentos, ${(data as any)?.contratos ?? 0} contratos, ${(data as any)?.clientes ?? 0} clientes.`);
     setTarget(null); load();
   };
 

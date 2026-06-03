@@ -14,7 +14,7 @@ import { StatusBadge } from "@/components/contrato/ContratoMedicoesTab";
 import { Badge } from "@/components/ui/badge";
 import { usePermissions } from "@/lib/permissions";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 
 export default function Medicoes() {
   const navigate = useNavigate();
@@ -58,8 +58,8 @@ export default function Medicoes() {
     setLoading(true);
     const { error } = await supabase.rpc("delete_medicao_safe", { _medicao_id: delTarget.id, _motivo: motivo });
     setLoading(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Medição excluída");
+    if (error) { notify.error(error.message); return; }
+    notify.success("Medição excluída");
     setDelTarget(null); load();
   };
 
@@ -68,8 +68,8 @@ export default function Medicoes() {
     setLoading(true);
     const { error } = await supabase.rpc("cancel_medicao", { _medicao_id: cancelTarget.id, _motivo: motivo });
     setLoading(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Medição cancelada");
+    if (error) { notify.error(error.message); return; }
+    notify.success("Medição cancelada");
     setCancelTarget(null); load();
   };
 

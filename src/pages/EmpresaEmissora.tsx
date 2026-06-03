@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Save, Plus, Star } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { usePermissions } from "@/lib/permissions";
 
 export default function EmpresaEmissora() {
@@ -33,7 +33,7 @@ export default function EmpresaEmissora() {
   });
 
   const salvar = async () => {
-    if (!sel?.razao_social || !sel?.cnpj) { toast.error("Razão social e CNPJ são obrigatórios"); return; }
+    if (!sel?.razao_social || !sel?.cnpj) { notify.error("Razão social e CNPJ são obrigatórios"); return; }
     setBusy(true);
     if (sel.padrao && sel.id) {
       // limpa outros padrões
@@ -45,15 +45,15 @@ export default function EmpresaEmissora() {
       ? await supabase.from("empresa_emissora").update(payload).eq("id", sel.id)
       : await supabase.from("empresa_emissora").insert(payload).select().single();
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Empresa salva");
+    if (error) { notify.error(error.message); return; }
+    notify.success("Empresa salva");
     load();
   };
 
   const tornarPadrao = async (id: string) => {
     await supabase.from("empresa_emissora").update({ padrao: false } as any).neq("id", id);
     await supabase.from("empresa_emissora").update({ padrao: true } as any).eq("id", id);
-    toast.success("Empresa padrão atualizada");
+    notify.success("Empresa padrão atualizada");
     load();
   };
 

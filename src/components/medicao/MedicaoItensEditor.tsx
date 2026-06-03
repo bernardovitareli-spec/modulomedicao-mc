@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, Trash2, Eye, AlertTriangle, RefreshCw } from "lucide-react";
 import { fmtBRL, fmtNum, fmtCompetencia } from "@/lib/format";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
+import { useConfirmAction } from "@/hooks/useConfirmAction";
 
 interface Props {
   medicaoId: string;
@@ -86,6 +87,7 @@ function calcProporcionalidade(
 }
 
 export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, periodoFim, competencia, cliente, contratoNumero, status, onChanged }: Props) {
+  const confirm = useConfirmAction();
   const [contratoEqs, setContratoEqs] = useState<any[]>([]);
   const [contrato, setContrato] = useState<any>(null);
   const [itens, setItens] = useState<any[]>([]);
@@ -195,20 +197,20 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
   };
 
   const salvar = async () => {
-    if (!form.contrato_equipamento_id) return toast.error("Selecione o equipamento");
-    if (Number(form.horimetro_inicial) < 0) return toast.error("Horímetro inicial não pode ser negativo");
-    if (Number(form.horimetro_final) < Number(form.horimetro_inicial)) return toast.error("Horímetro final deve ser ≥ inicial");
-    if (Number(form.horas_informadas_input) < 0) return toast.error("HT informado não pode ser negativo");
-    if (Number(form.horas_mecanicas) < 0) return toast.error("Horas mecânicas não pode ser negativa");
-    if (calc.erro_data) return toast.error(calc.erro_data);
-    if (calc.valor_final < 0) return toast.error("Valor final não pode ser negativo");
+    if (!form.contrato_equipamento_id) return notify.error("Selecione o equipamento");
+    if (Number(form.horimetro_inicial) < 0) return notify.error("Horímetro inicial não pode ser negativo");
+    if (Number(form.horimetro_final) < Number(form.horimetro_inicial)) return notify.error("Horímetro final deve ser ≥ inicial");
+    if (Number(form.horas_informadas_input) < 0) return notify.error("HT informado não pode ser negativo");
+    if (Number(form.horas_mecanicas) < 0) return notify.error("Horas mecânicas não pode ser negativa");
+    if (calc.erro_data) return notify.error(calc.erro_data);
+    if (calc.valor_final < 0) return notify.error("Valor final não pode ser negativo");
 
     setSaving(true);
     try {
       if (form.id) {
         if (!form.motivo || form.motivo.trim().length < 5) {
           setSaving(false);
-          return toast.error("Informe o motivo da alteração (mínimo 5 caracteres)");
+          return notify.error("Informe o motivo da alteração (mínimo 5 caracteres)");
         }
         const { error } = await supabase.rpc("update_medicao_item", {
           _item_id: form.id,
@@ -226,7 +228,7 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
           _data_fim_operacao_item: form.data_fim_operacao_item || null,
           _motivo_proporcionalidade: form.motivo_proporcionalidade || null,
         } as any);
-        if (error) { setSaving(false); return toast.error(error.message); }
+        if (error) { setSaving(false); return notify.error(error.message); }
         await recalcTotais();
       } else {
         const payload: any = {
@@ -260,39 +262,56 @@ export function MedicaoItensEditor({ medicaoId, contratoId, periodoInicio, perio
           observacoes: form.observacoes || null,
         };
         const { error } = await supabase.from("medicao_itens").insert(payload);
-        if (error) { setSaving(false); return toast.error(error.message); }
+        if (error) { setSaving(false); return notify.error(error.message); }
         await recalcTotais();
       }
       setOpen(false);
       await load();
       onChanged?.();
-      toast.success("Item salvo e totais atualizados");
+      notify.success("Item salvo e totais atualizados");
     } finally {
       setSaving(false);
     }
   };
 
   const recalcularMedicao = async () => {
-    if (!podeRecalcular) return toast.error("Este status permite apenas simulação de regras, sem alterar a medição.");
-    const motivo = window.prompt("Motivo do recálculo (mínimo 5 caracteres):", "Recálculo manual com base nas regras atuais");
+    if (!podeRecalcular) return notify.error("Este status permite apenas simulação de regras, sem alterar a medição.");
+    const motivo = await confirm({
+      title: "Recalcular item da medição?",
+      description: "O recálculo aplicará as regras vigentes na data da medição. Um snapshot da regra utilizada será preservado.",
+      variant: "warning",
+      confirmLabel: "Recalcular",
+      requireReason: true,
+      reasonMinLength: 5,
+      reasonPlaceholder: "Justificativa do recálculo",
+    });
     if (motivo === null) return;
-    if (motivo.trim().length < 5) return toast.error("Motivo é obrigatório");
     setSaving(true);
-    const { error } = await supabase.rpc("recalcular_medicao", { _medicao_id: medicaoId, _motivo: motivo.trim() });
+    const { error } = await supabase.rpc("recalcular_medicao", { _medicao_id: medicaoId, _motivo: motivo });
     setSaving(false);
-    if (error) return toast.error(error.message);
+    if (error) return notify.error(error.message);
     await load();
     onChanged?.();
-    toast.success("Medição recalculada");
+    notify.success("Medição recalculada");
   };
 
   const excluir = async (id: string) => {
-    if (!confirm("Excluir este item?")) return;
+    const motivo = await confirm({
+      title: "Excluir item da medição?",
+      description: "Esta ação não pode ser desfeita.",
+      variant: "destructive",
+      confirmLabel: "Excluir",
+      requireTypedConfirmation: "EXCLUIR",
+      requireReason: true,
+      reasonPlaceholder: "Motivo da exclusão (será registrado no audit log)",
+    });
+    if (motivo === null) return;
     const { error } = await supabase.from("medicao_itens").delete().eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) return notify.error(error.message);
     await load();
     await recalcTotais();
     onChanged?.();
+    notify.success("Item excluído.");
   };
 
   const eqOptions = contratoEqs.filter((ce) =>

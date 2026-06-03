@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
+import { useConfirmAction } from "@/hooks/useConfirmAction";
 import { Loader2, ShieldCheck, ShieldOff, KeyRound, Smartphone, Monitor, Copy } from "lucide-react";
 import { validarSenha } from "@/lib/passwordPolicy";
 import { PasswordStrengthMeter } from "@/components/auth/PasswordStrengthMeter";
@@ -38,6 +39,7 @@ interface MfaFactor {
 export default function ContaSeguranca() {
   const { user, session } = useAuth();
   const navigate = useNavigate();
+  const confirm = useConfirmAction();
   const [params] = useSearchParams();
   const isChallenge = params.get("challenge") === "1";
 
@@ -79,7 +81,7 @@ export default function ContaSeguranca() {
   const loadFactors = async () => {
     setLoadingFactors(true);
     const { data, error } = await supabase.auth.mfa.listFactors();
-    if (error) toast.error("Não foi possível carregar os fatores 2FA");
+    if (error) notify.error("Não foi possível carregar os fatores 2FA");
     else setFactors(((data?.all ?? []) as unknown) as MfaFactor[]);
     setLoadingFactors(false);
   };
@@ -93,12 +95,12 @@ export default function ContaSeguranca() {
       password: data.atual,
     });
     if (reauthErr) {
-      toast.error("Senha atual incorreta.");
+      notify.error("Senha atual incorreta.");
       return;
     }
     const { error } = await supabase.auth.updateUser({ password: data.nova });
-    if (error) return toast.error(error.message);
-    toast.success("Senha atualizada com sucesso.");
+    if (error) return notify.error(error.message);
+    notify.success("Senha atualizada com sucesso.");
     senhaForm.reset();
   };
 
@@ -108,7 +110,7 @@ export default function ContaSeguranca() {
     const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp" });
     setEnrolling(false);
     if (error || !data) {
-      toast.error("Falha ao iniciar o cadastro do 2FA.");
+      notify.error("Falha ao iniciar o cadastro do 2FA.");
       return;
     }
     setEnrollData({
@@ -124,7 +126,7 @@ export default function ContaSeguranca() {
     const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId: enrollData.factorId });
     if (chErr || !ch) {
       setEnrolling(false);
-      toast.error("Falha no challenge.");
+      notify.error("Falha no challenge.");
       return;
     }
     const { error: verErr } = await supabase.auth.mfa.verify({
@@ -134,10 +136,10 @@ export default function ContaSeguranca() {
     });
     setEnrolling(false);
     if (verErr) {
-      toast.error("Código inválido. Tente novamente.");
+      notify.error("Código inválido. Tente novamente.");
       return;
     }
-    toast.success("2FA ativado!");
+    notify.success("2FA ativado!");
     // Gera códigos de backup pseudo-aleatórios
     const codes = await gerarCodigosBackup(user?.id || "anon", 6);
     setBackupCodes(codes);
@@ -156,10 +158,16 @@ export default function ContaSeguranca() {
 
   const disableMfa = async () => {
     if (!verifiedFactor) return;
-    if (!confirm("Tem certeza que deseja desativar o 2FA? Sua conta ficará menos protegida.")) return;
+    const reason = await confirm({
+      title: "Desativar autenticação em dois fatores?",
+      description: "Sua conta ficará menos protegida sem o 2FA.",
+      variant: "warning",
+      confirmLabel: "Desativar 2FA",
+    });
+    if (reason === null) return;
     const { error } = await supabase.auth.mfa.unenroll({ factorId: verifiedFactor.id });
-    if (error) return toast.error("Falha ao desativar 2FA.");
-    toast.success("2FA desativado.");
+    if (error) return notify.error("Falha ao desativar 2FA.");
+    notify.success("2FA desativado.");
     setBackupCodes(null);
     loadFactors();
   };
@@ -171,7 +179,7 @@ export default function ContaSeguranca() {
     const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId: verifiedFactor.id });
     if (chErr || !ch) {
       setChallengeLoading(false);
-      toast.error("Falha no desafio.");
+      notify.error("Falha no desafio.");
       return;
     }
     const { error: verErr } = await supabase.auth.mfa.verify({
@@ -181,16 +189,16 @@ export default function ContaSeguranca() {
     });
     setChallengeLoading(false);
     if (verErr) {
-      toast.error("Código inválido.");
+      notify.error("Código inválido.");
       return;
     }
-    toast.success("Sessão elevada com sucesso.");
+    notify.success("Sessão elevada com sucesso.");
     navigate("/", { replace: true });
   };
 
   // Copia secret/códigos
   const copiar = (txt: string, label = "Copiado") => {
-    navigator.clipboard.writeText(txt).then(() => toast.success(label));
+    navigator.clipboard.writeText(txt).then(() => notify.success(label));
   };
 
   // ============== Render Challenge UI (modo step-up) ==============

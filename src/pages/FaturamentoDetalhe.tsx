@@ -15,7 +15,7 @@ import { ArrowLeft, Save, Ban, DollarSign, Upload, Download, FileText } from "lu
 import { fmtBRL, fmtDate, fmtCompetencia } from "@/lib/format";
 import { FATURAMENTO_STATUS_LABELS, FATURAMENTO_STATUS_VARIANT, labelFatStatus, FaturamentoStatus } from "@/lib/faturamentoStatus";
 import { usePermissions } from "@/lib/permissions";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 
 export default function FaturamentoDetalhe() {
   const { id } = useParams<{ id: string }>();
@@ -72,7 +72,7 @@ export default function FaturamentoDetalhe() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [id]);
 
   const salvar = async () => {
-    if (!motivo || motivo.trim().length < 3) { toast.error("Informe o motivo da alteração"); return; }
+    if (!motivo || motivo.trim().length < 3) { notify.error("Informe o motivo da alteração"); return; }
     setBusy(true);
     const { error } = await supabase.rpc("atualizar_faturamento", {
       _fatura_id: id!,
@@ -90,8 +90,8 @@ export default function FaturamentoDetalhe() {
       _motivo: motivo,
     });
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Faturamento atualizado");
+    if (error) { notify.error(error.message); return; }
+    notify.success("Faturamento atualizado");
     setMotivo(""); load();
   };
 
@@ -105,18 +105,18 @@ export default function FaturamentoDetalhe() {
       _motivo: pagMotivo || "Registro de pagamento",
     });
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Pagamento registrado");
+    if (error) { notify.error(error.message); return; }
+    notify.success("Pagamento registrado");
     setPagOpen(false); setPagMotivo(""); load();
   };
 
   const cancelar = async () => {
-    if (cancelMotivo.trim().length < 5) { toast.error("Motivo (mínimo 5 caracteres)"); return; }
+    if (cancelMotivo.trim().length < 5) { notify.error("Motivo (mínimo 5 caracteres)"); return; }
     setBusy(true);
     const { error } = await supabase.rpc("cancelar_faturamento", { _fatura_id: id!, _motivo: cancelMotivo });
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Faturamento cancelado");
+    if (error) { notify.error(error.message); return; }
+    notify.success("Faturamento cancelado");
     setCancelOpen(false); setCancelMotivo(""); load();
   };
 
@@ -124,12 +124,12 @@ export default function FaturamentoDetalhe() {
     if (!id) return;
     const path = `${id}/${Date.now()}-${file.name}`;
     const { error } = await supabase.storage.from("medicao-anexos").upload(path, file, { upsert: false });
-    if (error) { toast.error(error.message); return; }
+    if (error) { notify.error(error.message); return; }
     const { error: e2 } = await supabase.from("faturas").update({
       anexo_nf_storage_path: path, anexo_nf_nome: file.name,
     } as any).eq("id", id);
-    if (e2) { toast.error(e2.message); return; }
-    toast.success("Anexo enviado");
+    if (e2) { notify.error(e2.message); return; }
+    notify.success("Anexo enviado");
     load();
   };
 
@@ -137,7 +137,7 @@ export default function FaturamentoDetalhe() {
     if (!f?.anexo_nf_storage_path) return;
     const { data, error } = await supabase.storage.from("medicao-anexos")
       .createSignedUrl(f.anexo_nf_storage_path, 60);
-    if (error || !data) { toast.error("Falha ao baixar"); return; }
+    if (error || !data) { notify.error("Falha ao baixar"); return; }
     window.open(data.signedUrl, "_blank");
   };
 

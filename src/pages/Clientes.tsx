@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Search } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { fmtCNPJ } from "@/lib/format";
 
 type Cliente = {
@@ -41,14 +41,14 @@ export default function Clientes() {
   const openEdit = (c: any) => { setEditing(c); setForm({ ...empty, ...c }); setOpen(true); };
 
   const save = async () => {
-    if (!form.razao_social || !form.cnpj) { toast.error("Razão social e CNPJ obrigatórios"); return; }
+    if (!form.razao_social || !form.cnpj) { notify.error("Razão social e CNPJ obrigatórios"); return; }
     const cnpjLimpo = form.cnpj.replace(/\D/g, "");
     const payload: any = { ...form, cnpj: cnpjLimpo };
     const r = editing
       ? await supabase.from("clientes").update(payload).eq("id", editing.id)
       : await supabase.from("clientes").insert(payload);
-    if (r.error) toast.error(r.error.message);
-    else { toast.success("Cliente salvo"); setOpen(false); load(); }
+    if (r.error) notify.error(r.error.message);
+    else { notify.success("Cliente salvo"); setOpen(false); load(); }
   };
 
   const filtered = list.filter((c) =>

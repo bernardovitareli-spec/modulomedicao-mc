@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Download, Trash2, Upload, Paperclip, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
+import { useConfirmAction } from "@/hooks/useConfirmAction";
 import { fmtDate } from "@/lib/format";
 import { usePermissions } from "@/lib/permissions";
 
@@ -49,6 +50,7 @@ const fmtSize = (b?: number | null) => {
 
 export function MedicaoAnexosTab({ medicaoId }: { medicaoId: string }) {
   const perms = usePermissions();
+  const confirm = useConfirmAction();
   const podeEnviar = perms.isAdmin || perms.isGestor || perms.isOperacional || perms.isFinanceiro;
 
   const [anexos, setAnexos] = useState<Anexo[]>([]);
@@ -63,7 +65,7 @@ export function MedicaoAnexosTab({ medicaoId }: { medicaoId: string }) {
       .select("*")
       .eq("medicao_id", medicaoId)
       .order("created_at", { ascending: false });
-    if (error) { toast.error(error.message); return; }
+    if (error) { notify.error(error.message); return; }
     setAnexos((data ?? []) as any);
   };
 
@@ -71,8 +73,8 @@ export function MedicaoAnexosTab({ medicaoId }: { medicaoId: string }) {
 
   const upload = async () => {
     const file = fileRef.current?.files?.[0];
-    if (!file) { toast.error("Selecione um arquivo."); return; }
-    if (file.size > 20 * 1024 * 1024) { toast.error("Arquivo acima de 20MB."); return; }
+    if (!file) { notify.error("Selecione um arquivo."); return; }
+    if (file.size > 20 * 1024 * 1024) { notify.error("Arquivo acima de 20MB."); return; }
     setBusy(true);
     try {
       const ext = file.name.split(".").pop() || "bin";
@@ -98,12 +100,12 @@ export function MedicaoAnexosTab({ medicaoId }: { medicaoId: string }) {
       });
       if (ins.error) throw ins.error;
 
-      toast.success("Anexo enviado.");
+      notify.success("Anexo enviado.");
       setObs("");
       if (fileRef.current) fileRef.current.value = "";
       load();
     } catch (e: any) {
-      toast.error(e.message ?? "Falha ao enviar anexo.");
+      notify.error(e.message ?? "Falha ao enviar anexo.");
     } finally {
       setBusy(false);
     }
@@ -113,17 +115,23 @@ export function MedicaoAnexosTab({ medicaoId }: { medicaoId: string }) {
     const { data, error } = await supabase.storage
       .from("medicao-anexos")
       .createSignedUrl(a.storage_path, 60);
-    if (error) { toast.error(error.message); return; }
+    if (error) { notify.error(error.message); return; }
     window.open(data.signedUrl, "_blank");
   };
 
   const remover = async (a: Anexo) => {
-    if (!confirm(`Remover "${a.nome_arquivo}"?`)) return;
+    const reason = await confirm({
+      title: "Remover anexo?",
+      description: `Arquivo: ${a.nome_arquivo}`,
+      variant: "destructive",
+      confirmLabel: "Remover",
+    });
+    if (reason === null) return;
     const r1 = await supabase.storage.from("medicao-anexos").remove([a.storage_path]);
-    if (r1.error) { toast.error(r1.error.message); return; }
+    if (r1.error) { notify.error(r1.error.message); return; }
     const r2 = await supabase.from("medicao_anexos" as any).delete().eq("id", a.id);
-    if (r2.error) { toast.error(r2.error.message); return; }
-    toast.success("Anexo removido.");
+    if (r2.error) { notify.error(r2.error.message); return; }
+    notify.success("Anexo removido.");
     load();
   };
 

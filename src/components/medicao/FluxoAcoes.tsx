@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
   Send, CheckCircle2, Undo2, UserCheck, UserX, DollarSign,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { usePermissions } from "@/lib/permissions";
 import { AcaoMedicaoDialog } from "./AcaoMedicaoDialog";
 
@@ -35,7 +35,7 @@ export function FluxoAcoes({ medicaoId, status, onChanged }: Props) {
   const exec = async (rpc: string, args: Record<string, any>) => {
     const { error } = await supabase.rpc(rpc as any, { _medicao_id: medicaoId, ...args });
     if (error) throw new Error(error.message);
-    toast.success("Ação realizada com sucesso");
+    notify.success("Ação realizada com sucesso");
     onChanged?.();
   };
 

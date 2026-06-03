@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogD
 import { Button } from "@/components/ui/button";
 import { Receipt, RefreshCw, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { useNavigate } from "react-router-dom";
 import { fmtBRL, fmtCompetencia } from "@/lib/format";
 
@@ -58,8 +58,8 @@ export function CriarFaturamentoButton({
     setBusy(true);
     const { data, error } = await supabase.rpc("criar_faturamento", { _medicao_id: medicaoId });
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Faturamento criado");
+    if (error) { notify.error(error.message); return; }
+    notify.success("Faturamento criado");
     setOpen(false);
     onCreated?.();
     if (data) navigate(`/faturamento/${data}`);
@@ -70,8 +70,8 @@ export function CriarFaturamentoButton({
     setBusy(true);
     const { data, error } = await supabase.rpc("reabrir_faturamento_cancelado" as any, { _fatura_id: faturaCancelada.id });
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Faturamento reaberto");
+    if (error) { notify.error(error.message); return; }
+    notify.success("Faturamento reaberto");
     setOpen(false);
     onCreated?.();
     navigate(`/faturamento/${data ?? faturaCancelada.id}`);
