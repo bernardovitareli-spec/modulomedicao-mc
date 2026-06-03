@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, FileText, Wrench, ClipboardList, LogOut, HardHat,
-  ShieldAlert, Eraser, UserCog, ScrollText, Receipt, Building2,
+  ShieldAlert, Eraser, UserCog, ScrollText, Receipt, Building2, BarChart3,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
