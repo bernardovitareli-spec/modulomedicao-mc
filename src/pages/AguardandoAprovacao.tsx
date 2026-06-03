@@ -1,10 +1,14 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { Clock } from "lucide-react";
+import { Clock, Loader2 } from "lucide-react";
+import { Navigate } from "react-router-dom";
 
 export default function AguardandoAprovacao() {
-  const { user, signOut } = useAuth();
+  const { user, loading, roles, signOut } = useAuth();
+  if (loading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!user) return <Navigate to="/auth" replace />;
+  if (roles.length > 0) return <Navigate to="/" replace />;
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary to-primary-glow p-4">
       <Card className="w-full max-w-md">
