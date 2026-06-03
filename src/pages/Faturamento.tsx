@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,11 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { fmtBRL, fmtDate, fmtCompetencia } from "@/lib/format";
 import { FATURAMENTO_STATUS_LABELS, FATURAMENTO_STATUS_VARIANT, labelFatStatus, FaturamentoStatus } from "@/lib/faturamentoStatus";
 import { ExternalLink, Filter, X } from "lucide-react";
+import { useFaturasList } from "@/data/faturas";
+import { TableSkeleton } from "@/components/skeletons";
 
 export default function Faturamento() {
   const navigate = useNavigate();
-  const [list, setList] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: list = [], isLoading } = useFaturasList();
 
   // filtros
   const [fStatus, setFStatus] = useState<string>("todos");
@@ -25,25 +25,12 @@ export default function Faturamento() {
   const [fEmissaoDe, setFEmissaoDe] = useState<string>("");
   const [fVencDe, setFVencDe] = useState<string>("");
 
-  const load = async () => {
-    setLoading(true);
-    // Atualiza atrasos antes de listar
-    try { await supabase.rpc("atualizar_status_atraso"); } catch {}
-    const { data } = await supabase
-      .from("faturas")
-      .select("*, medicoes(competencia, periodo_inicio, periodo_fim, valor_final, contratos(numero_dj, fornecedor_nome, clientes(razao_social)))")
-      .order("created_at", { ascending: false });
-    setList(data ?? []);
-    setLoading(false);
-  };
-  useEffect(() => { load(); }, []);
-
   const limparFiltros = () => {
     setFStatus("todos"); setFCliente(""); setFContrato("");
     setFCompetencia(""); setFEmissaoDe(""); setFVencDe("");
   };
 
-  const filtered = list.filter((f) => {
+  const filtered = list.filter((f: any) => {
     const cli = (f.medicoes?.contratos?.clientes?.razao_social ?? "").toLowerCase();
     const ctr = (f.medicoes?.contratos?.numero_dj ?? "").toLowerCase();
     const comp = (f.medicoes?.competencia ?? "").slice(0, 7);
@@ -56,12 +43,11 @@ export default function Faturamento() {
     return true;
   });
 
-  // KPIs
-  const totalAFaturar = filtered.filter(f => f.status === "a_faturar").reduce((s, f) => s + Number(f.valor ?? 0), 0);
-  const totalAReceber = filtered.filter(f => ["nf_emitida","aguardando_pagamento","em_atraso","pago_parcial"].includes(f.status))
-    .reduce((s, f) => s + (Number(f.valor_liquido ?? f.valor ?? 0) - Number(f.valor_recebido ?? 0)), 0);
-  const totalRecebido = filtered.filter(f => f.status !== "cancelado").reduce((s, f) => s + Number(f.valor_recebido ?? 0), 0);
-  const totalAtraso = filtered.filter(f => f.status === "em_atraso").reduce((s, f) => s + Number(f.valor_liquido ?? f.valor ?? 0), 0);
+  const totalAFaturar = filtered.filter((f: any) => f.status === "a_faturar").reduce((s: number, f: any) => s + Number(f.valor ?? 0), 0);
+  const totalAReceber = filtered.filter((f: any) => ["nf_emitida","aguardando_pagamento","em_atraso","pago_parcial"].includes(f.status))
+    .reduce((s: number, f: any) => s + (Number(f.valor_liquido ?? f.valor ?? 0) - Number(f.valor_recebido ?? 0)), 0);
+  const totalRecebido = filtered.filter((f: any) => f.status !== "cancelado").reduce((s: number, f: any) => s + Number(f.valor_recebido ?? 0), 0);
+  const totalAtraso = filtered.filter((f: any) => f.status === "em_atraso").reduce((s: number, f: any) => s + Number(f.valor_liquido ?? f.valor ?? 0), 0);
 
   return (
     <div>
@@ -119,6 +105,7 @@ export default function Faturamento() {
 
       <Card>
         <CardContent className="p-0">
+          {isLoading ? <div className="p-4"><TableSkeleton cols={12} rows={6} /></div> : (
           <Table>
             <TableHeader>
               <TableRow>
@@ -137,9 +124,8 @@ export default function Faturamento() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading && <TableRow><TableCell colSpan={12} className="text-center py-6 text-sm text-muted-foreground">Carregando...</TableCell></TableRow>}
-              {!loading && filtered.length === 0 && <TableRow><TableCell colSpan={12} className="text-center py-6 text-sm text-muted-foreground">Nenhum faturamento.</TableCell></TableRow>}
-              {filtered.map((f) => {
+              {filtered.length === 0 && <TableRow><TableCell colSpan={12} className="text-center py-6 text-sm text-muted-foreground">Nenhum faturamento.</TableCell></TableRow>}
+              {filtered.map((f: any) => {
                 const valorNf = Number(f.valor_liquido ?? f.valor ?? 0);
                 const recebido = Number(f.valor_recebido ?? 0);
                 const saldo = Math.max(0, valorNf - recebido);
@@ -170,6 +156,7 @@ export default function Faturamento() {
               })}
             </TableBody>
           </Table>
+          )}
         </CardContent>
       </Card>
     </div>

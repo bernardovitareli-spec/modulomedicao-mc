@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,32 +10,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Search } from "lucide-react";
 import { notify } from "@/lib/notify";
+import { useEquipamentosList, useSalvarEquipamento } from "@/data/equipamentos";
+import { TableSkeleton } from "@/components/skeletons";
 
 const empty = { tipo: "", modelo: "", serie: "", tag: "", ano: "", status: "ativo", observacoes: "" };
 
 export default function Equipamentos() {
-  const [list, setList] = useState<any[]>([]);
+  const { data: list = [], isLoading } = useEquipamentosList();
+  const salvar = useSalvarEquipamento();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState<any>(empty);
 
-  const load = async () => {
-    const { data } = await supabase.from("equipamentos").select("*").order("tag");
-    setList(data ?? []);
-  };
-  useEffect(() => { load(); }, []);
-
-  const save = async () => {
+  const handleSave = async () => {
     if (!form.tag || !form.tipo || !form.modelo) { notify.error("Tag, tipo e modelo obrigatórios"); return; }
     const payload: any = { ...form, ano: form.ano ? Number(form.ano) : null };
-    const r = editing
-      ? await supabase.from("equipamentos").update(payload).eq("id", editing.id)
-      : await supabase.from("equipamentos").insert(payload);
-    if (r.error) notify.error(r.error.message); else { notify.success("Salvo"); setOpen(false); load(); }
+    try {
+      await salvar.mutateAsync({ id: editing?.id, payload });
+      setOpen(false);
+    } catch { /* notify já feito */ }
   };
 
-  const filtered = list.filter((e) =>
+  const filtered = list.filter((e: any) =>
     !search || e.tag.toLowerCase().includes(search.toLowerCase()) || e.modelo.toLowerCase().includes(search.toLowerCase()),
   );
 
@@ -52,6 +48,7 @@ export default function Equipamentos() {
           </div>
           <span className="ml-auto text-xs text-muted-foreground">{filtered.length} equipamento(s)</span>
         </div>
+        {isLoading ? <TableSkeleton cols={7} rows={6} /> : (
         <div className="overflow-x-auto">
           <Table>
             <TableHeader><TableRow>
@@ -60,7 +57,7 @@ export default function Equipamentos() {
             </TableRow></TableHeader>
             <TableBody>
               {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-sm text-muted-foreground">Nenhum equipamento.</TableCell></TableRow>}
-              {filtered.map((e) => (
+              {filtered.map((e: any) => (
                 <TableRow key={e.id}>
                   <TableCell className="font-mono font-semibold">{e.tag}</TableCell>
                   <TableCell>{e.tipo}</TableCell>
@@ -74,6 +71,7 @@ export default function Equipamentos() {
             </TableBody>
           </Table>
         </div>
+        )}
       </CardContent></Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -96,7 +94,7 @@ export default function Equipamentos() {
               </Select>
             </div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button onClick={save}>Salvar</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button onClick={handleSave} disabled={salvar.isPending}>Salvar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Eye, Search } from "lucide-react";
 import { notify } from "@/lib/notify";
 import { fmtBRL, fmtDate } from "@/lib/format";
+import { useContratosList, useCriarContrato } from "@/data/contratos";
+import { useClientesAtivos } from "@/data/clientes";
+import { TableSkeleton } from "@/components/skeletons";
 
 const empty = {
   cliente_id: "", numero_dj: "", tipo_servico: "", centro_custo: "",
@@ -22,20 +24,12 @@ const empty = {
 
 export default function Contratos() {
   const navigate = useNavigate();
-  const [list, setList] = useState<any[]>([]);
-  const [clientes, setClientes] = useState<any[]>([]);
+  const { data: list = [], isLoading } = useContratosList();
+  const { data: clientes = [] } = useClientesAtivos();
+  const criar = useCriarContrato();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<any>(empty);
-
-  const load = async () => {
-    const { data } = await supabase.from("contratos").select("*, clientes(razao_social)").order("created_at", { ascending: false });
-    setList((data ?? []) as any[]);
-  };
-  useEffect(() => {
-    load();
-    supabase.from("clientes").select("id, razao_social").eq("status", "ativo").order("razao_social").then(({ data }) => setClientes(data ?? []));
-  }, []);
 
   const save = async () => {
     if (!form.cliente_id || !form.numero_dj || !form.tipo_servico || !form.inicio_operacao || !form.termino_contrato) {
@@ -47,12 +41,14 @@ export default function Contratos() {
       valor_hora_padrao: form.valor_hora_padrao ? Number(form.valor_hora_padrao) : null,
       garantia_minima_horas: form.garantia_minima_horas ? Number(form.garantia_minima_horas) : null,
     };
-    const { data, error } = await supabase.from("contratos").insert(payload).select().single();
-    if (error) notify.error(error.message);
-    else { notify.success("Contrato criado"); setOpen(false); load(); navigate(`/contratos/${data.id}`); }
+    try {
+      const data = await criar.mutateAsync(payload);
+      setOpen(false);
+      if (data?.id) navigate(`/contratos/${data.id}`);
+    } catch { /* notify já feito */ }
   };
 
-  const filtered = list.filter((c) =>
+  const filtered = list.filter((c: any) =>
     !search || c.numero_dj.toLowerCase().includes(search.toLowerCase()) || c.clientes?.razao_social?.toLowerCase().includes(search.toLowerCase()),
   );
 
@@ -69,6 +65,7 @@ export default function Contratos() {
           </div>
           <span className="ml-auto text-xs text-muted-foreground">{filtered.length} contrato(s)</span>
         </div>
+        {isLoading ? <TableSkeleton cols={9} rows={6} /> : (
         <div className="overflow-x-auto">
           <Table>
             <TableHeader><TableRow>
@@ -80,7 +77,7 @@ export default function Contratos() {
             </TableRow></TableHeader>
             <TableBody>
               {filtered.length === 0 && <TableRow><TableCell colSpan={9} className="text-center py-8 text-sm text-muted-foreground">Nenhum contrato.</TableCell></TableRow>}
-              {filtered.map((c) => (
+              {filtered.map((c: any) => (
                 <TableRow key={c.id} className="cursor-pointer" onClick={() => navigate(`/contratos/${c.id}`)}>
                   <TableCell className="font-mono font-semibold">{c.numero_dj}</TableCell>
                   <TableCell>{c.clientes?.razao_social ?? "—"}</TableCell>
@@ -99,6 +96,7 @@ export default function Contratos() {
             </TableBody>
           </Table>
         </div>
+        )}
       </CardContent></Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -109,7 +107,7 @@ export default function Contratos() {
               <Label>Cliente *</Label>
               <Select value={form.cliente_id} onValueChange={(v) => setForm({ ...form, cliente_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>{clientes.map((c) => <SelectItem key={c.id} value={c.id}>{c.razao_social}</SelectItem>)}</SelectContent>
+                <SelectContent>{clientes.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.razao_social}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div><Label>Nº DJ *</Label><Input value={form.numero_dj} onChange={(e) => setForm({ ...form, numero_dj: e.target.value })} /></div>
@@ -130,7 +128,7 @@ export default function Contratos() {
             <div><Label>Valor/hora padrão</Label><Input type="number" step="0.01" value={form.valor_hora_padrao} onChange={(e) => setForm({ ...form, valor_hora_padrao: e.target.value })} /></div>
             <div><Label>Garantia mínima (h/mês)</Label><Input type="number" step="0.01" value={form.garantia_minima_horas} onChange={(e) => setForm({ ...form, garantia_minima_horas: e.target.value })} /></div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button onClick={save}>Criar</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button onClick={save} disabled={criar.isPending}>Criar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
