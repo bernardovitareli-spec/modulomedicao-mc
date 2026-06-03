@@ -33,6 +33,7 @@ import NotFound from "./pages/NotFound";
 import Auditoria from "./pages/Auditoria";
 import LimparImportacao from "./pages/LimparImportacao";
 import Usuarios from "./pages/Usuarios";
+import ContaSeguranca from "./pages/ContaSeguranca";
 
 const queryClient = new QueryClient();
 
@@ -73,6 +74,7 @@ const App = () => (
               <Route path="/auditoria" element={<Auditoria />} />
               <Route path="/admin/limpar-importacao" element={<LimparImportacao />} />
               <Route path="/admin/usuarios" element={<Usuarios />} />
+              <Route path="/conta/seguranca" element={<ContaSeguranca />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

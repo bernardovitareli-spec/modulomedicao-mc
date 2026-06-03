@@ -1,12 +1,44 @@
-import { Outlet, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Outlet, Navigate, useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { useAuth } from "@/hooks/useAuth";
+import { useIdleLogout } from "@/hooks/useIdleLogout";
+import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
 export default function AppLayout() {
-  const { user, loading, roles } = useAuth();
-  if (loading) {
+  const { user, session, loading, roles } = useAuth();
+  const location = useLocation();
+  const [aalChecking, setAalChecking] = useState(true);
+  const [needsMfa, setNeedsMfa] = useState(false);
+
+  // Logout por inatividade
+  useIdleLogout(!!session);
+
+  // Step-up MFA: se há fator verificado mas sessão é aal1, redireciona p/ challenge
+  useEffect(() => {
+    let active = true;
+    if (!session) { setAalChecking(false); return; }
+    (async () => {
+      try {
+        const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (!active) return;
+        if (data && data.currentLevel && data.nextLevel && data.currentLevel !== data.nextLevel) {
+          setNeedsMfa(true);
+        } else {
+          setNeedsMfa(false);
+        }
+      } catch {
+        if (active) setNeedsMfa(false);
+      } finally {
+        if (active) setAalChecking(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [session]);
+
+  if (loading || aalChecking) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -14,8 +46,12 @@ export default function AppLayout() {
     );
   }
   if (!user) return <Navigate to="/auth" replace />;
-  // Usuário sem papel = pendente de aprovação
   if (roles.length === 0) return <Navigate to="/aguardando-aprovacao" replace />;
+
+  // Exige challenge MFA antes de liberar o resto do app
+  if (needsMfa && location.pathname !== "/conta/seguranca") {
+    return <Navigate to="/conta/seguranca?challenge=1" replace />;
+  }
 
   return (
     <SidebarProvider>

@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, FileText, Wrench, ClipboardList, LogOut, HardHat,
-  ShieldAlert, Eraser, UserCog, ScrollText, Receipt, Building2, BarChart3,
+  ShieldAlert, Eraser, UserCog, ScrollText, Receipt, Building2, BarChart3, ShieldCheck,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -111,18 +111,32 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t border-sidebar-border p-2">
         {!collapsed ? (
-          <div className="flex items-center justify-between gap-2 px-2 py-1">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium text-sidebar-foreground">{user?.email}</p>
+          <div className="space-y-1">
+            <NavLink
+              to="/conta/seguranca"
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Segurança da conta
+            </NavLink>
+            <div className="flex items-center justify-between gap-2 px-2 py-1">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-medium text-sidebar-foreground">{user?.email}</p>
+              </div>
+              <Button size="icon" variant="ghost" className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent" onClick={signOut} title="Sair">
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <NavLink to="/conta/seguranca" title="Segurança" className="flex h-8 w-8 items-center justify-center rounded-md text-sidebar-foreground hover:bg-sidebar-accent">
+              <ShieldCheck className="h-4 w-4" />
+            </NavLink>
             <Button size="icon" variant="ghost" className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent" onClick={signOut} title="Sair">
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
-        ) : (
-          <Button size="icon" variant="ghost" className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent" onClick={signOut} title="Sair">
-            <LogOut className="h-4 w-4" />
-          </Button>
         )}
       </SidebarFooter>
     </Sidebar>

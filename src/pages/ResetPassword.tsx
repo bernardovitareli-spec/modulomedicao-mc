@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,21 +10,43 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { HardHat, Loader2 } from "lucide-react";
+import { validarSenha } from "@/lib/passwordPolicy";
+import { PasswordStrengthMeter } from "@/components/auth/PasswordStrengthMeter";
+
+const schema = z
+  .object({
+    password: z.string().refine((v) => validarSenha(v).ok, {
+      message: "A senha não atende à política mínima.",
+    }),
+    confirm: z.string(),
+  })
+  .refine((d) => d.password === d.confirm, {
+    path: ["confirm"],
+    message: "As senhas não coincidem.",
+  });
+
+type FormData = z.infer<typeof schema>;
 
 export default function ResetPassword() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
+
+  const form = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: { password: "", confirm: "" },
+    mode: "onChange",
+  });
+
+  const senha = form.watch("password");
+  const confirm = form.watch("confirm");
+  const ok = validarSenha(senha || "").ok && senha === confirm && !!confirm;
 
   useEffect(() => {
-    // Supabase coloca o token no hash da URL (#access_token=...&type=recovery)
     const hash = window.location.hash;
     if (hash.includes("type=recovery") || hash.includes("access_token")) {
       setReady(true);
     } else {
-      // Se chegou aqui sem token de recovery, verifica se já há sessão recovery
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session) setReady(true);
         else {
@@ -32,12 +57,9 @@ export default function ResetPassword() {
     }
   }, [navigate]);
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password.length < 6) return toast.error("A senha deve ter ao menos 6 caracteres");
-    if (password !== confirm) return toast.error("As senhas não coincidem");
+  const onSubmit = async (data: FormData) => {
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
+    const { error } = await supabase.auth.updateUser({ password: data.password });
     setLoading(false);
     if (error) return toast.error(error.message);
     toast.success("Senha atualizada! Faça login novamente.");
@@ -66,16 +88,20 @@ export default function ResetPassword() {
             {!ready ? (
               <div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin" /></div>
             ) : (
-              <form onSubmit={onSubmit} className="space-y-3">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3" noValidate>
                 <div className="space-y-1.5">
-                  <Label>Nova senha</Label>
-                  <Input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+                  <Label htmlFor="rp-pass">Nova senha</Label>
+                  <Input id="rp-pass" type="password" autoComplete="new-password" {...form.register("password")} />
+                  <PasswordStrengthMeter senha={senha || ""} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Confirmar senha</Label>
-                  <Input type="password" required minLength={6} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+                  <Label htmlFor="rp-conf">Confirmar senha</Label>
+                  <Input id="rp-conf" type="password" autoComplete="new-password" {...form.register("confirm")} />
+                  {form.formState.errors.confirm && (
+                    <p className="text-xs text-destructive">{form.formState.errors.confirm.message}</p>
+                  )}
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full" disabled={loading || !ok}>
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Atualizar senha
                 </Button>
               </form>
