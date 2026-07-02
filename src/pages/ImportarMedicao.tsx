@@ -169,7 +169,7 @@ const consolidarCompetenciaM2PorArquivo = (linhas: LinhaLida[]) => {
     .map((l) => l.periodo_fim)
     .filter(Boolean)
     .sort()
-    .at(-1);
+    .reverse()[0];
   if (!periodoFimMax) return;
   const competenciaArquivo = competenciaFromDate(periodoFimMax);
   linhas.forEach((l) => {
