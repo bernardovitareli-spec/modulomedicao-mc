@@ -732,6 +732,27 @@ export default function ImportarMedicao() {
         });
       }
 
+      // M2: consolidar a competência por contrato (numero_dj + centro_custo).
+      // Alguns equipamentos têm periodo_fim no mês anterior (ex.: 21/05→31/05 dentro de "BM Junho"),
+      // o que fazia o mesmo arquivo ser dividido em duas medições. Passamos a usar a competência
+      // dominante (MAX periodo_fim) para agrupar todos os itens do mesmo contrato/centro de custo
+      // em uma única medição, preservando as datas de período de cada item.
+      if (modeloDetectado === "M2") {
+        const maxFimPorContrato = new Map<string, string>();
+        for (const l of lidas) {
+          if (!l.periodo_fim || !l.numero_dj) continue;
+          const k = `${l.numero_dj}|${(l.centro_custo || "").trim()}`;
+          const atual = maxFimPorContrato.get(k);
+          if (!atual || l.periodo_fim > atual) maxFimPorContrato.set(k, l.periodo_fim);
+        }
+        for (const l of lidas) {
+          if (!l.numero_dj) continue;
+          const k = `${l.numero_dj}|${(l.centro_custo || "").trim()}`;
+          const fimRef = maxFimPorContrato.get(k);
+          if (fimRef) l.mes_ref = fimRef.slice(0, 7) + "-01";
+        }
+      }
+
       const seen = new Map<string, number>();
       lidas.forEach((l, i) => {
         if (!l.mes_ref) return;
