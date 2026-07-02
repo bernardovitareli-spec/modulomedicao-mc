@@ -162,6 +162,21 @@ const lastDayOfMonth = (yyyymm01: string) => {
   return new Date(y, m, 0).toISOString().slice(0, 10);
 };
 
+const competenciaFromDate = (date: string) => `${date.slice(0, 7)}-01`;
+
+const consolidarCompetenciaM2PorArquivo = (linhas: LinhaLida[]) => {
+  const periodoFimMax = linhas
+    .map((l) => l.periodo_fim)
+    .filter(Boolean)
+    .sort()
+    .reverse()[0];
+  if (!periodoFimMax) return;
+  const competenciaArquivo = competenciaFromDate(periodoFimMax);
+  linhas.forEach((l) => {
+    l.mes_ref = competenciaArquivo;
+  });
+};
+
 // ---------- Detecção de cabeçalho ----------
 interface HeaderInfo {
   rowIndex: number; // 0-based no array de linhas brutas
@@ -732,25 +747,11 @@ export default function ImportarMedicao() {
         });
       }
 
-      // M2: consolidar a competência por contrato (numero_dj + centro_custo).
-      // Alguns equipamentos têm periodo_fim no mês anterior (ex.: 21/05→31/05 dentro de "BM Junho"),
-      // o que fazia o mesmo arquivo ser dividido em duas medições. Passamos a usar a competência
-      // dominante (MAX periodo_fim) para agrupar todos os itens do mesmo contrato/centro de custo
-      // em uma única medição, preservando as datas de período de cada item.
+      // M2: competência padrão por arquivo.
+      // A prévia e a confirmação devem usar a mesma competência para todos os itens do arquivo,
+      // definida pelo maior Período Fim. As datas individuais dos itens continuam preservadas.
       if (modeloDetectado === "M2") {
-        const maxFimPorContrato = new Map<string, string>();
-        for (const l of lidas) {
-          if (!l.periodo_fim || !l.numero_dj) continue;
-          const k = `${l.numero_dj}|${(l.centro_custo || "").trim()}`;
-          const atual = maxFimPorContrato.get(k);
-          if (!atual || l.periodo_fim > atual) maxFimPorContrato.set(k, l.periodo_fim);
-        }
-        for (const l of lidas) {
-          if (!l.numero_dj) continue;
-          const k = `${l.numero_dj}|${(l.centro_custo || "").trim()}`;
-          const fimRef = maxFimPorContrato.get(k);
-          if (fimRef) l.mes_ref = fimRef.slice(0, 7) + "-01";
-        }
+        consolidarCompetenciaM2PorArquivo(lidas);
       }
 
       const seen = new Map<string, number>();
@@ -797,6 +798,12 @@ export default function ImportarMedicao() {
 
   const validas = linhas.filter((l) => l.erros.length === 0);
 
+  // Normalizações usadas nas chaves de importação para a prévia e a confirmação
+  // agruparem exatamente os mesmos itens.
+  const normNome = (s: string) =>
+    (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+  const normCNPJ = (s: string) => (s || "").replace(/\D/g, "");
+
   // Helpers para aplicar overrides M1 (preenchidos manualmente pelo usuário)
   const ovOf = (dj: string) => overrides[dj] ?? {};
   // Helper unificado: para M1 lê de "overrides", para M3 lê de "m3Settings", M4 de "m4Settings".
@@ -821,6 +828,15 @@ export default function ImportarMedicao() {
     ((modelo === "M3" || modelo === "M4") ? (cfgOf(l.numero_dj).competencia || l.mes_ref) : l.mes_ref);
   const centroCustoEf = (l: LinhaLida) =>
     ((modelo === "M3" || modelo === "M4") ? (cfgOf(l.numero_dj).centro_custo || l.centro_custo) : l.centro_custo);
+
+  const importPeriodKey = (l: LinhaLida, cfg: any = cfgOf(l.numero_dj)) => {
+    const isConfigModel = modelo === "M1" || modelo === "M3" || modelo === "M4";
+    const clientScope = modelo === "M2"
+      ? (normCNPJ(cfg?.cnpj || l.cnpj) || normNome(l.contratado))
+      : (isConfigModel ? (cfg?.cliente_id || "") : "");
+    const cc = ((modelo === "M3" || modelo === "M4") ? (cfg?.centro_custo || l.centro_custo) : l.centro_custo) || "";
+    return `${clientScope}|${l.numero_dj}|${String(cc).trim()}|${l.mes_ref}`;
+  };
 
   // Resumo agregado
   const clientes = Array.from(new Set(validas.map((l) => l.contratado)));
@@ -917,11 +933,6 @@ export default function ImportarMedicao() {
   const buildMedKey = (contratoId: string, competencia: string, ini: string, fim: string) =>
     `${contratoId}|${competencia}|${ini}|${fim}`;
 
-  // Normalização de nome de cliente (sem acentos, sem espaços extras, lowercase)
-  const normNome = (s: string) =>
-    (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
-  const normCNPJ = (s: string) => (s || "").replace(/\D/g, "");
-
   const confirmar = async () => {
     if (!podeImportar) { notify.error("Não é possível importar"); return; }
     setImporting(true);
@@ -973,20 +984,21 @@ export default function ImportarMedicao() {
         return null;
       };
 
-      // Calcular períodos por medKey provisória (numero_dj+mes_ref) para checar conflitos
+      // Calcular períodos por chave provisória de importação para checar conflitos.
+      // Para M2, o período da medição é sempre o intervalo consolidado do grupo
+      // (menor início e maior fim), e não o período da primeira linha processada.
       const periodoPorMedicao = new Map<string, { inicio: string; fim: string }>();
       for (const l of validas) {
         const ov = cfgFor(l.numero_dj);
-        const periodoIniEfetivo = ov.periodo_inicio || l.periodo_inicio || null;
-        const periodoFimEfetivo = ov.periodo_fim || l.periodo_fim || null;
-        const provKey = `${l.numero_dj}|${l.mes_ref}`;
+        const provKey = importPeriodKey(l, ov);
         if (!periodoPorMedicao.has(provKey)) {
-          const mesmas = validas.filter((x) => x.numero_dj === l.numero_dj && x.mes_ref === l.mes_ref);
+          const mesmas = validas.filter((x) => importPeriodKey(x, cfgFor(x.numero_dj)) === provKey);
           const inicios = mesmas.map((x) => x.periodo_inicio).filter(Boolean).sort() as string[];
           const fins = mesmas.map((x) => x.periodo_fim).filter(Boolean).sort() as string[];
+          const usaPeriodoConfig = modelo === "M1" || modelo === "M3" || modelo === "M4";
           periodoPorMedicao.set(provKey, {
-            inicio: periodoIniEfetivo ?? inicios[0] ?? l.mes_ref!,
-            fim: periodoFimEfetivo ?? fins[fins.length - 1] ?? lastDayOfMonth(l.mes_ref!),
+            inicio: (usaPeriodoConfig ? ov.periodo_inicio : null) ?? inicios[0] ?? l.mes_ref!,
+            fim: (usaPeriodoConfig ? ov.periodo_fim : null) ?? fins[fins.length - 1] ?? lastDayOfMonth(l.mes_ref!),
           });
         }
       }
@@ -997,9 +1009,9 @@ export default function ImportarMedicao() {
       const valorPorChave = new Map<string, number>();
       const ctrInfoPorLinha = new Map<string, { id: string } | null>();
       for (const l of validas) {
-        const provKey = `${l.numero_dj}|${l.mes_ref}`;
-        const periodo = periodoPorMedicao.get(provKey)!;
         const cfg = cfgFor(l.numero_dj);
+        const provKey = importPeriodKey(l, cfg);
+        const periodo = periodoPorMedicao.get(provKey)!;
         const clienteIdLookup = resolveClienteIdLookup(l);
         const cc = (((modelo === "M3" || modelo === "M4") ? cfg.centro_custo : null) || l.centro_custo || "").trim();
         const ctrKey = clienteIdLookup ? `${clienteIdLookup}|${l.numero_dj}|${cc}` : "";
@@ -1012,7 +1024,7 @@ export default function ImportarMedicao() {
 
       const provKeysCheck = new Set<string>();
       for (const l of validas) {
-        const provKey = `${l.numero_dj}|${l.mes_ref}`;
+        const provKey = importPeriodKey(l, cfgFor(l.numero_dj));
         const ctrInfo = ctrInfoPorLinha.get(provKey);
         if (!ctrInfo) continue;
         if (provKeysCheck.has(provKey)) continue;
@@ -1282,7 +1294,7 @@ export default function ImportarMedicao() {
           contratoEquipCache.set(ceKey, ceId);
         }
 
-        const provKey = `${l.numero_dj}|${l.mes_ref}`;
+        const provKey = importPeriodKey(l, cfg);
         const periodo = periodoPorMedicao.get(provKey)!;
         const periodoIniMed = periodo.inicio;
         const periodoFimMed = periodo.fim;
