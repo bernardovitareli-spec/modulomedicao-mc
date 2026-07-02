@@ -984,20 +984,21 @@ export default function ImportarMedicao() {
         return null;
       };
 
-      // Calcular períodos por medKey provisória (numero_dj+mes_ref) para checar conflitos
+      // Calcular períodos por chave provisória de importação para checar conflitos.
+      // Para M2, o período da medição é sempre o intervalo consolidado do grupo
+      // (menor início e maior fim), e não o período da primeira linha processada.
       const periodoPorMedicao = new Map<string, { inicio: string; fim: string }>();
       for (const l of validas) {
         const ov = cfgFor(l.numero_dj);
-        const periodoIniEfetivo = ov.periodo_inicio || l.periodo_inicio || null;
-        const periodoFimEfetivo = ov.periodo_fim || l.periodo_fim || null;
         const provKey = importPeriodKey(l, ov);
         if (!periodoPorMedicao.has(provKey)) {
           const mesmas = validas.filter((x) => importPeriodKey(x, cfgFor(x.numero_dj)) === provKey);
           const inicios = mesmas.map((x) => x.periodo_inicio).filter(Boolean).sort() as string[];
           const fins = mesmas.map((x) => x.periodo_fim).filter(Boolean).sort() as string[];
+          const usaPeriodoConfig = modelo === "M1" || modelo === "M3" || modelo === "M4";
           periodoPorMedicao.set(provKey, {
-            inicio: periodoIniEfetivo ?? inicios[0] ?? l.mes_ref!,
-            fim: periodoFimEfetivo ?? fins[fins.length - 1] ?? lastDayOfMonth(l.mes_ref!),
+            inicio: (usaPeriodoConfig ? ov.periodo_inicio : null) ?? inicios[0] ?? l.mes_ref!,
+            fim: (usaPeriodoConfig ? ov.periodo_fim : null) ?? fins[fins.length - 1] ?? lastDayOfMonth(l.mes_ref!),
           });
         }
       }
