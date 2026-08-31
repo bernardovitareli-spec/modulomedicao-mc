@@ -1234,8 +1234,18 @@ export default function ImportarMedicao() {
           if (existCtr) {
             contrato = { id: existCtr.id, valor_hora: Number(existCtr.valor_hora_padrao ?? 0), garantia: Number(existCtr.garantia_minima_horas ?? 0) };
           } else {
-            const inicio = l.inicio_op ?? periodoIniEfetivo ?? (l.mes_ref ?? new Date().toISOString().slice(0, 10));
-            const termino = l.termino_contrato ?? new Date(new Date(inicio).getFullYear() + 1, 11, 31).toISOString().slice(0, 10);
+            const isDataOk = (d?: string | null) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(new Date(d).getTime());
+            const inicioBruto = [l.inicio_op, periodoIniEfetivo, l.mes_ref].find(isDataOk)
+              ?? new Date().toISOString().slice(0, 10);
+            // Garante que o término nunca seja anterior ao início (constraint contratos_periodo_check).
+            const fimReferencia = [l.termino_contrato, periodoFimEfetivo].filter(isDataOk) as string[];
+            const inicio = fimReferencia.length
+              ? (fimReferencia.some((d) => d < inicioBruto) ? [inicioBruto, ...fimReferencia].sort()[0] : inicioBruto)
+              : inicioBruto;
+            const padraoFim = new Date(new Date(inicio).getFullYear() + 1, 11, 31).toISOString().slice(0, 10);
+            const terminoCandidato = fimReferencia.length ? fimReferencia.sort()[fimReferencia.length - 1] : padraoFim;
+            const termino = terminoCandidato < inicio ? padraoFim : terminoCandidato;
+
             const { data, error } = await supabase.from("contratos").insert({
               numero_dj: l.numero_dj, cliente_id: clienteId,
               tipo_servico: tipoServicoEfetivo,
