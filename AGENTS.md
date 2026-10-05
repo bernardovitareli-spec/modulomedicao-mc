@@ -1,0 +1,1 @@
+- Equipment matching goes through src/lib/equipamentoMatch.ts (serie-based, tag non-unique) — keeps import and cadastro consistent.
