@@ -14,6 +14,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { FormSubmitButton } from "@/components/inputs";
 import { useEquipamentosList, useSalvarEquipamento } from "@/data/equipamentos";
 import { TableSkeleton } from "@/components/skeletons";
+import { normSerie, normTag } from "@/lib/equipamentoMatch";
+import { useConfirmAction } from "@/hooks/useConfirmAction";
+import { notify } from "@/lib/notify";
 import { equipamentoSchema, EquipamentoFormData } from "@/lib/schemas/equipamento";
 
 const empty: EquipamentoFormData = { tipo: "", modelo: "", serie: "", tag: "", ano: null, status: "ativo", observacoes: "" };
@@ -21,6 +24,7 @@ const empty: EquipamentoFormData = { tipo: "", modelo: "", serie: "", tag: "", a
 export default function Equipamentos() {
   const { data: list = [], isLoading } = useEquipamentosList();
   const salvar = useSalvarEquipamento();
+  const confirm = useConfirmAction();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<{ id?: string } | null>(null);
@@ -39,6 +43,20 @@ export default function Equipamentos() {
   };
 
   const onSubmit = form.handleSubmit(async (values) => {
+    const outros = list.filter((e) => e.id !== editing?.id);
+    const s = normSerie(values.serie);
+    if (!s) { form.setError("serie", { message: "Informe a Série/Placa — é a identificação do equipamento." }); return; }
+    const mesmaSerie = outros.find((e) => normSerie(e.serie) === s);
+    if (mesmaSerie) { notify.error(`Série/Placa já cadastrada (tag ${mesmaSerie.tag}).`); return; }
+    const mesmaTag = outros.filter((e) => normTag(e.tag) === normTag(values.tag));
+    if (mesmaTag.length) {
+      const ok = await confirm({
+        title: "Tag repetida", variant: "warning",
+        description: `A tag "${values.tag}" já é usada pela série ${mesmaTag.map((e) => e.serie || "—").join(", ")}. Deseja salvar mesmo assim?`,
+        confirmLabel: "Salvar mesmo assim",
+      });
+      if (ok === null) return;
+    }
     await salvar.mutateAsync({ id: editing?.id, payload: values as Record<string, unknown> });
     setOpen(false);
   });
