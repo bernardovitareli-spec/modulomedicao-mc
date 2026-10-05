@@ -223,6 +223,7 @@ export type Database = {
           equipamento_id: string
           horimetro_inicial: number | null
           id: string
+          tag_contrato: string | null
           valor_hora_override: number | null
         }
         Insert: {
@@ -234,6 +235,7 @@ export type Database = {
           equipamento_id: string
           horimetro_inicial?: number | null
           id?: string
+          tag_contrato?: string | null
           valor_hora_override?: number | null
         }
         Update: {
@@ -245,6 +247,7 @@ export type Database = {
           equipamento_id?: string
           horimetro_inicial?: number | null
           id?: string
+          tag_contrato?: string | null
           valor_hora_override?: number | null
         }
         Relationships: [
