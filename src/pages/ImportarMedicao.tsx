@@ -963,6 +963,47 @@ export default function ImportarMedicao() {
       });
       if (ok === null) return;
     }
+    // Alerta: mesmo equipamento (Série/Placa) já medido em OUTRO contrato com período sobreposto
+    try {
+      const linhasEq = validas
+        .map((l) => ({ l, eq: findEquipamento(equipsListRef.current, l.serie, l.tag) }))
+        .filter((x) => x.eq && x.l.periodo_inicio && x.l.periodo_fim);
+      const ids = Array.from(new Set(linhasEq.map((x) => x.eq!.id)));
+      if (ids.length) {
+        const { data: usos } = await supabase
+          .from("medicao_itens")
+          .select("equipamento_id, periodo_inicio, periodo_fim, medicoes!inner(ativa, status, contratos(numero_dj))")
+          .in("equipamento_id", ids);
+        const conflitos: string[] = [];
+        linhasEq.forEach(({ l, eq }) => {
+          (usos ?? []).forEach((u: any) => {
+            const m = u.medicoes;
+            if (!m?.ativa || m.status === "cancelada") return;
+            const dj = m.contratos?.numero_dj ?? "";
+            if (String(dj).trim() === String(l.numero_dj ?? "").trim()) return;
+            if (u.periodo_inicio <= l.periodo_fim! && u.periodo_fim >= l.periodo_inicio!) {
+              conflitos.push(`Linha ${l.rowExcel}: série ${l.serie} (tag ${l.tag}) já medida no contrato ${dj} de ${u.periodo_inicio} a ${u.periodo_fim}`);
+            }
+          });
+        });
+        if (conflitos.length) {
+          const ok2 = await confirmTag({
+            title: "Equipamento em mais de um contrato no mesmo período",
+            variant: "warning",
+            description: (
+              <div className="space-y-2 text-sm">
+                <p>Os equipamentos abaixo já aparecem em outra medição de <b>outro contrato</b> com período sobreposto. Confira se a repetição procede:</p>
+                <ul className="max-h-48 overflow-y-auto list-disc pl-5 text-xs">
+                  {Array.from(new Set(conflitos)).map((c) => <li key={c}>{c}</li>)}
+                </ul>
+              </div>
+            ),
+            confirmLabel: "Procede, importar",
+          });
+          if (ok2 === null) return;
+        }
+      }
+    } catch (e) { console.warn("Falha ao verificar sobreposição de contratos", e); }
     setImporting(true);
     try {
       // Etapa 1: preparar caches e resolver cliente/contrato (sem gravar itens ainda)
