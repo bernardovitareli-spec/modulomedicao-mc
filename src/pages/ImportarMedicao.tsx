@@ -1436,10 +1436,13 @@ export default function ImportarMedicao() {
           vb: a.vb + Number(i.valor_bruto), vc: a.vc + Number(i.valor_complementares),
           vd: a.vd + Number(i.valor_descontos), vf: a.vf + Number(i.valor_final),
         }), { hi: 0, hl: 0, hp: 0, vb: 0, vc: 0, vd: 0, vf: 0 });
-        await supabase.from("medicoes").update({
+        const { error: errTot } = await supabase.from("medicoes").update({
           total_horas_informadas: t.hi, total_horas_liquidas: t.hl, total_horas_pagar: t.hp,
           valor_bruto: t.vb, valor_complementares: t.vc, valor_descontos: t.vd, valor_final: t.vf,
         } as any).eq("id", medicaoId);
+        if (errTot) throw new Error("Falha ao atualizar totais da medição: " + errTot.message);
+        // Garantia extra: recalcula totais no banco a partir dos itens gravados
+        await supabase.rpc("_recalc_medicao_totais" as any, { _medicao_id: medicaoId });
       }
 
       const skipMsg = skippedItens > 0 ? ` (${skippedItens} linha(s) puladas por escolha do usuário)` : "";
