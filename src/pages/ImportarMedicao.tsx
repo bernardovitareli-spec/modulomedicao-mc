@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
@@ -292,6 +292,7 @@ export default function ImportarMedicao() {
   const navigate = useNavigate();
   const { data: equipsCadastro = [] } = useEquipamentosList();
   const confirmTag = useConfirmAction();
+  const equipsListRef = useRef<EquipRef[]>([]);
   const aplicarAlertasTag = <T extends { serie: string; tag: string; alertas: string[] }>(arr: T[]): T[] => {
     const al = alertasTag(equipsCadastro as EquipRef[], arr);
     arr.forEach((l, i) => { l.alertas = [...l.alertas.filter((a) => !isAlertaTag(a)), ...al[i]]; });
@@ -985,7 +986,7 @@ export default function ImportarMedicao() {
         const k = `${c.cliente_id ?? ""}|${c.numero_dj ?? ""}|${(c.centro_custo ?? "").trim()}`;
         contratosCache.set(k, { id: c.id, valor_hora: Number(c.valor_hora_padrao ?? 0), garantia: Number(c.garantia_minima_horas ?? 0) });
       });
-      const equipsList: EquipRef[] = (eqp ?? []).map((e: any) => ({ id: e.id, serie: e.serie, tag: e.tag }));
+      equipsListRef.current = (eqp ?? []).map((e: any) => ({ id: e.id, serie: e.serie, tag: e.tag }));
 
       // Resolver config (M1: overrides, M3: m3Settings, M4: m4Settings) para um único objeto.
       const cfgFor = (dj: string): any =>
@@ -1300,14 +1301,14 @@ export default function ImportarMedicao() {
         }
 
         const eqpKey = `${l.serie}|${l.tag}`;
-        let equipId = equipsCache.get(eqpKey) ?? findEquipamento(equipsList, l.serie, l.tag)?.id;
+        let equipId = equipsCache.get(eqpKey) ?? findEquipamento(equipsListRef.current, l.serie, l.tag)?.id;
         if (!equipId) {
           const { data, error } = await supabase.from("equipamentos").insert({
             tag: l.tag, serie: l.serie, modelo: l.modelo || "—", tipo: l.tipo_equip || "—", status: "ativo",
           } as any).select("id").single();
           if (error) throw error;
           equipId = data.id; equipsCache.set(eqpKey, equipId); createdEqp++;
-          equipsList.push({ id: data.id, serie: l.serie, tag: l.tag });
+          equipsListRef.current.push({ id: data.id, serie: l.serie, tag: l.tag });
         } else {
           await supabase.from("equipamentos").update({
             tag: l.tag, serie: l.serie, modelo: l.modelo || "—", tipo: l.tipo_equip || "—",
